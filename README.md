@@ -30,7 +30,15 @@ Docker Compose local delivery
 
 Worker không phải business microservice độc lập. Redis/RQ chỉ được thêm khi có quyết định P1 và evidence về nhu cầu job dài.
 
-## Thành viên và ownership
+## Team Members
+
+| No. | Full Name | Student ID |
+|---:|---|---|
+| 1 | Nguyễn Long | 22127242 |
+| 2 | Phạm Văn Minh | 22127272 |
+| 3 | Nguyễn Trần Minh Thư | 22127403 |
+
+## Ownership
 
 | Role | Trách nhiệm chính | Hỗ trợ |
 | --- | --- | --- |
