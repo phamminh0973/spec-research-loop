@@ -17,6 +17,7 @@ Do not fabricate citations, DOI values, papers, experimental results, metrics, i
 | --- | --- | --- |
 | Original assignment | `docs/source/01-assignment.md` | Primary source; do not edit |
 | Approved proposal | `docs/source/02-approved-proposal.md` | Approved source; do not edit |
+| Architecture technology rationale | `docs/source/03-architecture-technology-rational.md` | Supporting rationale; does not override the assignment or approved proposal |
 | Numbered proposal entry | `docs/01-project-proposal.md` | Planned project proposal; implementation sections remain `PLANNED` |
 | Numbered requirements entry | `docs/02-product-requirements.md` | Planned product requirements; implementation remains `PLANNED` |
 | Legacy PRD placeholder | `docs/02-prd.md` | Placeholder; use the numbered requirements document for the current planning set |
