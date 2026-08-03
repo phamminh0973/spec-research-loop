@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Branch"
+  short_description: "Create outcome-based SpecResearch Loop branches"
+  default_prompt: "Use $create-branch to create a SpecResearch Loop branch with an outcome-based conventional name."

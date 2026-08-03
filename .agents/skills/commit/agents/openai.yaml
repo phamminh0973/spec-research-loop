@@ -1,0 +1,4 @@
+interface:
+  display_name: "Commit"
+  short_description: "Create Conventional Commits that pass this repo's commitlint gate"
+  default_prompt: "Use $commit to stage and commit the current changes as a Conventional Commit."

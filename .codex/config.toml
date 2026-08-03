@@ -1,0 +1,4 @@
+# No repository-local MCP server is enabled yet.
+# CodeGraph was present in the copied configuration but its executable is not
+# installed in the verified environment. Add an MCP entry only after the team
+# explicitly adopts, installs, and verifies the tool.

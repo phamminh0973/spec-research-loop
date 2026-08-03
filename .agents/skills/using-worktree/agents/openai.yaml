@@ -1,0 +1,4 @@
+interface:
+  display_name: "Using Worktree"
+  short_description: "Prepare isolated SpecResearch Loop worktrees"
+  default_prompt: "Use $using-worktree to prepare an isolated worktree for this task."

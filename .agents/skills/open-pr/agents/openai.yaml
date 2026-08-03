@@ -1,0 +1,4 @@
+interface:
+  display_name: "Open GitHub PR"
+  short_description: "Prepare and open verified GitHub pull requests"
+  default_prompt: "Use $open-pr to prepare and open a verified pull request from the current branch."

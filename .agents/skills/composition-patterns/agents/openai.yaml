@@ -1,0 +1,4 @@
+interface:
+  display_name: "React Composition Patterns"
+  short_description: "Scalable component APIs and state ownership"
+  default_prompt: "Use $composition-patterns to redesign this component API and state ownership."
