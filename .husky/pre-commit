@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+if [ ! -f package.json ]; then
+  echo "Skipping lint-staged: package.json is not available yet."
+  exit 0
+fi
+
+pnpm exec lint-staged
