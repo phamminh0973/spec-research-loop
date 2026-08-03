@@ -80,39 +80,17 @@ Exact versions và provider/API selection vẫn là Open Questions, không đư�
 
 ## 5. System Context Diagram
 
-```mermaid
-flowchart LR
-    U["Research user"] -->|"Idea, decisions, PDFs, revisions"| S["SpecLoop"]
-    S -->|"Interpretation, structured spec, findings, export"| U
-    A["Academic API"] <-->|"Search results and metadata"| S
-    L["Configurable LLM provider"] <-->|"Structured AI requests/responses"| S
-    F["Local mounted storage"] <-->|"Lawful PDF and parsed artifacts"| S
-    E["Team evaluator"] -->|"Use cases, labels, baseline runs"| S
-    S -->|"Planned evaluation artifacts"| E
-```
+![SpecResearch Loop system context](assets/architecture/system-context.png)
+
+[Mermaid source](assets/architecture/system-context.mmd)
 
 External documents và API/LLM responses đều là untrusted input, không phải instruction.
 
 ## 6. Container Diagram
 
-```mermaid
-flowchart TB
-    U["Browser user"] --> W["Web — Next.js"]
-    W -->|"HTTPS/JSON /api/v1"| API["API — FastAPI modular monolith"]
-    API --> DB[("PostgreSQL")]
-    API --> FS["Local mounted storage"]
-    API --> AA["Academic API"]
-    API --> LLM["LLM provider"]
-    API -->|"Persist job and enqueue/dispatch"| JR["Job abstraction"]
-    JR --> WK["Worker — same application/domain"]
-    WK --> DB
-    WK --> FS
-    WK --> AA
-    WK --> LLM
-    R[("Redis/RQ — P1 conditional")]
-    JR -.->|"only if justified"| R
-    R -.-> WK
-```
+![SpecResearch Loop container diagram](assets/architecture/container-diagram.png)
+
+[Mermaid source](assets/architecture/container-diagram.mmd)
 
 P0 có thể thực thi job nhỏ trong API process qua cùng abstraction. Worker dùng chung domain code và database; đường nối Redis/RQ là conditional P1.
 

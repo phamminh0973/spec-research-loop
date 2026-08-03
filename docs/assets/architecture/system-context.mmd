@@ -1,0 +1,8 @@
+flowchart LR
+    U["Research user"] -->|"Idea, decisions, PDFs, revisions"| S["SpecLoop"]
+    S -->|"Interpretation, structured spec, findings, export"| U
+    A["Academic API"] <-->|"Search results and metadata"| S
+    L["Configurable LLM provider"] <-->|"Structured AI requests/responses"| S
+    F["Local mounted storage"] <-->|"Lawful PDF and parsed artifacts"| S
+    E["Team evaluator"] -->|"Use cases, labels, baseline runs"| S
+    S -->|"Planned evaluation artifacts"| E

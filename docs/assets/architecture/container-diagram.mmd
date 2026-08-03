@@ -1,0 +1,16 @@
+flowchart TB
+    U["Browser user"] --> W["Web — Next.js"]
+    W -->|"HTTPS/JSON /api/v1"| API["API — FastAPI modular monolith"]
+    API --> DB[("PostgreSQL")]
+    API --> FS["Local mounted storage"]
+    API --> AA["Academic API"]
+    API --> LLM["LLM provider"]
+    API -->|"Persist job and enqueue/dispatch"| JR["Job abstraction"]
+    JR --> WK["Worker — same application/domain"]
+    WK --> DB
+    WK --> FS
+    WK --> AA
+    WK --> LLM
+    R[("Redis/RQ — P1 conditional")]
+    JR -.->|"only if justified"| R
+    R -.-> WK
