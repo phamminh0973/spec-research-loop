@@ -1,0 +1,64 @@
+# PLANNED scaffold. Application Dockerfiles are not present yet.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-spec_research_loop}
+      POSTGRES_USER: ${POSTGRES_USER:-spec_research}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-spec_research} -d ${POSTGRES_DB:-spec_research_loop}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-spec_research}:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/${POSTGRES_DB:-spec_research_loop}
+      STORAGE_PATH: /app/storage
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./apps/worker
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-spec_research}:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/${POSTGRES_DB:-spec_research_loop}
+      STORAGE_PATH: /app/storage
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+    env_file:
+      - .env
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

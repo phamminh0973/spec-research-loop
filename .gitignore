@@ -1,0 +1,72 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Node / pnpm / build output
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.turbo/
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Python / FastAPI / worker artifacts
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+htmlcov/
+.coverage
+*.egg-info/
+
+# Application data and local databases
+storage/
+data/
+tmp/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+.cache/
+
+# IDE and operating-system files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local tooling/worktrees
+.superpowers/
+.claude/worktrees/
+.worktrees/
+archives/
+.agents/agent-docs/.tmp/
+.agents/agent-docs/*.local.md
+.agents/skills/drizzle-orm-patterns/
+.agents/skills/nestjs-best-practices/
+.agents/skills/codegraph/
+.agents/skills/codegraph/
+
+# Secrets/certificates
+*.pem
+*.key
+*.crt
+*.p12
