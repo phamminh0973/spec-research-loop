@@ -24,10 +24,11 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-spec_research}:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/${POSTGRES_DB:-spec_research_loop}
+      DATABASE_URL: postgres://${POSTGRES_USER:-spec_research}:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/${POSTGRES_DB:-spec_research_loop}
       STORAGE_PATH: /app/storage
+      API_PORT: ${API_PORT:-4000}
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${API_PORT:-4000}:4000"
     volumes:
       - ./storage:/app/storage
     depends_on:
@@ -54,7 +55,9 @@ services:
     env_file:
       - .env
     environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+      # tRPC is reached via the typed client; this URL is only used for the
+      # browser-side HTTP origin. The path /trpc is appended by the client.
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000}
     ports:
       - "${WEB_PORT:-3000}:3000"
     depends_on:

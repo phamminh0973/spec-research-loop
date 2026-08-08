@@ -1,0 +1,60 @@
+/**
+ * Fastify HTTP server hosting the SpecLoop tRPC API.
+ *
+ * - `/trpc/*`   → tRPC procedures (mounted via `@trpc/server/adapters/fastify`).
+ * - `/healthz`  → plain JSON health endpoint for Docker Compose health checks.
+ *
+ * CORS is enabled in development so the Next.js dev server (default
+ * `http://localhost:3000`) can call the API. In production the web app is
+ * expected to be served from the same origin or behind a reverse proxy that
+ * handles CORS.
+ */
+
+import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
+import Fastify from "fastify";
+import { appRouter, type AppRouter } from "./routers/index.js";
+import { createContext } from "./trpc/context.js";
+
+const PORT = Number(process.env.API_PORT ?? 4000);
+const HOST = process.env.API_HOST ?? "0.0.0.0";
+const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+
+async function main() {
+  const app = Fastify({
+    logger: {
+      level: process.env.LOG_LEVEL ?? "info",
+    },
+  });
+
+  await app.register(await import("@fastify/cors").then((m) => m.default), {
+    origin: [WEB_ORIGIN],
+    credentials: true,
+  });
+
+  await app.register(fastifyTRPCPlugin, {
+    prefix: "/trpc",
+    trpcOptions: {
+      router: appRouter,
+      createContext,
+      onError({ path, error }) {
+        app.log.error({ err: error, path }, "tRPC procedure failed");
+      },
+    } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],
+  });
+
+  app.get("/healthz", async () => ({
+    status: "ok",
+    service: "specloop-api",
+    timestamp: new Date().toISOString(),
+  }));
+
+  try {
+    await app.listen({ port: PORT, host: HOST });
+    app.log.info(`SpecLoop API listening on http://${HOST}:${PORT}`);
+  } catch (err) {
+    app.log.error(err);
+    process.exit(1);
+  }
+}
+
+void main();
