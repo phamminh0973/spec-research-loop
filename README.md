@@ -20,15 +20,22 @@ P1/P2 như Redis/RQ, second academic API, graph visualization, five Judges, mult
 Monorepo + modular monolith + background job processing:
 
 ```text
-apps/web       Next.js + TypeScript
-apps/api       FastAPI modular monolith
-apps/worker    worker cùng application/domain
+apps/web       Next.js + TypeScript (App Router)
+apps/api       Node.js + tRPC + Fastify modular monolith
+apps/worker    worker cùng application/domain (Node.js)
+packages/schemas  shared Zod schemas + inferred TypeScript types
 PostgreSQL     shared database
 Local volume   PDF/source storage cho MVP
 Docker Compose local delivery
 ```
 
-Worker không phải business microservice độc lập. Redis/RQ chỉ được thêm khi có quyết định P1 và evidence về nhu cầu job dài.
+End-to-end type safety: `apps/web` imports `AppRouter` từ `apps/api`; mọi
+input/output đều là Zod schema ở `packages/schemas`. Backend stack được chốt
+trong [ADR-001](docs/architecture/adrs/ADR-001-trpc-backend.md) (Node + tRPC
+thay cho FastAPI).
+
+Worker không phải business microservice độc lập. Redis/BullMQ chỉ được thêm
+khi có quyết định P1 và evidence về nhu cầu job dài.
 
 ## Team Members
 

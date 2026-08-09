@@ -2,7 +2,13 @@
 
 **Trạng thái:** `PLANNED` — chưa có source code hoặc deployment được xác nhận  
 **Architecture style:** monorepo, modular monolith, background jobs  
-**P0 stack:** Next.js, FastAPI, PostgreSQL, PyMuPDF, local mounted storage, Docker Compose
+**P0 stack:** Next.js, Node.js + tRPC, PostgreSQL, `pdfjs-dist`/`pdf-parse`, local mounted storage, Docker Compose
+
+> **Override notice:** The backend stack recorded in the approved proposal
+> (FastAPI + Python) is replaced by **Node.js + TypeScript + tRPC** under
+> [ADR-001](adrs/ADR-001-trpc-backend.md). Source documents under `docs/source/`
+> are not edited; this file and other derived documents reflect the accepted
+> ADR.
 
 ## 1. Architecture goals and constraints
 
@@ -43,15 +49,17 @@ Trade-off là scaling/deployment theo module chưa độc lập. Chỉ xem xét 
 ```text
 spec-research-loop/
 ├── apps/
-│   ├── web/                 # Next.js UI
-│   ├── api/                 # FastAPI modular monolith
-│   └── worker/              # same-domain job runner
+│   ├── web/                 # Next.js UI (App Router, TypeScript)
+│   ├── api/                 # Node.js + tRPC + Fastify modular monolith
+│   └── worker/              # same-domain job runner (Node.js, shared schemas)
 ├── packages/
-│   ├── schemas/             # shared contracts/generated clients if adopted
+│   ├── schemas/             # shared Zod schemas + inferred TypeScript types
 │   └── prompts/             # prompt templates and metadata
 ├── infrastructure/          # Docker and local deployment assets
 ├── tests/                   # cross-application integration/E2E fixtures
 ├── docs/
+│   ├── architecture/adrs/   # accepted architecture decisions
+│   └── source/              # immutable assignment and approved proposal
 ├── AGENTS.md
 ├── README.md
 └── docker-compose.yml
@@ -66,13 +74,14 @@ spec-research-loop/
 | Frontend | Next.js + TypeScript | Typed UI, routing và workflow screens trong một web app | P0 |
 | Styling | Tailwind CSS | Tạo UI nhất quán nhanh trong thời gian ngắn | P0 |
 | Server state | TanStack Query | Cache/invalidation và job polling rõ ràng | P0 |
-| Backend | FastAPI + Pydantic | Async-capable API, explicit schemas, OpenAPI và validation | P0 |
-| Persistence | SQLAlchemy + Alembic | Transactional repository/migration path cho PostgreSQL | P0 |
+| Backend | Node.js + tRPC + Fastify | End-to-end typed RPC với Zod validation; một TypeScript toolchain với frontend | P0 (per ADR-001) |
+| Shared contracts | Zod schemas in `packages/schemas` | Single source of truth cho runtime validation và TypeScript types | P0 |
+| Persistence | `pg` + node-pg-migrate | Transactional repository/migration path cho PostgreSQL | P0 |
 | Database | PostgreSQL | Relational integrity cho graph-like domain, provenance và versions | P0 |
-| PDF | PyMuPDF | Page-aware text extraction phù hợp evidence spans | P0 |
+| PDF | `pdfjs-dist` / `pdf-parse` | Page-aware text extraction phù hợp evidence spans | P0 |
 | File storage | Local mounted volume | Đơn giản, tái lập trong Docker Compose | P0 |
 | Background work | Job abstraction + persisted status | Tách lifecycle job khỏi HTTP request | P0 |
-| Queue | Redis + RQ | Chỉ thêm nếu long jobs cần external queue/recovery | P1 |
+| Queue | Redis + BullMQ (Node) | Chỉ thêm nếu long jobs cần external queue/recovery | P1 |
 | AI | Một configurable LLM provider | Giảm integration scope, giữ provider boundary | P0 |
 | Delivery | Docker Compose | Local reproducibility cho web/API/database/storage và optional worker | P0 |
 
@@ -204,14 +213,26 @@ erDiagram
 
 ## 12. API conventions
 
-- Base path: `/api/v1`.
-- JSON request/response với Pydantic schemas; timestamps ISO 8601 UTC.
-- Resource IDs là opaque UUIDs; client không suy diễn cấu trúc.
-- Error envelope planned: `{ code, message, details, correlation_id }`; không trả private stack trace.
-- Long operation trả job reference và status endpoint thay vì giữ request mở.
-- Idempotency được xem xét cho create-job/regenerate/finalize commands.
-- Pagination bắt buộc cho source/search/job/history collections khi implementation chốt contract.
-- Authorization scope theo project, dù P0 có thể dùng demo user.
+- API surface is exposed exclusively through **tRPC** mounted on Fastify.
+  There is no parallel REST surface in P0; if a future integration needs REST,
+  it will be added via `@trpc/server/openapi` or a thin adapter and recorded in
+  an ADR.
+- The tRPC router is the `AppRouter` type imported by `apps/web`. Inputs are
+  Zod schemas from `packages/schemas`; outputs are inferred TypeScript types.
+  This is the end-to-end type-safety contract.
+- Base path: `/trpc` (tRPC convention). A health endpoint is exposed at
+  `/healthz` for Docker Compose health checks.
+- Resource IDs are opaque UUIDs; the client does not infer structure.
+- Error envelope: tRPC `TRPCError` with `code` (`BAD_REQUEST`,
+  `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PRECONDITION_FAILED`,
+  `INTERNAL_SERVER_ERROR`), `message`, optional `cause`, and `correlationId`
+  injected by middleware. Private stack traces are never returned.
+- Long-running operations return a job reference and a `jobs.status` query;
+  HTTP requests do not wait indefinitely.
+- Idempotency is considered for create-job / regenerate / finalize commands.
+- Pagination is required for source / search / job / history collections when
+  implementation finalises the contract.
+- Authorization scope is per project; P0 may use a demo user.
 
 ### Main planned APIs
 
@@ -315,9 +336,9 @@ Metrics/dashboard and distributed tracing beyond demo needs are not claimed. Adv
 Planned P0 services:
 
 - `web`: Next.js.
-- `api`: FastAPI modular monolith.
+- `api`: Node.js + tRPC + Fastify modular monolith.
 - `db`: PostgreSQL with persistent volume.
-- `worker`: same code/domain image, enabled for jobs selected by architecture decision.
+- `worker`: same-domain Node.js image, enabled for jobs selected by architecture decision.
 - shared private file volume for API/worker.
 
 `redis` is an optional P1 profile only after activation criteria. Compose health checks, migrations, configuration validation and documented startup commands must be verified after implementation; none are claimed now.
@@ -334,6 +355,7 @@ Planned P0 services:
 | One LLM provider | Lower prompt/provider complexity | Provider-specific dependency and less ensemble diversity |
 | Deterministic aggregation | Testable and explainable | Less semantic clustering flexibility |
 | Markdown-only export | Reliable scope | No formatted PDF/DOCX in MVP |
+| Node + tRPC backend | End-to-end type safety, single TypeScript toolchain | Python-native libs (PyMuPDF, etc.) require a worker service if they become critical path; see ADR-001 |
 
 ## 20. Conditions for revisiting decisions
 

@@ -51,7 +51,8 @@ SpecLoop dùng structured workflow thay cho single-shot generation. Mỗi bướ
 Giải pháp gồm:
 
 - Web workspace cho project, interpretation, spec nodes, literature, evidence, research design, Judges, revision và export.
-- FastAPI modular monolith quản lý domain logic, persistence, API và job abstraction.
+- Node.js + tRPC + Fastify modular monolith quản lý domain logic, persistence, API và job abstraction (per ADR-001).
+- Shared Zod schemas trong `packages/schemas` làm single source of truth cho runtime validation và TypeScript types; `apps/web` import trực tiếp `AppRouter` từ `apps/api` để có end-to-end type safety.
 - PostgreSQL lưu project, nodes/relations, sources/evidence, experiments, Judge findings, decisions và versions.
 - Background worker thuộc cùng application/domain cho long-running jobs; P0 có thể chạy in-process nếu đủ cho demo.
 - Một configurable LLM provider với structured JSON validation, timeout/retry giới hạn và model-call logging.

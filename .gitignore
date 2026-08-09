@@ -16,6 +16,7 @@ dist/
 build/
 coverage/
 *.tsbuildinfo
+.pnpm-debug.log*
 
 # Python / FastAPI / worker artifacts
 .venv/
