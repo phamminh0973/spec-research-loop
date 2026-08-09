@@ -9,3 +9,9 @@
 export { appRouter } from "./routers/index.js";
 export type { AppRouter } from "./routers/index.js";
 export { createContext, type ApiContext } from "./trpc/context.js";
+export {
+  getLlmClient,
+  getLlmConfig,
+  resetLlmClient,
+  type LlmConfig,
+} from "./llm/index.js";

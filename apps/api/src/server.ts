@@ -12,17 +12,18 @@
 
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
 import Fastify from "fastify";
+import { env } from "./env.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
 import { createContext } from "./trpc/context.js";
 
-const PORT = Number(process.env.API_PORT ?? 4000);
-const HOST = process.env.API_HOST ?? "0.0.0.0";
-const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3000";
+const PORT = env.API_PORT;
+const HOST = env.API_HOST;
+const WEB_ORIGIN = env.WEB_ORIGIN;
 
 async function main() {
   const app = Fastify({
     logger: {
-      level: process.env.LOG_LEVEL ?? "info",
+      level: env.LOG_LEVEL,
     },
   });
 
