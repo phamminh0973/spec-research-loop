@@ -1,6 +1,6 @@
 flowchart TB
     U["Browser user"] --> W["Web — Next.js"]
-    W -->|"HTTPS/JSON /api/v1"| API["API — FastAPI modular monolith"]
+    W -->|"HTTPS tRPC /trpc"| API["API — Node.js + tRPC + Fastify modular monolith"]
     API --> DB[("PostgreSQL")]
     API --> FS["Local mounted storage"]
     API --> AA["Academic API"]
@@ -11,6 +11,6 @@ flowchart TB
     WK --> FS
     WK --> AA
     WK --> LLM
-    R[("Redis/RQ — P1 conditional")]
+    R[("Redis/BullMQ — P1 conditional")]
     JR -.->|"only if justified"| R
     R -.-> WK

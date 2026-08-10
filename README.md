@@ -2,7 +2,7 @@
 
 SpecLoop là website giúp biến một research idea còn mơ hồ thành research specification có cấu trúc, provenance, experiment plan và vòng lặp review–revision.
 
-**Trạng thái hiện tại:** `PLANNED` — repository mới có tài liệu và scaffold; chưa có application source code, Dockerfile, test run hoặc benchmark được xác nhận.
+**Trạng thái hiện tại:** `SCAFFOLDED` — monorepo, shared schemas, web và API đã có source code và đã qua local install/typecheck/build/smoke verification; workflow sản phẩm, automated tests và Docker deployment vẫn `PLANNED`.
 
 ## Phạm vi MVP
 
@@ -13,7 +13,7 @@ SpecLoop là website giúp biến một research idea còn mơ hồ thành resea
 - Ba Judge độc lập: Evidence, Research và Experiment.
 - User revision, version/diff cơ bản và Markdown export.
 
-P1/P2 như Redis/RQ, second academic API, graph visualization, five Judges, multi-model, GROBID, MinIO/S3 và PDF/DOCX export không thuộc MVP.
+P1/P2 như Redis/BullMQ, second academic API, graph visualization, five Judges, multi-model, GROBID, MinIO/S3 và PDF/DOCX export không thuộc MVP.
 
 ## Kiến trúc định hướng
 
@@ -39,19 +39,19 @@ khi có quyết định P1 và evidence về nhu cầu job dài.
 
 ## Team Members
 
-| No. | Full Name | Student ID |
-|---:|---|---|
-| 1 | Nguyễn Long | 22127242 |
-| 2 | Phạm Văn Minh | 22127272 |
-| 3 | Nguyễn Trần Minh Thư | 22127403 |
+| No. | Full Name            | Student ID |
+| --: | -------------------- | ---------- |
+|   1 | Nguyễn Long          | 22127242   |
+|   2 | Phạm Văn Minh        | 22127272   |
+|   3 | Nguyễn Trần Minh Thư | 22127403   |
 
 ## Ownership
 
-| Role | Trách nhiệm chính | Hỗ trợ |
-| --- | --- | --- |
-| Member 1 — Product Workflow and Frontend Lead | User journey, web UI, interpretation, spec, revision/version, E2E UX | API contract, evaluation UI |
-| Member 2 — Backend, Data and Platform Lead | FastAPI, PostgreSQL, APIs, jobs, storage, Docker, reliability | Integration và security tests |
-| Member 3 — AI, Evidence and Evaluation Lead | Prompts/schemas, literature/evidence, generator, Judges, baselines, evaluation | Contract tests và provenance review |
+| Role                                          | Trách nhiệm chính                                                              | Hỗ trợ                              |
+| --------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
+| Member 1 — Product Workflow and Frontend Lead | User journey, web UI, interpretation, spec, revision/version, E2E UX           | API contract, evaluation UI         |
+| Member 2 — Backend, Data and Platform Lead    | Node.js, tRPC/Fastify, PostgreSQL, jobs, storage, Docker, reliability          | Integration và security tests       |
+| Member 3 — AI, Evidence and Evaluation Lead   | Prompts/schemas, literature/evidence, generator, Judges, baselines, evaluation | Contract tests và provenance review |
 
 Không gán tên cá nhân trong tài liệu khi chưa có quyết định nhóm.
 

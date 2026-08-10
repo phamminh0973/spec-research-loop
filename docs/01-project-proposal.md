@@ -110,7 +110,7 @@ Ba Judge P0 chạy độc lập trước aggregation. Hệ thống tổng hợp 
 ## 10. P1 capabilities
 
 - Academic API thứ hai.
-- Redis + RQ và progress tracking đầy đủ nếu in-process jobs không đáp ứng.
+- Redis + BullMQ và progress tracking đầy đủ nếu in-process jobs không đáp ứng.
 - Exact-text hash.
 - Claim-Scope Calibrator riêng.
 - Better semantic diff.
@@ -145,34 +145,34 @@ P2 không nằm trong Product MVP và không được triển khai trước feat
 ```text
 Monorepo
 ├── apps/web       Next.js + TypeScript
-├── apps/api       FastAPI modular monolith
-├── apps/worker    same-domain background job executor
-├── packages       schemas and prompts
+├── apps/api       Node.js + tRPC + Fastify modular monolith
+├── apps/worker    same-domain Node.js background job executor
+├── packages       Zod schemas and prompts
 ├── PostgreSQL     shared application database
 ├── local storage  MVP source/PDF files
 └── Docker Compose reproducible delivery
 ```
 
-Worker không phải business microservice độc lập. Redis/RQ là P1 và chỉ được kích hoạt khi long-running jobs thực sự cần queue ngoài process.
+Worker không phải business microservice độc lập. Redis/BullMQ là P1 và chỉ được kích hoạt khi long-running jobs thực sự cần queue ngoài process.
 
 ## 14. Team structure
 
-| Role | Primary responsibility | Supporting responsibility |
-| --- | --- | --- |
-| Member 1 — Product Workflow and Frontend Lead | User journey, web UI, interpretation/spec/revision/version screens, E2E UX | API contract review và evaluation UI |
-| Member 2 — Backend, Data and Platform Lead | FastAPI, database/migrations, APIs, job status/worker, Docker, integration reliability | E2E and security testing |
-| Member 3 — AI, Evidence and Evaluation Lead | Prompt/schema, literature/evidence pipeline, generator, Judges, baselines và evaluation | Contract tests và provenance review |
+| Role                                          | Primary responsibility                                                                         | Supporting responsibility            |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Member 1 — Product Workflow and Frontend Lead | User journey, web UI, interpretation/spec/revision/version screens, E2E UX                     | API contract review và evaluation UI |
+| Member 2 — Backend, Data and Platform Lead    | Node.js, tRPC/Fastify, database/migrations, job status/worker, Docker, integration reliability | E2E and security testing             |
+| Member 3 — AI, Evidence and Evaluation Lead   | Prompt/schema, literature/evidence pipeline, generator, Judges, baselines và evaluation        | Contract tests và provenance review  |
 
 Mỗi Epic có primary owner role và supporting role; integration theo vertical slice, không tạo ba silo độc lập.
 
 ## 15. Roadmap tổng quan bốn tuần
 
-| Tuần | Goal | Exit signal |
-| --- | --- | --- |
-| 1 | Foundation, project/idea, confirmed interpretation, basic decomposition | Project và nodes được lưu; interpretation gate hoạt động ở mức planned acceptance |
-| 2 | Literature, evidence, gap, claim và experiment | Một API/manual import, evidence link, integrity checks và research design slice được tích hợp |
-| 3 | Spec generation, ba Judge và revision | P0 end-to-end idea → revision chạy trước cuối tuần; feature freeze P0 |
-| 4 | Integration, test, B0/B1 evaluation, deploy, report và demo | Có evidence thực tế cho test/evaluation/deployment; không thêm P2 |
+| Tuần | Goal                                                                    | Exit signal                                                                                   |
+| ---- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1    | Foundation, project/idea, confirmed interpretation, basic decomposition | Project và nodes được lưu; interpretation gate hoạt động ở mức planned acceptance             |
+| 2    | Literature, evidence, gap, claim và experiment                          | Một API/manual import, evidence link, integrity checks và research design slice được tích hợp |
+| 3    | Spec generation, ba Judge và revision                                   | P0 end-to-end idea → revision chạy trước cuối tuần; feature freeze P0                         |
+| 4    | Integration, test, B0/B1 evaluation, deploy, report và demo             | Có evidence thực tế cho test/evaluation/deployment; không thêm P2                             |
 
 ## 16. Deliverables
 
@@ -189,18 +189,18 @@ Tất cả deliverable liên quan code, test, evaluation hoặc demo hiện có 
 
 ## 17. Main risks
 
-| Risk | Impact | Primary mitigation |
-| --- | --- | --- |
-| Scope quá lớn | Rất cao | Khóa P0/P1/P2, feature freeze cuối tuần 3 |
-| Academic API lỗi/rate limit | Cao | Một API chính, cache khi phù hợp, manual import |
-| PDF parse sai | Cao | Page parser, validation, manual evidence fallback |
-| LLM JSON lỗi | Trung bình | Pydantic validation, một repair retry theo policy, error status |
-| Evidence verifier sai | Cao | Deterministic checks, atomic rubric, human review |
-| Judge cùng bias | Trung bình | Independent prompts/context và gold issue set |
-| API cost vượt | Cao | Budget, max rerun, caching, hard stop |
-| Queue integration chậm | Trung bình | In-process P0, Redis/RQ P1 |
-| Không đủ dữ liệu/label | Trung bình | Dataset nhỏ, controlled errors, limitations report |
-| Integration dồn cuối | Rất cao | Vertical slice và E2E trước cuối tuần 3 |
+| Risk                        | Impact     | Primary mitigation                                         |
+| --------------------------- | ---------- | ---------------------------------------------------------- |
+| Scope quá lớn               | Rất cao    | Khóa P0/P1/P2, feature freeze cuối tuần 3                  |
+| Academic API lỗi/rate limit | Cao        | Một API chính, cache khi phù hợp, manual import            |
+| PDF parse sai               | Cao        | Page parser, validation, manual evidence fallback          |
+| LLM JSON lỗi                | Trung bình | Zod validation, một repair retry theo policy, error status |
+| Evidence verifier sai       | Cao        | Deterministic checks, atomic rubric, human review          |
+| Judge cùng bias             | Trung bình | Independent prompts/context và gold issue set              |
+| API cost vượt               | Cao        | Budget, max rerun, caching, hard stop                      |
+| Queue integration chậm      | Trung bình | In-process P0, Redis/BullMQ P1                             |
+| Không đủ dữ liệu/label      | Trung bình | Dataset nhỏ, controlled errors, limitations report         |
+| Integration dồn cuối        | Rất cao    | Vertical slice và E2E trước cuối tuần 3                    |
 
 ## 18. Definition of Done — Product MVP
 

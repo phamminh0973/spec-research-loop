@@ -43,7 +43,7 @@
 - Monorepo và modular monolith rationale.
 - System context/container diagrams.
 - Same-domain background worker và shared PostgreSQL.
-- Local storage/PyMuPDF/Docker Compose.
+- Local storage/`pdfjs-dist` or `pdf-parse`/Docker Compose.
 - Trade-offs và ADRs.
 - **Placeholder — update after code:** as-built architecture và deviations.
 
@@ -157,7 +157,7 @@
 
 ### P1 candidates
 
-- Second academic API, Redis/RQ, exact-text hash.
+- Second academic API, Redis/BullMQ, exact-text hash.
 - Claim-Scope Calibrator, better semantic diff.
 - DOI verification, prompt regression and cost dashboard.
 

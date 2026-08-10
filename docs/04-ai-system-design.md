@@ -16,23 +16,23 @@
 
 ## 2. AI task catalog and schemas
 
-Các schema dưới đây mô tả contract planned; type chi tiết sẽ được định nghĩa bằng Pydantic và shared schemas khi implementation bắt đầu.
+Các schema dưới đây mô tả contract planned; type chi tiết được định nghĩa bằng Zod trong `packages/schemas` và được chia sẻ qua tRPC khi implementation của từng capability bắt đầu.
 
-| Task ID | Task | Input schema | Output schema | Human gate |
-| --- | --- | --- | --- | --- |
-| AIT-01 | Idea interpretation | `InterpretIdeaInput { project_id, raw_idea, domain?, deadline?, resource_constraints[] }` | `InterpretationOutput { simple_interpretation, technical_interpretation, assumptions[], objectives[], ambiguities[] }` | Confirm/Edit/Regenerate/Other trước decomposition |
-| AIT-02 | Structured decomposition | `DecomposeIdeaInput { confirmed_interpretation, confirmed_decisions[], constraints[] }` | `DecompositionOutput { nodes[], relations[], warnings[] }` | User review/edit nodes |
-| AIT-03 | Search-query generation | `QueryGenerationInput { research_questions[], domain, known_terms[], limits }` | `QueryGenerationOutput { queries[{ query, rationale, target_concept }] }` | User may edit/select queries |
-| AIT-04 | Related-work synthesis | `RelatedWorkInput { selected_sources[], evidence_summaries[], allowed_source_ids[] }` | `RelatedWorkOutput { rows[{ source_id, capabilities[], limitations[], evidence_refs[] }], warnings[] }` | User reviews matrix/provenance |
-| AIT-05 | Atomic claim–evidence review | `EvidenceReviewInput { claim, evidence_span, short_context, rubric_version }` | `EvidenceReviewOutput { verdict, reason, unsupported_aspects[], confidence_label? }` | User/verifier review; does not confer user confirmation |
-| AIT-06 | Gap proposal | `GapInput { research_questions[], related_work_rows[], evidence_refs[], scope_constraints[] }` | `GapOutput { candidates[{ known_capability, limitation, importance, testable_hypothesis, evidence_refs[], nearest_work_ids[], novelty_risk, scope }] }` | Select/Edit/Combine/Other |
-| AIT-07 | Contribution and claim generation | `ClaimDesignInput { selected_gap, confirmed_nodes[], constraints[], evidence_refs[] }` | `ClaimDesignOutput { contributions[], claims[{ type, text, scope, baseline, dataset_domain, metric, expected_direction, falsification_condition, evidence_refs[], experiment_refs[] }] }` | User confirms/edits research choices |
-| AIT-08 | Experiment planning | `ExperimentPlanInput { claims[], resources[], baselines[], available_datasets[], budget_limits }` | `ExperimentPlanOutput { baselines[], metrics[], protocol[], controls[], ablations[], generalization_proposals[], assumptions[], estimates[] }` | User reviews feasibility and choices |
-| AIT-09 | Specification generation | `SpecGenerationInput { confirmed_nodes[], source_metadata[], evidence_links[], experiment_plans[], user_decisions[], template_version }` | `ResearchSpecificationOutput { sections[14], provenance_index[], proposed_claims[], warnings[] }` | User reviews draft before Judges/finalize |
-| AIT-10 | Evidence Judge | `JudgeInput { judge_type=EVIDENCE, target_nodes[], evidence_links[], spec_sections[], rubric_version }` | `JudgeOutput { findings[] }` | Findings reviewed after aggregation |
-| AIT-11 | Research Judge | `JudgeInput { judge_type=RESEARCH, target_nodes[], related_work[], spec_sections[], rubric_version }` | `JudgeOutput { findings[] }` | Findings reviewed after aggregation |
-| AIT-12 | Experiment Judge | `JudgeInput { judge_type=EXPERIMENT, claims[], experiment_plans[], spec_sections[], rubric_version }` | `JudgeOutput { findings[] }` | Findings reviewed after aggregation |
-| AIT-13 | Revision option generation | `RevisionInput { finding_group, target_content, allowed_actions, project_constraints }` | `RevisionOutput { options[{ action, explanation, example?, expected_effect }], warnings[] }` | User selects/edits/Other; AI never chooses automatically |
+| Task ID | Task                              | Input schema                                                                                                                             | Output schema                                                                                                                                                                             | Human gate                                               |
+| ------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| AIT-01  | Idea interpretation               | `InterpretIdeaInput { project_id, raw_idea, domain?, deadline?, resource_constraints[] }`                                                | `InterpretationOutput { simple_interpretation, technical_interpretation, assumptions[], objectives[], ambiguities[] }`                                                                    | Confirm/Edit/Regenerate/Other trước decomposition        |
+| AIT-02  | Structured decomposition          | `DecomposeIdeaInput { confirmed_interpretation, confirmed_decisions[], constraints[] }`                                                  | `DecompositionOutput { nodes[], relations[], warnings[] }`                                                                                                                                | User review/edit nodes                                   |
+| AIT-03  | Search-query generation           | `QueryGenerationInput { research_questions[], domain, known_terms[], limits }`                                                           | `QueryGenerationOutput { queries[{ query, rationale, target_concept }] }`                                                                                                                 | User may edit/select queries                             |
+| AIT-04  | Related-work synthesis            | `RelatedWorkInput { selected_sources[], evidence_summaries[], allowed_source_ids[] }`                                                    | `RelatedWorkOutput { rows[{ source_id, capabilities[], limitations[], evidence_refs[] }], warnings[] }`                                                                                   | User reviews matrix/provenance                           |
+| AIT-05  | Atomic claim–evidence review      | `EvidenceReviewInput { claim, evidence_span, short_context, rubric_version }`                                                            | `EvidenceReviewOutput { verdict, reason, unsupported_aspects[], confidence_label? }`                                                                                                      | User/verifier review; does not confer user confirmation  |
+| AIT-06  | Gap proposal                      | `GapInput { research_questions[], related_work_rows[], evidence_refs[], scope_constraints[] }`                                           | `GapOutput { candidates[{ known_capability, limitation, importance, testable_hypothesis, evidence_refs[], nearest_work_ids[], novelty_risk, scope }] }`                                   | Select/Edit/Combine/Other                                |
+| AIT-07  | Contribution and claim generation | `ClaimDesignInput { selected_gap, confirmed_nodes[], constraints[], evidence_refs[] }`                                                   | `ClaimDesignOutput { contributions[], claims[{ type, text, scope, baseline, dataset_domain, metric, expected_direction, falsification_condition, evidence_refs[], experiment_refs[] }] }` | User confirms/edits research choices                     |
+| AIT-08  | Experiment planning               | `ExperimentPlanInput { claims[], resources[], baselines[], available_datasets[], budget_limits }`                                        | `ExperimentPlanOutput { baselines[], metrics[], protocol[], controls[], ablations[], generalization_proposals[], assumptions[], estimates[] }`                                            | User reviews feasibility and choices                     |
+| AIT-09  | Specification generation          | `SpecGenerationInput { confirmed_nodes[], source_metadata[], evidence_links[], experiment_plans[], user_decisions[], template_version }` | `ResearchSpecificationOutput { sections[14], provenance_index[], proposed_claims[], warnings[] }`                                                                                         | User reviews draft before Judges/finalize                |
+| AIT-10  | Evidence Judge                    | `JudgeInput { judge_type=EVIDENCE, target_nodes[], evidence_links[], spec_sections[], rubric_version }`                                  | `JudgeOutput { findings[] }`                                                                                                                                                              | Findings reviewed after aggregation                      |
+| AIT-11  | Research Judge                    | `JudgeInput { judge_type=RESEARCH, target_nodes[], related_work[], spec_sections[], rubric_version }`                                    | `JudgeOutput { findings[] }`                                                                                                                                                              | Findings reviewed after aggregation                      |
+| AIT-12  | Experiment Judge                  | `JudgeInput { judge_type=EXPERIMENT, claims[], experiment_plans[], spec_sections[], rubric_version }`                                    | `JudgeOutput { findings[] }`                                                                                                                                                              | Findings reviewed after aggregation                      |
+| AIT-13  | Revision option generation        | `RevisionInput { finding_group, target_content, allowed_actions, project_constraints }`                                                  | `RevisionOutput { options[{ action, explanation, example?, expected_effect }], warnings[] }`                                                                                              | User selects/edits/Other; AI never chooses automatically |
 
 ### 2.1 Common node schema
 
@@ -79,21 +79,21 @@ No field requests hidden/private reasoning. `reason` is a concise review rationa
 
 ## 3. Prompt catalog
 
-| Prompt ID | Task | System purpose | Context boundary | Version trigger |
-| --- | --- | --- | --- | --- |
-| PT-01 | AIT-01 | Interpret without inventing facts | User idea + declared constraints | Schema/rubric/copy change |
-| PT-02 | AIT-02 | Produce typed proposed nodes/relations | Confirmed interpretation only | Node/relation rules change |
-| PT-03 | AIT-03 | Generate bounded search queries | Confirmed research questions | Search provider/query strategy change |
-| PT-04 | AIT-04 | Synthesize source-bounded related work | Selected sources + evidence refs | Matrix schema/rubric change |
-| PT-05 | AIT-05 | Judge one claim–span pair | One claim + one span + short context | Verdict/rubric change |
-| PT-06 | AIT-06 | Propose corpus-bounded gaps | Selected corpus-derived records | Gap schema/warning change |
-| PT-07 | AIT-07 | Propose contribution/atomic claims | Selected gap + confirmed nodes | Claim schema/rubric change |
-| PT-08 | AIT-08 | Plan controlled experiments | Claims + resources/budget | Planner schema/formulas change |
-| PT-09 | AIT-09 | Assemble 14-section specification | Allowed confirmed inputs only | Template/section policy change |
-| PT-10 | AIT-10 | Evidence Judge | Evidence-specific rubric/context | Judge rubric/context policy change |
-| PT-11 | AIT-11 | Research Judge | Gap/contribution/overclaim rubric | Judge rubric/context policy change |
-| PT-12 | AIT-12 | Experiment Judge | Claim–experiment adequacy rubric | Judge rubric/context policy change |
-| PT-13 | AIT-13 | Generate revision options | One finding group + target | Decision-option policy change |
+| Prompt ID | Task   | System purpose                         | Context boundary                     | Version trigger                       |
+| --------- | ------ | -------------------------------------- | ------------------------------------ | ------------------------------------- |
+| PT-01     | AIT-01 | Interpret without inventing facts      | User idea + declared constraints     | Schema/rubric/copy change             |
+| PT-02     | AIT-02 | Produce typed proposed nodes/relations | Confirmed interpretation only        | Node/relation rules change            |
+| PT-03     | AIT-03 | Generate bounded search queries        | Confirmed research questions         | Search provider/query strategy change |
+| PT-04     | AIT-04 | Synthesize source-bounded related work | Selected sources + evidence refs     | Matrix schema/rubric change           |
+| PT-05     | AIT-05 | Judge one claim–span pair              | One claim + one span + short context | Verdict/rubric change                 |
+| PT-06     | AIT-06 | Propose corpus-bounded gaps            | Selected corpus-derived records      | Gap schema/warning change             |
+| PT-07     | AIT-07 | Propose contribution/atomic claims     | Selected gap + confirmed nodes       | Claim schema/rubric change            |
+| PT-08     | AIT-08 | Plan controlled experiments            | Claims + resources/budget            | Planner schema/formulas change        |
+| PT-09     | AIT-09 | Assemble 14-section specification      | Allowed confirmed inputs only        | Template/section policy change        |
+| PT-10     | AIT-10 | Evidence Judge                         | Evidence-specific rubric/context     | Judge rubric/context policy change    |
+| PT-11     | AIT-11 | Research Judge                         | Gap/contribution/overclaim rubric    | Judge rubric/context policy change    |
+| PT-12     | AIT-12 | Experiment Judge                       | Claim–experiment adequacy rubric     | Judge rubric/context policy change    |
+| PT-13     | AIT-13 | Generate revision options              | One finding group + target           | Decision-option policy change         |
 
 Prompt record planned fields: `prompt_id`, semantic version, task ID, input schema version, output schema version, template content hash, change note, status and created timestamp. Actual prompt text is not authored in this design document.
 
@@ -104,7 +104,7 @@ Build typed input
 → enforce context allowlist and budget
 → call provider requesting JSON/structured output
 → parse JSON
-→ validate Pydantic schema and allowed IDs/enums
+→ validate Zod schema and allowed IDs/enums
 → if repairable schema error: one bounded repair attempt
 → validate domain rules/provenance references
 → persist accepted proposed output or terminal error
@@ -149,7 +149,7 @@ LLM may propose queries and summarize selected records but cannot invent DOI/met
 
 ### Extraction
 
-- PyMuPDF extracts page text after security validation.
+- `pdfjs-dist`/`pdf-parse` extracts page text after security validation.
 - User selects exact span; application computes/stores page and offsets and confirms exact text match.
 - Abstract/manual evidence is allowed with explicit provenance tier.
 - LLM does not choose or rewrite exact text while preserving an “exact” label.
@@ -239,15 +239,15 @@ AIT-13 can propose explained options and examples, including a path for `Other`,
 
 ## 13. Retry, timeout and fallback
 
-| Failure | Retry policy | Fallback/terminal behavior |
-| --- | --- | --- |
-| Invalid JSON/schema | One repair attempt within proposal's 1–2 limit | Persist schema error; user can retry/regenerate |
-| Provider timeout/transient 5xx/rate limit | Bounded policy, exact timeout/backoff to be configured | Job failed/deferred with clear status; no infinite retry |
-| Permanent provider/auth error | No blind retry | Terminal error and configuration action |
-| Academic API unavailable | Bounded retry if transient | Manual source import |
-| PDF parse failure | No model retry | Manual abstract/evidence fallback |
-| Atomic review budget exhausted | No hidden overrun | Mark `NEEDS_REVIEW` and require user/human path |
-| Judge failure | Preserve independent completed results | Failed Judge remains explicit; finalization policy requires team decision if incomplete |
+| Failure                                   | Retry policy                                           | Fallback/terminal behavior                                                              |
+| ----------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Invalid JSON/schema                       | One repair attempt within proposal's 1–2 limit         | Persist schema error; user can retry/regenerate                                         |
+| Provider timeout/transient 5xx/rate limit | Bounded policy, exact timeout/backoff to be configured | Job failed/deferred with clear status; no infinite retry                                |
+| Permanent provider/auth error             | No blind retry                                         | Terminal error and configuration action                                                 |
+| Academic API unavailable                  | Bounded retry if transient                             | Manual source import                                                                    |
+| PDF parse failure                         | No model retry                                         | Manual abstract/evidence fallback                                                       |
+| Atomic review budget exhausted            | No hidden overrun                                      | Mark `NEEDS_REVIEW` and require user/human path                                         |
+| Judge failure                             | Preserve independent completed results                 | Failed Judge remains explicit; finalization policy requires team decision if incomplete |
 
 Exact timeout/backoff values are Open Questions and must not be invented here.
 
@@ -290,16 +290,16 @@ Logs omit secrets, raw private reasoning and unnecessary document content. `late
 
 ## 17. Human confirmation points
 
-| Stage | Required human action |
-| --- | --- |
-| Interpretation | Confirm/Edit/Regenerate/Other before decomposition |
-| Source selection | Select corpus and validate manual metadata |
-| Evidence | Select/confirm evidence span or manual evidence provenance |
-| Gap/contribution/claim | Select/edit/combine/Other and accept scope |
-| Experiment | Review baselines, metrics, assumptions and feasibility |
-| Specification | Review proposed/unsupported items before Judges/finalize |
-| Findings | Decide revision action for consensus/disagreement/blockers |
-| Finalize | Explicitly finalize selected version after rules pass |
+| Stage                  | Required human action                                      |
+| ---------------------- | ---------------------------------------------------------- |
+| Interpretation         | Confirm/Edit/Regenerate/Other before decomposition         |
+| Source selection       | Select corpus and validate manual metadata                 |
+| Evidence               | Select/confirm evidence span or manual evidence provenance |
+| Gap/contribution/claim | Select/edit/combine/Other and accept scope                 |
+| Experiment             | Review baselines, metrics, assumptions and feasibility     |
+| Specification          | Review proposed/unsupported items before Judges/finalize   |
+| Findings               | Decide revision action for consensus/disagreement/blockers |
+| Finalize               | Explicitly finalize selected version after rules pass      |
 
 `USER_CONFIRMED` cannot be generated by a verifier or Judge.
 
