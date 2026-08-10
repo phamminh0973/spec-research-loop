@@ -1,6 +1,6 @@
 # SpecLoop — Architecture and Technical Design
 
-**Trạng thái:** `PLANNED` — chưa có source code hoặc deployment được xác nhận  
+**Trạng thái:** `SCAFFOLDED` — local install/typecheck/build/smoke đã được xác nhận; product workflow và deployment vẫn `PLANNED`
 **Architecture style:** monorepo, modular monolith, background jobs  
 **P0 stack:** Next.js, Node.js + tRPC, PostgreSQL, `pdfjs-dist`/`pdf-parse`, local mounted storage, Docker Compose
 
@@ -18,7 +18,7 @@
 - Giữ domain boundaries rõ để ba role có thể làm song song nhưng tích hợp liên tục.
 - Bảo toàn provenance, user/system authority, version history và job status.
 - Cô lập external API/LLM/PDF failures bằng timeout, bounded retry và explicit error state.
-- Có đường nâng cấp từ in-process job sang Redis/RQ mà không đổi business model.
+- Có đường nâng cấp từ in-process job sang Redis/BullMQ mà không đổi business model.
 - Có reproducible local/Docker deployment và testable interfaces.
 
 ### Constraints
@@ -28,8 +28,8 @@
 - Background worker thuộc cùng application/domain, không phải business service độc lập.
 - PostgreSQL là shared source of truth.
 - Local mounted storage cho P0; MinIO/S3 không thuộc P0.
-- PyMuPDF cho PDF P0; GROBID không thuộc P0.
-- Redis/RQ chỉ dùng khi đo thực tế cho thấy in-process jobs không đủ; mặc định P1.
+- `pdfjs-dist`/`pdf-parse` cho PDF P0; GROBID không thuộc P0.
+- Redis/BullMQ chỉ dùng khi đo thực tế cho thấy in-process jobs không đủ; mặc định P1.
 - Không Kafka, Kubernetes, event sourcing hoặc service mesh.
 
 ## 2. Why modular monolith instead of microservices
@@ -69,21 +69,21 @@ spec-research-loop/
 
 ## 4. Technology stack and rationale
 
-| Area | Choice | Rationale | Scope note |
-| --- | --- | --- | --- |
-| Frontend | Next.js + TypeScript | Typed UI, routing và workflow screens trong một web app | P0 |
-| Styling | Tailwind CSS | Tạo UI nhất quán nhanh trong thời gian ngắn | P0 |
-| Server state | TanStack Query | Cache/invalidation và job polling rõ ràng | P0 |
-| Backend | Node.js + tRPC + Fastify | End-to-end typed RPC với Zod validation; một TypeScript toolchain với frontend | P0 (per ADR-001) |
-| Shared contracts | Zod schemas in `packages/schemas` | Single source of truth cho runtime validation và TypeScript types | P0 |
-| Persistence | `pg` + node-pg-migrate | Transactional repository/migration path cho PostgreSQL | P0 |
-| Database | PostgreSQL | Relational integrity cho graph-like domain, provenance và versions | P0 |
-| PDF | `pdfjs-dist` / `pdf-parse` | Page-aware text extraction phù hợp evidence spans | P0 |
-| File storage | Local mounted volume | Đơn giản, tái lập trong Docker Compose | P0 |
-| Background work | Job abstraction + persisted status | Tách lifecycle job khỏi HTTP request | P0 |
-| Queue | Redis + BullMQ (Node) | Chỉ thêm nếu long jobs cần external queue/recovery | P1 |
-| AI | Một configurable LLM provider | Giảm integration scope, giữ provider boundary | P0 |
-| Delivery | Docker Compose | Local reproducibility cho web/API/database/storage và optional worker | P0 |
+| Area             | Choice                             | Rationale                                                                      | Scope note       |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------------------ | ---------------- |
+| Frontend         | Next.js + TypeScript               | Typed UI, routing và workflow screens trong một web app                        | P0               |
+| Styling          | Tailwind CSS                       | Tạo UI nhất quán nhanh trong thời gian ngắn                                    | P0               |
+| Server state     | TanStack Query                     | Cache/invalidation và job polling rõ ràng                                      | P0               |
+| Backend          | Node.js + tRPC + Fastify           | End-to-end typed RPC với Zod validation; một TypeScript toolchain với frontend | P0 (per ADR-001) |
+| Shared contracts | Zod schemas in `packages/schemas`  | Single source of truth cho runtime validation và TypeScript types              | P0               |
+| Persistence      | `pg` + node-pg-migrate             | Transactional repository/migration path cho PostgreSQL                         | P0               |
+| Database         | PostgreSQL                         | Relational integrity cho graph-like domain, provenance và versions             | P0               |
+| PDF              | `pdfjs-dist` / `pdf-parse`         | Page-aware text extraction phù hợp evidence spans                              | P0               |
+| File storage     | Local mounted volume               | Đơn giản, tái lập trong Docker Compose                                         | P0               |
+| Background work  | Job abstraction + persisted status | Tách lifecycle job khỏi HTTP request                                           | P0               |
+| Queue            | Redis + BullMQ (Node)              | Chỉ thêm nếu long jobs cần external queue/recovery                             | P1               |
+| AI               | Một configurable LLM provider      | Giảm integration scope, giữ provider boundary                                  | P0               |
+| Delivery         | Docker Compose                     | Local reproducibility cho web/API/database/storage và optional worker          | P0               |
 
 Exact versions và provider/API selection vẫn là Open Questions, không được suy ra là đã cài đặt.
 
@@ -101,24 +101,24 @@ External documents và API/LLM responses đều là untrusted input, không ph�
 
 [Mermaid source](assets/architecture/container-diagram.mmd)
 
-P0 có thể thực thi job nhỏ trong API process qua cùng abstraction. Worker dùng chung domain code và database; đường nối Redis/RQ là conditional P1.
+P0 có thể thực thi job nhỏ trong API process qua cùng abstraction. Worker dùng chung domain code và database; đường nối Redis/BullMQ là conditional P1.
 
 ## 7. Backend module boundaries
 
-| Module | Responsibility | Owns data/operations | Depends on |
-| --- | --- | --- | --- |
-| `projects` | Project lifecycle, idea, domain, constraints | projects | operations |
-| `idea_understanding` | Interpretation, confirmation gate, decisions | workflow steps, user decisions | projects, AI gateway |
-| `spec_structure` | Typed nodes, edges, statuses, integrity of relations | spec nodes/edges/history | projects |
-| `literature` | Query, academic search, normalize, deduplicate, select | sources, queries, results | projects, external API gateway |
-| `evidence` | Files, pages, spans, provenance, claim links, verifier | files/pages/spans/links | literature, spec_structure, AI gateway |
-| `research_design` | Gap, contribution, claim, experiment, feasibility | experiment plans, baselines, metrics, estimates | spec_structure, evidence |
-| `spec_generation` | Assemble 14-section specification | generated drafts | prior capability modules, AI gateway |
-| `judging` | Three independent Judges, findings, aggregation | judge runs/findings/groups | spec_generation, evidence, research_design |
-| `revision` | User actions, targeted changes/reruns | decisions/change requests | judging, spec_structure |
-| `versions` | Snapshots and basic diff | spec versions/changes | revision, spec_generation |
-| `exports` | Finalization gate and Markdown export | export records/artifacts | versions, evidence, judging |
-| `operations` | Job state, prompt/model calls, audit, limits | job runs/model calls/audit logs | all modules through narrow interfaces |
+| Module               | Responsibility                                         | Owns data/operations                            | Depends on                                 |
+| -------------------- | ------------------------------------------------------ | ----------------------------------------------- | ------------------------------------------ |
+| `projects`           | Project lifecycle, idea, domain, constraints           | projects                                        | operations                                 |
+| `idea_understanding` | Interpretation, confirmation gate, decisions           | workflow steps, user decisions                  | projects, AI gateway                       |
+| `spec_structure`     | Typed nodes, edges, statuses, integrity of relations   | spec nodes/edges/history                        | projects                                   |
+| `literature`         | Query, academic search, normalize, deduplicate, select | sources, queries, results                       | projects, external API gateway             |
+| `evidence`           | Files, pages, spans, provenance, claim links, verifier | files/pages/spans/links                         | literature, spec_structure, AI gateway     |
+| `research_design`    | Gap, contribution, claim, experiment, feasibility      | experiment plans, baselines, metrics, estimates | spec_structure, evidence                   |
+| `spec_generation`    | Assemble 14-section specification                      | generated drafts                                | prior capability modules, AI gateway       |
+| `judging`            | Three independent Judges, findings, aggregation        | judge runs/findings/groups                      | spec_generation, evidence, research_design |
+| `revision`           | User actions, targeted changes/reruns                  | decisions/change requests                       | judging, spec_structure                    |
+| `versions`           | Snapshots and basic diff                               | spec versions/changes                           | revision, spec_generation                  |
+| `exports`            | Finalization gate and Markdown export                  | export records/artifacts                        | versions, evidence, judging                |
+| `operations`         | Job state, prompt/model calls, audit, limits           | job runs/model calls/audit logs                 | all modules through narrow interfaces      |
 
 Modules communicate bằng application services/contracts trong cùng backend. Không gọi nhau qua network và không sở hữu database riêng.
 
@@ -199,15 +199,15 @@ erDiagram
 
 ## 11. Data model summary
 
-| Area | Planned tables | Critical fields/invariants |
-| --- | --- | --- |
-| Project/workflow | `users`, `projects`, `workflow_runs`, `workflow_steps`, `workflow_events` | project scope, stage, actor, timestamps |
-| Spec structure | `spec_nodes`, `spec_edges`, `node_status_history` | type/status enums, same-project relations, authority |
-| Literature | `source_documents`, `source_files`, `document_pages`, `search_queries`, `search_results` | normalized identifiers, provenance tier, page order |
-| Evidence | `evidence_spans`, `claim_evidence_links` | source file/page, offsets, exact text, entry type, target validity |
-| Research design | `experiment_plans`, `experiment_claim_links`, `baseline_definitions`, `metric_definitions`, `resource_estimates` | assumptions vs measurements, claim coverage |
-| Review | `judge_runs`, `judge_findings`, `finding_groups`, `user_decisions` | independence, target/type/severity, decision actor |
-| Version/operations | `spec_versions`, `spec_changes`, `prompt_templates`, `prompt_versions`, `model_calls`, `job_runs`, `audit_logs` | immutable snapshot, prompt/model provenance, state transitions |
+| Area               | Planned tables                                                                                                   | Critical fields/invariants                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Project/workflow   | `users`, `projects`, `workflow_runs`, `workflow_steps`, `workflow_events`                                        | project scope, stage, actor, timestamps                            |
+| Spec structure     | `spec_nodes`, `spec_edges`, `node_status_history`                                                                | type/status enums, same-project relations, authority               |
+| Literature         | `source_documents`, `source_files`, `document_pages`, `search_queries`, `search_results`                         | normalized identifiers, provenance tier, page order                |
+| Evidence           | `evidence_spans`, `claim_evidence_links`                                                                         | source file/page, offsets, exact text, entry type, target validity |
+| Research design    | `experiment_plans`, `experiment_claim_links`, `baseline_definitions`, `metric_definitions`, `resource_estimates` | assumptions vs measurements, claim coverage                        |
+| Review             | `judge_runs`, `judge_findings`, `finding_groups`, `user_decisions`                                               | independence, target/type/severity, decision actor                 |
+| Version/operations | `spec_versions`, `spec_changes`, `prompt_templates`, `prompt_versions`, `model_calls`, `job_runs`, `audit_logs`  | immutable snapshot, prompt/model provenance, state transitions     |
 
 Đây là conceptual model; types, indexes, constraints và migrations chỉ được chốt trong implementation/ADR sau review.
 
@@ -236,23 +236,23 @@ erDiagram
 
 ### Main planned APIs
 
-| Area | Planned endpoint | Purpose | Execution |
-| --- | --- | --- | --- |
-| Projects | `POST /api/v1/projects`; `GET/PATCH /api/v1/projects/{project_id}` | Project CRUD | Sync |
-| Interpretation | `POST /projects/{id}/interpretations` | Generate interpretation | Job |
-| Decisions | `POST /projects/{id}/decisions` | Confirm/edit/Other | Sync |
-| Spec graph | `GET/POST/PATCH /projects/{id}/nodes`; `POST/DELETE /edges` | Nodes/relations | Sync |
-| Literature | `POST /projects/{id}/literature/search`; `POST /sources/import` | Search/manual import | Job/sync |
-| Files | `POST /projects/{id}/source-files`; `POST /source-files/{id}/parse` | Upload/parse PDF | Sync + job |
-| Evidence | `POST /projects/{id}/evidence-spans`; `POST /claim-evidence-links` | Store/link evidence | Sync |
-| Integrity | `POST /projects/{id}/integrity-checks` | Deterministic/atomic checks | Job |
-| Research design | `POST /projects/{id}/research-design`; `POST /experiment-plans` | Gap/claim/experiment/estimate | Job |
-| Specification | `POST /projects/{id}/specifications/generate` | Generate 14 sections | Job |
-| Judges | `POST /projects/{id}/judge-runs`; `GET /judge-runs/{id}` | Run/read three Judges | Job |
-| Revision | `POST /projects/{id}/revisions` | Apply user-directed revision | Job |
-| Versions | `GET /projects/{id}/versions`; `GET /versions/{a}/diff/{b}` | Snapshot/diff | Sync |
-| Export | `POST /versions/{id}/finalize`; `GET /versions/{id}/export.md` | Finalize/export | Sync/job as needed |
-| Jobs | `GET /jobs/{id}` | Job status/error/progress | Sync |
+| Area            | Planned tRPC procedures                                                      | Purpose                       | Execution                      |
+| --------------- | ---------------------------------------------------------------------------- | ----------------------------- | ------------------------------ |
+| Projects        | `projects.create`, `projects.list`, `projects.byId`, `projects.update`       | Project CRUD                  | Query/mutation                 |
+| Interpretation  | `interpretations.generate`, `interpretations.byProject`                      | Generate/read interpretation  | Mutation returning job + query |
+| Decisions       | `decisions.create`, `decisions.list`                                         | Confirm/edit/Other            | Mutation/query                 |
+| Spec graph      | `nodes.list`, `nodes.create`, `nodes.update`, `edges.create`, `edges.delete` | Nodes/relations               | Query/mutation                 |
+| Literature      | `literature.search`, `sources.import`, `sources.list`                        | Search/manual import          | Mutation returning job/query   |
+| Files           | `sourceFiles.upload`, `sourceFiles.parse`                                    | Upload/parse PDF              | Mutation + job                 |
+| Evidence        | `evidenceSpans.create`, `claimEvidenceLinks.create`                          | Store/link evidence           | Mutation                       |
+| Integrity       | `integrityChecks.run`, `integrityChecks.byProject`                           | Deterministic/atomic checks   | Mutation returning job + query |
+| Research design | `researchDesign.generate`, `experimentPlans.create`                          | Gap/claim/experiment/estimate | Mutation returning job         |
+| Specification   | `specifications.generate`, `specifications.byProject`                        | Generate/read 14 sections     | Mutation returning job + query |
+| Judges          | `judgeRuns.create`, `judgeRuns.byId`                                         | Run/read three Judges         | Mutation returning job + query |
+| Revision        | `revisions.create`                                                           | Apply user-directed revision  | Mutation returning job         |
+| Versions        | `versions.list`, `versions.diff`                                             | Snapshot/diff                 | Query                          |
+| Export          | `versions.finalize`, `versions.exportMarkdown`                               | Finalize/export               | Mutation/query                 |
+| Jobs            | `jobs.byId`                                                                  | Job status/error/progress     | Query                          |
 
 Endpoint names are design proposals with status `PLANNED`, not existing commands or routes.
 
@@ -266,9 +266,9 @@ Endpoint names are design proposals with status `PLANNED`, not existing commands
 - Long tasks are resumable/retriable only where explicitly safe; user sees status.
 - Timeout/retry/budget are passed as policy, not hard-coded across modules.
 
-### P1 activation criteria for Redis/RQ
+### P1 activation criteria for Redis/BullMQ
 
-Consider Redis/RQ only if observed jobs exceed acceptable request-process lifetime, need crash recovery/concurrency control, or materially block demo responsiveness. Numeric thresholds remain a team Open Question. Adding Redis/RQ must not change domain models or create a business microservice.
+Consider Redis/BullMQ only if observed jobs exceed acceptable request-process lifetime, need crash recovery/concurrency control, or materially block demo responsiveness. Numeric thresholds remain a team Open Question. Adding Redis/BullMQ must not change domain models or create a business microservice.
 
 ## 14. File storage and PDF processing
 
@@ -286,7 +286,7 @@ Upload
 → extension/MIME/size/page-limit checks
 → generated filename
 → encrypted/malformed detection
-→ PyMuPDF page extraction
+→ `pdfjs-dist`/`pdf-parse` page extraction
 → store page text
 → user selects exact span or manual evidence
 → validate offsets/exact text
@@ -345,23 +345,23 @@ Planned P0 services:
 
 ## 19. Architecture trade-offs
 
-| Decision | Benefit | Cost/limitation |
-| --- | --- | --- |
-| Modular monolith | Fast integration, one transaction/data model | No independent module deployment |
-| Shared PostgreSQL | Referential integrity and simple transactions | Requires disciplined module ownership |
-| Local storage | Low setup complexity | Single-node/local durability and scale only |
-| In-process P0 jobs | Avoid queue integration | Weaker crash recovery/concurrency |
-| One academic API | Lower integration/rate-limit risk | Narrower discovery coverage |
-| One LLM provider | Lower prompt/provider complexity | Provider-specific dependency and less ensemble diversity |
-| Deterministic aggregation | Testable and explainable | Less semantic clustering flexibility |
-| Markdown-only export | Reliable scope | No formatted PDF/DOCX in MVP |
-| Node + tRPC backend | End-to-end type safety, single TypeScript toolchain | Python-native libs (PyMuPDF, etc.) require a worker service if they become critical path; see ADR-001 |
+| Decision                  | Benefit                                             | Cost/limitation                                                                                       |
+| ------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Modular monolith          | Fast integration, one transaction/data model        | No independent module deployment                                                                      |
+| Shared PostgreSQL         | Referential integrity and simple transactions       | Requires disciplined module ownership                                                                 |
+| Local storage             | Low setup complexity                                | Single-node/local durability and scale only                                                           |
+| In-process P0 jobs        | Avoid queue integration                             | Weaker crash recovery/concurrency                                                                     |
+| One academic API          | Lower integration/rate-limit risk                   | Narrower discovery coverage                                                                           |
+| One LLM provider          | Lower prompt/provider complexity                    | Provider-specific dependency and less ensemble diversity                                              |
+| Deterministic aggregation | Testable and explainable                            | Less semantic clustering flexibility                                                                  |
+| Markdown-only export      | Reliable scope                                      | No formatted PDF/DOCX in MVP                                                                          |
+| Node + tRPC backend       | End-to-end type safety, single TypeScript toolchain | Python-native libs (PyMuPDF, etc.) require a worker service if they become critical path; see ADR-001 |
 
 ## 20. Conditions for revisiting decisions
 
 Record an ADR before changing a material decision. Reconsider only with evidence such as:
 
-- Job duration/failure/recovery needs justify Redis/RQ.
+- Job duration/failure/recovery needs justify Redis/BullMQ.
 - Storage volume/availability requirements exceed local mounted storage.
 - Provider limitations block required structured output or budget controls.
 - Module scale, ownership or failure isolation demonstrates a need beyond modular monolith.

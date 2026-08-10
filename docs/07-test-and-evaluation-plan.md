@@ -30,7 +30,7 @@
 - Valid/malformed JSON, missing field, wrong type và invalid enum.
 - Hallucinated/unknown IDs và cross-project references.
 - Interpretation, nodes, evidence review, experiment, specification và finding schemas.
-- Pydantic/API response and prompt schema compatibility.
+- Zod/tRPC input-output and prompt schema compatibility.
 
 ### 2.3 API tests
 
@@ -41,7 +41,7 @@
 ### 2.4 Integration tests
 
 - Academic API adapter → normalized sources → selected corpus.
-- Upload → PyMuPDF pages → evidence span → claim link.
+- Upload → `pdfjs-dist`/`pdf-parse` pages → evidence span → claim link.
 - AI gateway → schema validation → persistence/job status.
 - Spec generation → three Judge jobs → aggregation → revision → version/export.
 - Database transaction rollback for invalid cross-module updates.
@@ -65,39 +65,39 @@
 
 ## 3. Planned Test Case catalog
 
-| Test Case | User Story | Requirement coverage | Planned level | Expected result | Status |
-| --- | --- | --- | --- | --- | --- |
-| TC-01 | US-01 | FR-01 | API/integration | Create/read/update returns persisted project fields; invalid input fails. | `PLANNED` |
-| TC-02 | US-02 | FR-02, NFR-04 | Contract/integration | Interpretation output passes schema; malformed output reaches bounded repair/error path. | `PLANNED` |
-| TC-03 | US-03 | FR-03 | Unit/E2E | All four decision actions persist; decomposition before confirmation is blocked. | `PLANNED` |
-| TC-04 | US-04 | FR-04 | Contract/API | Required node types/statuses create/edit correctly; AI cannot assign confirmed/verified authority. | `PLANNED` |
-| TC-05 | US-05 | FR-05 | Unit/API | Valid relation succeeds; invalid/cross-project relation fails; status history preserved. | `PLANNED` |
-| TC-06 | US-06 | FR-10, NFR-02 | Unit | Fixtures produce missing/ambiguous/conflict/unsupported state with reason/action. | `PLANNED` |
-| TC-07 | US-07 | FR-06, NFR-04 | Integration | One academic adapter normalizes/deduplicates; provider failure uses manual import. | `PLANNED` |
-| TC-08 | US-08 | FR-07, NFR-01 | Integration | Related-work statements retain allowed source/evidence refs; orphan is flagged. | `PLANNED` |
-| TC-09 | US-09 | FR-08, NFR-05, NFR-09 | Security/integration | Valid PDF parses by page; unsafe/unreadable file fails; manual tier works. | `PLANNED` |
-| TC-10 | US-10 | FR-09, NFR-01 | Unit/integration | Valid span/link persists; wrong offset/text/deleted source is rejected. | `PLANNED` |
-| TC-11 | US-11 | FR-13, NFR-01 | Unit/contract/evaluation | Deterministic faults detected; atomic output uses allowed verdict and concise reason. | `PLANNED` |
-| TC-12 | US-12 | FR-11, NFR-02 | Contract/E2E | Gap has required fields, provenance and corpus-bounded novelty warning. | `PLANNED` |
-| TC-13 | US-13 | FR-12 | Contract/API | Atomic claim contains scope/baseline/metric/falsification and valid links. | `PLANNED` |
-| TC-14 | US-14 | FR-14, NFR-06 | Unit/contract | Plan has B0/B1/proposed/control/ablation; calculations expose inputs and labels. | `PLANNED` |
-| TC-15 | US-15 | FR-15, NFR-01 | Contract/E2E | All 14 sections exist; only allowed inputs used; new facts are review-labeled. | `PLANNED` |
-| TC-16 | US-16 | FR-16, NFR-02 | Integration | Exactly three isolated Judge runs produce schema-valid findings; failure remains explicit. | `PLANNED` |
-| TC-17 | US-17 | FR-17 | Unit/integration | CRITICAL/MAJOR/MINOR/conflict fixtures aggregate according to BR-06. | `PLANNED` |
-| TC-18 | US-18 | FR-18 | E2E | Explained actions + Other persist user decision; no automatic research choice. | `PLANNED` |
-| TC-19 | US-19 | FR-19 | Unit/E2E | Revision creates new immutable version and accurate basic diff. | `PLANNED` |
-| TC-20 | US-20 | FR-20, NFR-01 | E2E | Known blockers stop finalization; eligible selected version exports valid Markdown. | `PLANNED` |
-| TC-21 | US-21 | FR-21, NFR-03, NFR-04, NFR-06, NFR-10 | Unit/integration | Job lifecycle, bounded retry and redacted call logs retain real/optional values without fabrication. | `PLANNED` |
-| TC-22 | US-22 | NFR-05, NFR-06, NFR-09, NFR-10 | Security/integration | Upload, injection, secret, validation, retry and budget controls enforce approved boundaries. | `PLANNED` |
-| TC-23 | US-23 | NFR-07, NFR-08 | Test/evaluation/setup | Critical suites, B0/B1 protocol/run artifacts and reproducible local/Docker evidence satisfy approved gates. | `PLANNED` |
+| Test Case | User Story | Requirement coverage                  | Planned level            | Expected result                                                                                              | Status    |
+| --------- | ---------- | ------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------ | --------- |
+| TC-01     | US-01      | FR-01                                 | API/integration          | Create/read/update returns persisted project fields; invalid input fails.                                    | `PLANNED` |
+| TC-02     | US-02      | FR-02, NFR-04                         | Contract/integration     | Interpretation output passes schema; malformed output reaches bounded repair/error path.                     | `PLANNED` |
+| TC-03     | US-03      | FR-03                                 | Unit/E2E                 | All four decision actions persist; decomposition before confirmation is blocked.                             | `PLANNED` |
+| TC-04     | US-04      | FR-04                                 | Contract/API             | Required node types/statuses create/edit correctly; AI cannot assign confirmed/verified authority.           | `PLANNED` |
+| TC-05     | US-05      | FR-05                                 | Unit/API                 | Valid relation succeeds; invalid/cross-project relation fails; status history preserved.                     | `PLANNED` |
+| TC-06     | US-06      | FR-10, NFR-02                         | Unit                     | Fixtures produce missing/ambiguous/conflict/unsupported state with reason/action.                            | `PLANNED` |
+| TC-07     | US-07      | FR-06, NFR-04                         | Integration              | One academic adapter normalizes/deduplicates; provider failure uses manual import.                           | `PLANNED` |
+| TC-08     | US-08      | FR-07, NFR-01                         | Integration              | Related-work statements retain allowed source/evidence refs; orphan is flagged.                              | `PLANNED` |
+| TC-09     | US-09      | FR-08, NFR-05, NFR-09                 | Security/integration     | Valid PDF parses by page; unsafe/unreadable file fails; manual tier works.                                   | `PLANNED` |
+| TC-10     | US-10      | FR-09, NFR-01                         | Unit/integration         | Valid span/link persists; wrong offset/text/deleted source is rejected.                                      | `PLANNED` |
+| TC-11     | US-11      | FR-13, NFR-01                         | Unit/contract/evaluation | Deterministic faults detected; atomic output uses allowed verdict and concise reason.                        | `PLANNED` |
+| TC-12     | US-12      | FR-11, NFR-02                         | Contract/E2E             | Gap has required fields, provenance and corpus-bounded novelty warning.                                      | `PLANNED` |
+| TC-13     | US-13      | FR-12                                 | Contract/API             | Atomic claim contains scope/baseline/metric/falsification and valid links.                                   | `PLANNED` |
+| TC-14     | US-14      | FR-14, NFR-06                         | Unit/contract            | Plan has B0/B1/proposed/control/ablation; calculations expose inputs and labels.                             | `PLANNED` |
+| TC-15     | US-15      | FR-15, NFR-01                         | Contract/E2E             | All 14 sections exist; only allowed inputs used; new facts are review-labeled.                               | `PLANNED` |
+| TC-16     | US-16      | FR-16, NFR-02                         | Integration              | Exactly three isolated Judge runs produce schema-valid findings; failure remains explicit.                   | `PLANNED` |
+| TC-17     | US-17      | FR-17                                 | Unit/integration         | CRITICAL/MAJOR/MINOR/conflict fixtures aggregate according to BR-06.                                         | `PLANNED` |
+| TC-18     | US-18      | FR-18                                 | E2E                      | Explained actions + Other persist user decision; no automatic research choice.                               | `PLANNED` |
+| TC-19     | US-19      | FR-19                                 | Unit/E2E                 | Revision creates new immutable version and accurate basic diff.                                              | `PLANNED` |
+| TC-20     | US-20      | FR-20, NFR-01                         | E2E                      | Known blockers stop finalization; eligible selected version exports valid Markdown.                          | `PLANNED` |
+| TC-21     | US-21      | FR-21, NFR-03, NFR-04, NFR-06, NFR-10 | Unit/integration         | Job lifecycle, bounded retry and redacted call logs retain real/optional values without fabrication.         | `PLANNED` |
+| TC-22     | US-22      | NFR-05, NFR-06, NFR-09, NFR-10        | Security/integration     | Upload, injection, secret, validation, retry and budget controls enforce approved boundaries.                | `PLANNED` |
+| TC-23     | US-23      | NFR-07, NFR-08                        | Test/evaluation/setup    | Critical suites, B0/B1 protocol/run artifacts and reproducible local/Docker evidence satisfy approved gates. | `PLANNED` |
 
 ## 4. Test environment
 
 Planned environment mirrors Docker Compose architecture:
 
-- Next.js web, FastAPI API, PostgreSQL, private mounted storage.
+- Next.js web, Node.js + tRPC + Fastify API, PostgreSQL, private mounted storage.
 - Same-domain worker when enabled; in-process job implementation remains testable through the same contract.
-- Redis/RQ is absent from P0 unless a recorded P1 activation decision exists.
+- Redis/BullMQ is absent from P0 unless a recorded P1 activation decision exists.
 - Mock/fake academic API and LLM provider for deterministic contract/failure tests.
 - Explicit opt-in live provider tests using configured secrets/budget.
 - Small lawful PDF fixtures including valid, encrypted, malformed and injection text cases.
@@ -185,21 +185,21 @@ Exact annotator assignment và adjudication threshold là Open Questions.
 
 ## 11. Metrics and planned formulas
 
-| Metric | Planned definition | Notes |
-| --- | --- | --- |
-| Human-verified Unsupported Claim Rate | `unsupported factual claims / all reviewed factual claims` | Primary; denominator/exclusion rubric must be frozen first |
-| Evidence precision | `correct SUPPORT-type predictions / all SUPPORT-type predictions` | Map partial support policy before run |
-| Evidence recall | `correctly detected supported/mismatched pairs / relevant gold pairs` | Positive class must be explicit |
-| Evidence F1 | Harmonic mean of precision and recall | Report confusion matrix |
-| Citation validity | Valid source identifiers/metadata and retrievable cited source ratio | Separate existence from support |
-| Claim–experiment coverage | Claims with valid experiment link / claims requiring experiment | Does not prove experiment adequacy alone |
-| Spec completeness | Required populated/valid items against 14-section rubric | Avoid scoring verbosity as completeness |
-| Judge issue recall | Gold issues found by Judge setup / all gold issues | Compare three-Judge versus single/self review |
-| JSON validity | Schema-valid first/final outputs / total calls | Report repair attempts separately |
-| Time to finalize | Elapsed time from case start to finalized version | Only measured runs; workflow definition fixed |
-| Token usage | Provider-returned or instrumented input/output tokens | Missing usage remains missing |
-| Cost | Provider usage × applicable recorded price | Label estimate unless reconciled to actual billing |
-| Latency | Application-measured duration per call/job/workflow | Report environment and percentile only if measured |
+| Metric                                | Planned definition                                                    | Notes                                                      |
+| ------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Human-verified Unsupported Claim Rate | `unsupported factual claims / all reviewed factual claims`            | Primary; denominator/exclusion rubric must be frozen first |
+| Evidence precision                    | `correct SUPPORT-type predictions / all SUPPORT-type predictions`     | Map partial support policy before run                      |
+| Evidence recall                       | `correctly detected supported/mismatched pairs / relevant gold pairs` | Positive class must be explicit                            |
+| Evidence F1                           | Harmonic mean of precision and recall                                 | Report confusion matrix                                    |
+| Citation validity                     | Valid source identifiers/metadata and retrievable cited source ratio  | Separate existence from support                            |
+| Claim–experiment coverage             | Claims with valid experiment link / claims requiring experiment       | Does not prove experiment adequacy alone                   |
+| Spec completeness                     | Required populated/valid items against 14-section rubric              | Avoid scoring verbosity as completeness                    |
+| Judge issue recall                    | Gold issues found by Judge setup / all gold issues                    | Compare three-Judge versus single/self review              |
+| JSON validity                         | Schema-valid first/final outputs / total calls                        | Report repair attempts separately                          |
+| Time to finalize                      | Elapsed time from case start to finalized version                     | Only measured runs; workflow definition fixed              |
+| Token usage                           | Provider-returned or instrumented input/output tokens                 | Missing usage remains missing                              |
+| Cost                                  | Provider usage × applicable recorded price                            | Label estimate unless reconciled to actual billing         |
+| Latency                               | Application-measured duration per call/job/workflow                   | Report environment and percentile only if measured         |
 
 Report count, mean/median as appropriate, ratios, confusion matrix, error analysis and limitations. Complex statistical significance tests are not mandatory for the small dataset.
 

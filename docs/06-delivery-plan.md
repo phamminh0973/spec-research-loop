@@ -15,11 +15,11 @@
 
 ## 2. Role allocation
 
-| Role | Primary areas | Cross-role obligation |
-| --- | --- | --- |
-| Member 1 — Product Workflow and Frontend Lead | Journey, UI, confirmation, spec/revision/version screens, E2E UX | Review API contracts; test own slice; support report/demo |
-| Member 2 — Backend, Data and Platform Lead | FastAPI, PostgreSQL, migrations, APIs, job state, files, Docker, reliability | Support UI integration and AI persistence; integration/security tests |
-| Member 3 — AI, Evidence and Evaluation Lead | Schemas/prompts, literature/evidence, generator, Judges, baselines/evaluation | Support backend contracts and user-facing explanations; contract tests |
+| Role                                          | Primary areas                                                                        | Cross-role obligation                                                  |
+| --------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Member 1 — Product Workflow and Frontend Lead | Journey, UI, confirmation, spec/revision/version screens, E2E UX                     | Review API contracts; test own slice; support report/demo              |
+| Member 2 — Backend, Data and Platform Lead    | Node.js, tRPC/Fastify, PostgreSQL, migrations, job state, files, Docker, reliability | Support UI integration and AI persistence; integration/security tests  |
+| Member 3 — AI, Evidence and Evaluation Lead   | Schemas/prompts, literature/evidence, generator, Judges, baselines/evaluation        | Support backend contracts and user-facing explanations; contract tests |
 
 Mỗi Epic có primary role trong backlog và ít nhất một supporting role khi cần. Daily integration/checkpoint là planning practice; tài liệu không khẳng định đã diễn ra.
 
@@ -101,7 +101,7 @@ User xây selected corpus, lưu evidence có provenance, kiểm tra claim–evid
 ### Planned deliverables
 
 - Literature Workbench với một API, normalize/deduplicate/select và manual import.
-- Private local PDF storage, PyMuPDF page extraction và manual fallback.
+- Private local PDF storage, `pdfjs-dist`/`pdf-parse` page extraction và manual fallback.
 - Evidence span/link model, deterministic integrity và atomic review contract.
 - Related-work matrix with provenance.
 - Research Design workspace cho gap, contribution, claims, experiment và estimates.
@@ -138,7 +138,7 @@ User xây selected corpus, lưu evidence có provenance, kiểm tra claim–evid
 
 ### P1/P2 loại nếu trễ
 
-Second API, exact-text hash, DOI verification, Claim-Scope Calibrator riêng, Redis/RQ, GROBID, MinIO/S3, citation graph, Active Candidate Selection.
+Second API, exact-text hash, DOI verification, Claim-Scope Calibrator riêng, Redis/BullMQ, GROBID, MinIO/S3, citation graph, Active Candidate Selection.
 
 ## 5. Week 3 — Specification generation, three Judges and revision
 
@@ -251,7 +251,7 @@ Five Judges, multi-model ensemble, semantic clustering, better semantic diff, PD
 
 ### P1/P2 loại nếu trễ
 
-Toàn bộ P1/P2, đặc biệt Redis/RQ, dashboard, second API, advanced diff, graph, five Judges, multi-model, PDF/DOCX và advanced observability.
+Toàn bộ P1/P2, đặc biệt Redis/BullMQ, dashboard, second API, advanced diff, graph, five Judges, multi-model, PDF/DOCX và advanced observability.
 
 ## 7. Cross-week dependency map
 
@@ -268,14 +268,14 @@ flowchart LR
 
 ## 8. Scope-control checkpoints
 
-| Checkpoint | Required decision |
-| --- | --- |
-| End week 1 | Confirm schema contracts; reject complex auth/graph work. |
-| Mid week 2 | If external API/PDF blocks progress, activate documented manual fallback. |
-| End week 2 | Confirm E2E path can reach spec generation; do not add second API/P1. |
-| Mid week 3 | Verify three Judges/revision integration; reduce polish before reducing required flow. |
-| End week 3 | Freeze P0 only with actual E2E evidence; list blockers honestly. |
-| Week 4 daily | Prefer verification/evaluation/report over any feature request. |
+| Checkpoint   | Required decision                                                                      |
+| ------------ | -------------------------------------------------------------------------------------- |
+| End week 1   | Confirm schema contracts; reject complex auth/graph work.                              |
+| Mid week 2   | If external API/PDF blocks progress, activate documented manual fallback.              |
+| End week 2   | Confirm E2E path can reach spec generation; do not add second API/P1.                  |
+| Mid week 3   | Verify three Judges/revision integration; reduce polish before reducing required flow. |
+| End week 3   | Freeze P0 only with actual E2E evidence; list blockers honestly.                       |
+| Week 4 daily | Prefer verification/evaluation/report over any feature request.                        |
 
 ## 9. Planned delivery status
 
