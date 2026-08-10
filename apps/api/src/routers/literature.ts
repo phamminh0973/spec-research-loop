@@ -29,6 +29,8 @@ import {
   QueryGenerationOutputSchema,
   SearchSourcesInputSchema,
   SearchSourcesOutputSchema,
+  SearchWithAnalysisInputSchema,
+  SearchWithAnalysisOutputSchema,
   ImportManualSourceInputSchema,
   ListSourcesInputSchema,
   ListSourcesOutputSchema,
@@ -37,13 +39,15 @@ import {
   SourceProvenanceTierSchema,
   type QueryGenerationOutput,
   type SearchSourcesOutput,
+  type SearchWithAnalysisOutput,
   type SourceDocument,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { queryGenerationPrompt } from "../llm/prompts.js";
+import { paperAnalysisPrompt, queryGenerationPrompt } from "../llm/prompts.js";
 import { structuredCall } from "../llm/structured-call.js";
-import { executeArxivSearch } from "../llm/tools/arxiv-search.js";
+import { arxivSearchTool, executeArxivSearch } from "../llm/tools/arxiv-search.js";
+import { executeLlmTool } from "../llm/tools/index.js";
 import { publicProcedure, router } from "../trpc/trpc.js";
 import {
   getOrCreate,
@@ -141,6 +145,146 @@ export const literatureRouter = router({
         outputSchema: QueryGenerationOutputSchema,
       });
       return output;
+    }),
+
+  /**
+   * LLM-driven arXiv search + per-paper analysis. The model is given the
+   * `search_arxiv` tool and the user's research idea; it decides which
+   * query to run. The application executes the tool call (AI design §16:
+   * the model has no direct tool execution authority), feeds the papers
+   * back, and then asks the model to produce three fields per paper
+   * relative to the user's idea: achievedOutcome, methodology,
+   * additionalResearchNeeded.
+   *
+   * The arXiv metadata is sourced verbatim from the API; the three
+   * annotation fields are PROPOSED analysis the user reviews (§17). New
+   * sources are deduplicated and persisted into the corpus.
+   */
+  searchWithAnalysis: publicProcedure
+    .input(SearchWithAnalysisInputSchema)
+    .output(SearchWithAnalysisOutputSchema)
+    .mutation(async ({ input, ctx }) => {
+      // Step 1: let the LLM choose an arXiv query via the search_arxiv tool.
+      // The application executes the tool — the model only emits arguments.
+      const toolResponse = await ctx.llm.chat.completions.create({
+        model: ctx.llmConfig.defaultModel,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are SpecLoop's literature search assistant. Use the " +
+              "search_arxiv tool to find papers relevant to the user's " +
+              "research idea. Choose a focused arXiv query (e.g. " +
+              "'cat:cs.AI AND ti:agent'). Call the tool exactly once.",
+          },
+          {
+            role: "user",
+            content: input.researchIdea,
+          },
+        ],
+        tools: [arxivSearchTool],
+        tool_choice: "auto",
+        max_tokens: 1_000,
+      });
+
+      const toolCall = toolResponse.choices[0]?.message?.tool_calls?.[0];
+      if (
+        !toolCall ||
+        toolCall.type !== "function" ||
+        toolCall.function.name !== "search_arxiv"
+      ) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "The LLM did not issue a search_arxiv tool call. Retry or use " +
+            "literature.search with an explicit query.",
+        });
+      }
+
+      // Execute the tool call through the application-side executor. This is
+      // the single place that talks to arXiv (§16). The args are validated
+      // by the tool's Zod input schema inside executeLlmTool.
+      const toolArgs = JSON.parse(toolCall.function.arguments);
+      const arxivResult = (await executeLlmTool("search_arxiv", toolArgs)) as {
+        query: string;
+        papers: Array<{
+          id: string;
+          title: string;
+          authors: string[];
+          published: string;
+          entryId: string;
+          doi: string | null;
+          primaryCategory: string | null;
+          summary: string;
+        }>;
+      };
+
+      const query = arxivResult.query;
+      const papers = arxivResult.papers.slice(0, input.maxResults);
+
+      // Step 2: persist deduplicated sources into the corpus.
+      const existing = sourcesByProject.get(input.projectId) ?? [];
+      const seen = new Set(existing.map((s) => s.externalId));
+      const now = new Date().toISOString();
+      const newSources: SourceDocument[] = [];
+      for (const p of papers) {
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        newSources.push(
+          toSourceDocument(
+            input.projectId,
+            {
+              externalId: p.id,
+              title: p.title,
+              authors: p.authors,
+              published: p.published,
+              url: p.entryId,
+              doi: p.doi,
+              primaryCategory: p.primaryCategory,
+              abstract: p.summary,
+            },
+            now,
+          ),
+        );
+      }
+      if (newSources.length > 0) {
+        getOrCreate(sourcesByProject, input.projectId).push(...newSources);
+      }
+
+      // Step 3: ask the LLM to analyze each paper relative to the user's idea.
+      // The paper metadata is passed as untrusted content (§16.2); the model
+      // produces the three annotation fields as PROPOSED data.
+      const corpusText = papers
+        .map(
+          (p) =>
+            `Paper ${p.id}: ${p.title}\nAuthors: ${p.authors.join(", ")}\n` +
+            `Published: ${p.published}\nDOI: ${p.doi ?? "none"}\n` +
+            `Category: ${p.primaryCategory ?? "none"}\nAbstract: ${p.summary}`,
+        )
+        .join("\n\n---\n\n");
+
+      const allowedIds = new Set(papers.map((p) => p.id));
+      const analysis = await structuredCall<SearchWithAnalysisOutput>({
+        client: ctx.llm,
+        model: ctx.llmConfig.defaultModel,
+        systemPrompt: paperAnalysisPrompt.system,
+        userPrompt:
+          "Analyze each paper below relative to the user's research idea. " +
+          "For each paper produce achievedOutcome, methodology, and " +
+          "additionalResearchNeeded. Only describe papers actually returned " +
+          "by the search; do not invent papers.",
+        untrusted: [
+          { label: "User's research idea", text: input.researchIdea },
+          { label: "arXiv search results", text: corpusText },
+        ],
+        outputSchema: SearchWithAnalysisOutputSchema,
+        allowedIds,
+        extractReferencedIds: (out) =>
+          out.papers.map((p) => p.externalId),
+      });
+
+      // Attach the query the LLM chose, for transparency/audit.
+      return { query, papers: analysis.papers };
     }),
 
   /**

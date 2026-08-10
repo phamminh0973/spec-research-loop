@@ -543,6 +543,48 @@ export const GenerateQueriesInputSchema = z.object({
 export type GenerateQueriesInput = z.infer<typeof GenerateQueriesInputSchema>;
 
 /**
+ * A paper returned by an LLM-driven arXiv search, annotated with three
+ * fields derived relative to the user's original idea:
+ *   - achievedOutcome: what the paper accomplished
+ *   - methodology: how the paper approached it
+ *   - additionalResearchNeeded: what gaps/follow-ups remain
+ *
+ * The arXiv metadata is sourced verbatim from the API; the three annotation
+ * fields are LLM-proposed (PROPOSED data) and must be reviewed by the user
+ * (AI design §17). The model never invents DOI/title metadata (§6).
+ */
+export const AnalyzedPaperSchema = z.object({
+  externalId: z.string().min(1).max(200),
+  title: z.string(),
+  authors: z.array(z.string()),
+  published: z.string().nullable(),
+  url: z.string().url().nullable(),
+  doi: z.string().nullable(),
+  primaryCategory: z.string().nullable(),
+  abstract: z.string(),
+  achievedOutcome: z.string().min(1).max(2_000),
+  methodology: z.string().min(1).max(2_000),
+  additionalResearchNeeded: z.string().min(1).max(2_000),
+});
+export type AnalyzedPaper = z.infer<typeof AnalyzedPaperSchema>;
+
+export const SearchWithAnalysisInputSchema = z.object({
+  projectId: UuidSchema,
+  /** The user's original research idea, used to drive the search + analysis. */
+  researchIdea: z.string().min(1).max(20_000),
+  /** Max papers to return; bounded per AI design §14. */
+  maxResults: z.number().int().min(1).max(20).default(10),
+});
+export type SearchWithAnalysisInput = z.infer<typeof SearchWithAnalysisInputSchema>;
+
+export const SearchWithAnalysisOutputSchema = z.object({
+  /** The arXiv query the LLM chose to run (for transparency/audit). */
+  query: z.string(),
+  papers: z.array(AnalyzedPaperSchema),
+});
+export type SearchWithAnalysisOutput = z.infer<typeof SearchWithAnalysisOutputSchema>;
+
+/**
  * Atomic claim–evidence review output (AIT-05). The verdict is constrained
  * to the allowed enum; the model may not invent verdicts (AI design §2.2).
  */
