@@ -18,6 +18,7 @@
     "test": "echo \"@specloop/api: no tests yet\""
   },
   "dependencies": {
+    "@everdeep/arxiv": "^0.1.1",
     "@fastify/cors": "^11.3.0",
     "@specloop/schemas": "workspace:*",
     "@t3-oss/env-core": "^0.13.11",
