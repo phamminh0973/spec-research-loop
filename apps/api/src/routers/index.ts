@@ -7,12 +7,14 @@
  */
 
 import { router } from "../trpc/trpc.js";
+import { decompositionRouter } from "./decomposition.js";
 import { healthRouter } from "./health.js";
 import { projectsRouter } from "./projects.js";
 
 export const appRouter = router({
   health: healthRouter,
   projects: projectsRouter,
+  decomposition: decompositionRouter,
 });
 
 export type AppRouter = typeof appRouter;

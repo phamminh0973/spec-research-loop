@@ -1,0 +1,257 @@
+import { describe, expect, it } from "vitest";
+
+import type { DecompositionOutput } from "@specloop/schemas";
+import { DecompositionOutputSchema } from "@specloop/schemas";
+import { applyDeterministicRules } from "./status-rules.js";
+
+const projectId = "00000000-0000-4000-8000-000000000001";
+const requiredTypes = [
+  "PROBLEM",
+  "RESEARCH_QUESTION",
+  "GAP",
+  "CONTRIBUTION",
+  "CLAIM",
+] as const;
+
+function node(
+  clientRef: string,
+  type: DecompositionOutput["nodes"][number]["type"]
+) {
+  return {
+    projectId,
+    clientRef,
+    type,
+    title: `${type} title`,
+    content: `${type} content`,
+    status: "PROPOSED" as const,
+    sourceRefs: [],
+  };
+}
+
+function output(
+  nodes: ReturnType<typeof node>[],
+  relations: DecompositionOutput["relations"] = [],
+  warnings: DecompositionOutput["warnings"] = []
+): DecompositionOutput {
+  return DecompositionOutputSchema.parse({
+    projectId,
+    nodes,
+    relations,
+    warnings,
+  });
+}
+
+describe("deterministic decomposition rules", () => {
+  it.each(requiredTypes)(
+    "warns MISSING when the required %s card is absent",
+    (missingType) => {
+      const reviewed = applyDeterministicRules(
+        output([node("open-question-1", "OPEN_QUESTION")])
+      );
+      const warning = reviewed.warnings.find(
+        (candidate) =>
+          candidate.code === "MISSING" && candidate.targetType === missingType
+      );
+
+      expect(warning).toBeDefined();
+      expect(warning?.reason).toBeTruthy();
+      expect(warning?.suggestedAction).toBeTruthy();
+    }
+  );
+
+  it("warns UNSUPPORTED for a claim without support or a planned test", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [node("claim-1", "CLAIM"), node("evidence-1", "EVIDENCE")],
+        [
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "evidence-1",
+            type: "REQUIRES",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.find(
+        (warning) =>
+          warning.code === "UNSUPPORTED" &&
+          warning.targetClientRef === "claim-1"
+      )
+    ).toMatchObject({ targetType: "CLAIM" });
+  });
+
+  it("does not treat an Evidence requirement as support", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [node("claim-1", "CLAIM"), node("evidence-1", "EVIDENCE")],
+        [
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "evidence-1",
+            type: "REQUIRES",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.some(
+        (warning) =>
+          warning.code === "UNSUPPORTED" &&
+          warning.targetClientRef === "claim-1"
+      )
+    ).toBe(true);
+  });
+
+  it("does not warn unsupported when a claim is supported or tested", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [node("claim-1", "CLAIM"), node("evidence-1", "EVIDENCE")],
+        [
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "evidence-1",
+            type: "SUPPORTED_BY",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.some(
+        (warning) =>
+          warning.code === "UNSUPPORTED" &&
+          warning.targetClientRef === "claim-1"
+      )
+    ).toBe(false);
+  });
+
+  it("warns CONFLICT for contradictory relations on the same ordered pair", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [node("claim-1", "CLAIM"), node("evidence-1", "EVIDENCE")],
+        [
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "evidence-1",
+            type: "SUPPORTED_BY",
+          },
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "evidence-1",
+            type: "CONTRADICTED_BY",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.find(
+        (warning) =>
+          warning.code === "CONFLICT" && warning.targetClientRef === "claim-1"
+      )
+    ).toMatchObject({ targetType: "CLAIM" });
+  });
+
+  it("does not create a conflict for different ordered pairs", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [
+          node("claim-1", "CLAIM"),
+          node("evidence-1", "EVIDENCE"),
+          node("evidence-2", "EVIDENCE"),
+        ],
+        [
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "evidence-1",
+            type: "SUPPORTED_BY",
+          },
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "evidence-2",
+            type: "CONTRADICTED_BY",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.some((warning) => warning.code === "CONFLICT")
+    ).toBe(false);
+  });
+
+  it("keeps a complete targeted ambiguity warning", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [node("claim-1", "CLAIM")],
+        [],
+        [
+          {
+            code: "AMBIGUOUS",
+            targetClientRef: "claim-1",
+            targetType: "CLAIM",
+            reason: "The claim scope is unclear.",
+            suggestedAction: "Specify the target domain.",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.filter((warning) => warning.code === "AMBIGUOUS")
+    ).toEqual([
+      expect.objectContaining({
+        code: "AMBIGUOUS",
+        targetClientRef: "claim-1",
+      }),
+    ]);
+  });
+
+  it("drops an ambiguity warning without a target", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [node("claim-1", "CLAIM")],
+        [],
+        [
+          {
+            code: "AMBIGUOUS",
+            targetType: "CLAIM",
+            reason: "The claim scope is unclear.",
+            suggestedAction: "Specify the target domain.",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.some((warning) => warning.code === "AMBIGUOUS")
+    ).toBe(false);
+  });
+
+  it("does not infer ambiguity from arbitrary text length", () => {
+    const reviewed = applyDeterministicRules(
+      output([
+        {
+          ...node("long-claim-1", "CLAIM"),
+          content: "A deliberately long but otherwise valid claim. ".repeat(
+            100
+          ),
+        },
+      ])
+    );
+
+    expect(
+      reviewed.warnings.some((warning) => warning.code === "AMBIGUOUS")
+    ).toBe(false);
+  });
+});

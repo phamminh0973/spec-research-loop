@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { TRPCProvider } from "@/lib/trpc-provider";
 
 export const metadata: Metadata = {
-  title: "SpecLoop",
+  title: "SpecLoop · Structured decomposition",
   description:
-    "Evidence-grounded research specification assistant. PLANNED scaffold.",
+    "Reviewable typed research cards, relations and explicit warnings.",
 };
 
 export default function RootLayout({

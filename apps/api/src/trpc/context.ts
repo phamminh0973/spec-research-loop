@@ -11,6 +11,7 @@
  */
 
 import type OpenAI from "openai";
+import type { SpecStructureModule } from "../modules/spec-structure/spec-structure-module.js";
 import { getLlmClient, getLlmConfig, type LlmConfig } from "../llm/index.js";
 
 export interface ApiContext {
@@ -23,6 +24,8 @@ export interface ApiContext {
   llm: OpenAI;
   /** Resolved LLM configuration (model, timeout, retry, …). */
   llmConfig: LlmConfig;
+  /** Optional Step 2 capability composition; absent processes fail closed. */
+  specStructure?: SpecStructureModule;
 }
 
 export function createContext(): ApiContext {

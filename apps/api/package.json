@@ -15,7 +15,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"@specloop/api: eslint not configured yet\"",
-    "test": "echo \"@specloop/api: no tests yet\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@everdeep/arxiv": "^0.1.1",
@@ -30,7 +30,9 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "nodemon": "^3.1.14",
     "tsx": "^4.23.11",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "4.1.10"
   }
 }
