@@ -11,13 +11,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "echo \"@specloop/schemas: no linter configured yet\"",
-    "test": "echo \"@specloop/schemas: no tests yet\"",
+    "test": "vitest run",
     "build": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.4"
   }
 }

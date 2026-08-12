@@ -23,7 +23,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "../trpc/trpc.js";
 
-interface ProjectRecord {
+export interface ProjectRecord {
   id: string;
   title: string;
   domain: string | null;
@@ -34,6 +34,16 @@ interface ProjectRecord {
 }
 
 const projects = new Map<string, ProjectRecord>();
+
+/**
+ * Look up a project's raw idea/constraints for other modules (e.g. the
+ * interpretation service, which needs `rawIdea` per AIT-01's input
+ * contract). Returns `undefined` rather than throwing so callers can decide
+ * their own not-found handling.
+ */
+export function getProjectById(id: string): ProjectRecord | undefined {
+  return projects.get(id);
+}
 
 function toSummary(record: ProjectRecord) {
   return ProjectSummarySchema.parse({
