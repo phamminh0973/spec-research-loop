@@ -685,19 +685,74 @@ export type InterpretationOutput = z.infer<typeof InterpretationOutputSchema>;
 export const InterpretationStatusSchema = z.enum([
   "PROPOSED",
   "USER_CONFIRMED",
+  "SUPERSEDED",
 ]);
 export type InterpretationStatus = z.infer<typeof InterpretationStatusSchema>;
 
-export const InterpretationRecordSchema = z.object({
-  projectId: UuidSchema,
-  output: InterpretationOutputSchema,
-  status: InterpretationStatusSchema,
-  promptId: z.literal("PT-01"),
-  promptVersion: z.string().min(1),
-  schemaVersion: z.string().min(1),
-  provider: z.string().min(1),
-  model: z.string().min(1),
-  retryCount: z.number().int().min(0),
-  createdAt: IsoTimestampSchema,
-});
+export const InterpretationRecordSchema = z
+  .object({
+    interpretationId: UuidSchema,
+    projectId: UuidSchema,
+    output: InterpretationOutputSchema,
+    status: InterpretationStatusSchema,
+    promptId: z.literal("PT-01"),
+    promptVersion: z.string().min(1),
+    schemaVersion: z.string().min(1),
+    provider: z.string().min(1),
+    model: z.string().min(1),
+    retryCount: z.number().int().min(0),
+    createdAt: IsoTimestampSchema,
+    confirmedAt: IsoTimestampSchema.nullable(),
+  })
+  .strict()
+  .superRefine((record, context) => {
+    if (record.status === "USER_CONFIRMED" && record.confirmedAt === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["confirmedAt"],
+        message: "A confirmed interpretation requires confirmedAt",
+      });
+    }
+  });
 export type InterpretationRecord = z.infer<typeof InterpretationRecordSchema>;
+
+export const InterpretationDecisionActionSchema = z.enum([
+  "CONFIRM",
+  "EDIT",
+  "REGENERATE",
+  "OTHER",
+]);
+export type InterpretationDecisionAction = z.infer<
+  typeof InterpretationDecisionActionSchema
+>;
+
+export const InterpretationDecisionSchema = z
+  .object({
+    id: UuidSchema,
+    projectId: UuidSchema,
+    interpretationId: UuidSchema,
+    action: InterpretationDecisionActionSchema,
+    content: z.string().trim().min(1).max(4_000).nullable(),
+    actorId: UuidSchema,
+    createdAt: IsoTimestampSchema,
+  })
+  .strict()
+  .superRefine((decision, context) => {
+    if (
+      (decision.action === "EDIT" || decision.action === "OTHER") &&
+      decision.content === null
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["content"],
+        message: `${decision.action} decisions require user-authored content`,
+      });
+    }
+  });
+export type InterpretationDecision = z.infer<
+  typeof InterpretationDecisionSchema
+>;
+
+export * from "./interpretations";
+export * from "./spec-graph";
+export * from "./decomposition";

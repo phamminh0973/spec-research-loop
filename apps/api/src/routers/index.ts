@@ -7,6 +7,7 @@
  */
 
 import { router } from "../trpc/trpc.js";
+import { decompositionRouter } from "./decomposition.js";
 import { evidenceRouter } from "./evidence.js";
 import { healthRouter } from "./health.js";
 import { literatureRouter } from "./literature.js";
@@ -17,6 +18,7 @@ import { researchDesignRouter } from "./research-design.js";
 export const appRouter = router({
   health: healthRouter,
   projects: projectsRouter,
+  decomposition: decompositionRouter,
   literature: literatureRouter,
   evidence: evidenceRouter,
   researchDesign: researchDesignRouter,
