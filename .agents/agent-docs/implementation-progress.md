@@ -1,27 +1,31 @@
 # Implementation progress
 
-Last reviewed: 2026-08-10
+Last reviewed: 2026-08-13
 
-Repository status: `SCAFFOLDED`. Local install, typecheck, production build and
-API/web smoke checks have been observed; product workflow, automated tests,
+Repository status: `SCAFFOLDED`, first Week-1 vertical-slice piece
+`IN_PROGRESS`. Local install, typecheck, production build and API/web smoke
+checks have been observed; most product workflow, automated tests,
 benchmarking and Docker deployment remain `PLANNED`.
 
-| Area                              | Status                            | Evidence / next reference                                                                                            |
-| --------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Monorepo scaffold (pnpm)          | SCAFFOLDED — locally verified     | `corepack pnpm install --frozen-lockfile`; recursive typecheck/build observed 2026-08-10                             |
-| Shared schemas package            | IN_PROGRESS — typecheck verified | `packages/schemas/src/index.ts`; added literature/evidence/research-design schemas; `tsc --noEmit` clean 2026-08-10 |
-| Web application (`apps/web`)      | SCAFFOLDED — build/smoke verified | Next.js production build passed; local HTTP `/` returned 200 on 2026-08-10                                           |
-| API modular monolith (`apps/api`) | IN_PROGRESS — typecheck verified  | Added `literature`, `evidence`, `researchDesign` routers + project store; `tsc --noEmit` clean 2026-08-10            |
-| Background worker (`apps/worker`) | PLANNED                           | `docs/03-architecture-and-technical-design.md`                                                                       |
-| AI and evidence workflow          | IN_PROGRESS                       | UC-04/UC-05/UC-06 routers added; LLM-backed AIT-05/06/07/08 are stubs pending AI gateway wiring                      |
-| Test and evaluation               | PLANNED                           | Package test/lint scripts are placeholders; no automated suite or linter is configured                               |
-| Local delivery                    | PARTIALLY VERIFIED                | Local API/web smoke passed and `docker compose config` resolved; Docker image build/deployment has not been verified |
-| ADR-001 (Node + tRPC backend)     | ACCEPTED 2026-08-08               | `docs/architecture/adrs/ADR-001-trpc-backend.md`                                                                     |
+| Area | Status | Evidence / next reference |
+| --- | --- | --- |
+| Monorepo scaffold (pnpm) | SCAFFOLDED — locally verified | `corepack pnpm install` / `corepack pnpm install --frozen-lockfile`; recursive typecheck/build observed 2026-08-10; re-verified 2026-08-13 |
+| Shared schemas package | IN_PROGRESS — typecheck/test verified | `packages/schemas/src/index.ts`; `tsc --noEmit` clean 2026-08-10; `vitest run` (9 passed) observed 2026-08-13 |
+| Web application (`apps/web`) | SCAFFOLDED — build/smoke verified | Next.js production build passed; local HTTP `/` returned 200 on 2026-08-10 |
+| API modular monolith (`apps/api`) | IN_PROGRESS / SCAFFOLDED — typecheck and smoke-verified | Added `literature`, `evidence`, `researchDesign` routers + project store; TypeScript build passed and local `/healthz` returned `status=ok` on 2026-08-10; `tsc --noEmit` clean 2026-08-10 |
+| US-02 idea interpretation (AIT-01, TT-US02-01) | IN_PROGRESS — schema/prompt/service + contract tests | `apps/api/src/interpretation/{prompt,service}.ts`, `apps/api/src/routers/interpretation.ts`; `packages/schemas` `InterpretIdeaInputSchema`/`InterpretationOutputSchema`/`InterpretationRecordSchema`; `vitest run` (7 passed) in `apps/api` observed 2026-08-13; no real provider call (tests use fake client) |
+| Background worker (`apps/worker`) | PLANNED | `docs/03-architecture-and-technical-design.md` |
+| AI and evidence workflow | IN_PROGRESS | UC-04/UC-05/UC-06 routers added; LLM gateway and AIT stubs present; no real provider calls (no `OPENAI_API_KEY`) — tests use injected fake client |
+| Test and evaluation | PARTIAL — `vitest` wired in parts of the monorepo | `packages/schemas/vitest.config.ts`, `apps/api/vitest.config.ts`; `vitest` observed passing tests in `packages/schemas` and `apps/api`; package test/lint scripts remain placeholders |
+| Local delivery | PARTIALLY VERIFIED | Local API/web smoke passed; `docker compose config` resolved; Docker image build/deployment has not been verified |
+| ADR-001 (Node + tRPC backend) | ACCEPTED 2026-08-08 | `docs/architecture/adrs/ADR-001-trpc-backend.md` |
 
 > The scaffold rows above are **not** a claim of product completion. Formatting
-> currently fails on repository files, lint/test scripts are placeholders, and
-> Docker deployment has not been exercised. Mark a capability `DONE` only after
-> its acceptance criteria and verification evidence exist.
+> currently fails on repository files, lint remains a placeholder, and Docker
+> deployment has not been exercised. Mark a capability `DONE` only after its
+> acceptance criteria and verification evidence exist — US-02 needs web UI
+> integration (TT-US02-02) and real-provider verification before it can move
+> past `IN_PROGRESS`.
 
 ## UC-04 to UC-06 — implementation notes (2026-08-10)
 
