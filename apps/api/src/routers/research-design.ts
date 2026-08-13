@@ -21,11 +21,7 @@
  */
 
 import {
-  AtomicClaimSchema,
   ClaimDesignOutputSchema,
-  ClaimTypeSchema,
-  ExperimentPlanOutputSchema,
-  ExperimentPlanSchema,
   GapProposalOutputSchema,
   GenerateClaimDesignInputSchema,
   GenerateExperimentPlanInputSchema,
@@ -34,54 +30,20 @@ import {
   ListAtomicClaimsOutputSchema,
   ListExperimentPlansInputSchema,
   ListExperimentPlansOutputSchema,
-  type AtomicClaim,
-  type ClaimDesignOutput,
-  type Contribution,
-  type ExperimentPlan,
-  type ExperimentPlanOutput,
-  type GapProposalOutput,
+  ExperimentPlanSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
-import { z } from "zod";
-import {
-  claimDesignPrompt,
-  experimentPlanPrompt,
-  gapProposalPrompt,
-} from "../llm/prompts.js";
-import { structuredCall } from "../llm/structured-call.js";
 import { publicProcedure, router } from "../trpc/trpc.js";
 import {
+  generateGapProposal,
+  generateClaimDesign,
+  generateExperimentPlan,
+} from "../research-design/service.js";
+import {
   atomicClaimsByProject,
-  contributionsByProject,
   experimentPlansByProject,
   gapProposalsByProject,
-  getOrCreate,
-  parseOrThrow,
-  sourcesByProject,
 } from "../store/project-store.js";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Build the corpus-bounded context for a gap proposal: the selected source
- * documents' titles + abstracts. The gap generator only receives selected
- * corpus evidence (AI design §8); it never sees the whole arXiv result set.
- */
-function selectedCorpusContext(projectId: string): {
-  titles: string[];
-  abstracts: string[];
-  sourceIds: string[];
-} {
-  const list = sourcesByProject.get(projectId) ?? [];
-  const selected = list.filter((s) => s.selected);
-  return {
-    titles: selected.map((s) => s.title),
-    abstracts: selected.map((s) => s.abstract),
-    sourceIds: selected.map((s) => s.id),
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Procedures
@@ -99,42 +61,28 @@ export const researchDesignRouter = router({
     .input(GenerateGapProposalInputSchema)
     .output(GapProposalOutputSchema)
     .mutation(async ({ input, ctx }) => {
-      const corpus = selectedCorpusContext(input.projectId);
-      if (corpus.sourceIds.length === 0) {
+      try {
+        const proposal = await generateGapProposal({
+          projectId: input.projectId,
+          client: ctx.llm,
+          model: ctx.llmConfig.defaultModel,
+        });
+        return proposal;
+      } catch (err) {
+        const message = (err as Error).message;
+        if (message.includes("Select at least one source")) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Select at least one source into the corpus before proposing a gap " +
+              "(AI design §6: gap generation only receives selected corpus evidence).",
+          });
+        }
         throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message:
-            "Select at least one source into the corpus before proposing a gap " +
-            "(AI design §6: gap generation only receives selected corpus evidence).",
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Gap proposal failed: ${message}`,
         });
       }
-
-      // Render the selected corpus as labeled, untrusted content blocks so
-      // the model treats paper text as data, not instructions (§16.2).
-      const corpusText = corpus.titles
-        .map((t, i) => `Source ${corpus.sourceIds[i]}: ${t}\n${corpus.abstracts[i]}`)
-        .join("\n\n");
-
-      const allowedIds = new Set(corpus.sourceIds);
-      const proposal = await structuredCall<GapProposalOutput>({
-        client: ctx.llm,
-        model: ctx.llmConfig.defaultModel,
-        systemPrompt: gapProposalPrompt.system,
-        userPrompt:
-          "Propose 1–3 corpus-bounded research gap candidates from the " +
-          "selected corpus below. Only reference the source IDs provided. " +
-          "Every candidate must include a novelty_risk warning.",
-        untrusted: [{ label: "Selected corpus", text: corpusText }],
-        outputSchema: GapProposalOutputSchema,
-        allowedIds,
-        extractReferencedIds: (out) => [
-          ...out.candidates.flatMap((c) => c.evidenceRefs),
-          ...out.candidates.flatMap((c) => c.nearestWorkIds),
-        ],
-      });
-
-      gapProposalsByProject.set(input.projectId, proposal);
-      return proposal;
     }),
 
   /**
@@ -167,107 +115,20 @@ export const researchDesignRouter = router({
         });
       }
 
-      // The gap candidate is the only untrusted content; the model may only
-      // reference the source IDs it carries.
-      const allowedIds = new Set(candidate.evidenceRefs);
-      const gapText =
-        `Known capability: ${candidate.knownCapability}\n` +
-        `Limitation: ${candidate.limitation}\n` +
-        `Importance: ${candidate.importance}\n` +
-        `Testable hypothesis: ${candidate.testableHypothesis}\n` +
-        `Scope: ${candidate.scope}\n` +
-        `Evidence source IDs: ${candidate.evidenceRefs.join(", ")}`;
-
-      const design = await structuredCall<ClaimDesignOutput>({
-        client: ctx.llm,
-        model: ctx.llmConfig.defaultModel,
-        systemPrompt: claimDesignPrompt.system,
-        userPrompt:
-          "Propose contributions and falsifiable atomic claims for the " +
-          "selected gap below. Only reference the source IDs provided.",
-        untrusted: [{ label: "Selected gap candidate", text: gapText }],
-        outputSchema: ClaimDesignOutputSchema,
-        allowedIds,
-        extractReferencedIds: (out) =>
-          out.claims.flatMap((c) => c.evidenceRefs),
-      });
-
-      // Persist the proposed claims and contributions. The LLM returns claim
-      // shapes without ids; the application assigns ids so it remains the
-      // single authority over identity (AI design §4).
-      const now = new Date().toISOString();
-      const claimIdMap = new Map<string, string>();
-      const persistedClaims: AtomicClaim[] = design.claims.map((c) => {
-        const id = crypto.randomUUID();
-        // Map the LLM's evidence refs through unchanged; they were already
-        // validated against the allowlist.
-        return parseOrThrow(
-          AtomicClaimSchema,
-          {
-            id,
-            projectId: input.projectId,
-            type: ClaimTypeSchema.parse(c.type),
-            text: c.text,
-            scope: c.scope,
-            baseline: c.baseline,
-            datasetDomain: c.datasetDomain,
-            metric: c.metric,
-            expectedDirection: c.expectedDirection,
-            falsificationCondition: c.falsificationCondition,
-            evidenceRefs: c.evidenceRefs,
-            experimentRefs: c.experimentRefs,
-            createdAt: now,
-            updatedAt: now,
-          },
-          "AtomicClaim",
-        );
-      });
-      // The LLM's contribution.claimIds are indices/labels; we cannot trust
-      // them as real ids. Rebuild contributions to reference the persisted
-      // claim ids in order.
-      persistedClaims.forEach((c, i) => claimIdMap.set(String(i), c.id));
-      getOrCreate(atomicClaimsByProject, input.projectId).push(...persistedClaims);
-
-      const persistedContributions: Contribution[] = design.contributions.map(
-        (c) => {
-          const id = crypto.randomUUID();
-          // Assign the first N persisted claim ids to each contribution in
-          // order; the LLM's claimIds are not trusted as real ids.
-          const claimIds = persistedClaims.slice(0, c.claimIds.length).map(
-            (cl) => cl.id,
-          );
-          return parseOrThrow(
-            z.object({
-              id: z.string().uuid(),
-              projectId: z.string().uuid(),
-              text: z.string().min(1).max(2_000),
-              claimIds: z.array(z.string().uuid()).default([]),
-              createdAt: z.string(),
-            }),
-            {
-              id,
-              projectId: input.projectId,
-              text: c.text,
-              claimIds,
-              createdAt: now,
-            },
-            "Contribution",
-          );
-        },
-      );
-      getOrCreate(contributionsByProject, input.projectId).push(
-        ...persistedContributions,
-      );
-
-      // Return the design with the persisted claim ids substituted in.
-      return parseOrThrow(
-        ClaimDesignOutputSchema,
-        {
-          contributions: persistedContributions.map((c) => ({
+      try {
+        const result = await generateClaimDesign({
+          projectId: input.projectId,
+          selectedGapIndex: input.selectedGapIndex,
+          client: ctx.llm,
+          model: ctx.llmConfig.defaultModel,
+        });
+        // Map to schema shape expected by the router output.
+        return {
+          contributions: result.persistedContributions.map((c) => ({
             text: c.text,
             claimIds: c.claimIds,
           })),
-          claims: persistedClaims.map((c) => ({
+          claims: result.persistedClaims.map((c) => ({
             type: c.type,
             text: c.text,
             scope: c.scope,
@@ -279,9 +140,28 @@ export const researchDesignRouter = router({
             evidenceRefs: c.evidenceRefs,
             experimentRefs: c.experimentRefs,
           })),
-        },
-        "ClaimDesignOutput",
-      );
+        };
+      } catch (err) {
+        const message = (err as Error).message;
+        if (message.includes("Generate a gap proposal")) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Generate a gap proposal before claim design " +
+              "(researchDesign.generateGapProposal).",
+          });
+        }
+        if (message.includes("out of range")) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: message,
+          });
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Claim design failed: ${message}`,
+        });
+      }
     }),
 
   /**
@@ -296,64 +176,30 @@ export const researchDesignRouter = router({
     .input(GenerateExperimentPlanInputSchema)
     .output(ExperimentPlanSchema)
     .mutation(async ({ input, ctx }) => {
-      const claims = atomicClaimsByProject.get(input.projectId) ?? [];
-      const selectedClaims = input.claimIds.length
-        ? claims.filter((c) => input.claimIds.includes(c.id))
-        : claims;
-      if (selectedClaims.length === 0) {
+      try {
+        const plan = await generateExperimentPlan({
+          projectId: input.projectId,
+          claimIds: input.claimIds,
+          tier: input.tier,
+          client: ctx.llm,
+          model: ctx.llmConfig.defaultModel,
+        });
+        return plan;
+      } catch (err) {
+        const message = (err as Error).message;
+        if (message.includes("Generate or select at least one atomic claim")) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Generate or select at least one atomic claim before experiment " +
+              "planning (researchDesign.generateClaimDesign).",
+          });
+        }
         throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message:
-            "Generate or select at least one atomic claim before experiment " +
-            "planning (researchDesign.generateClaimDesign).",
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Experiment plan failed: ${message}`,
         });
       }
-
-      // Render the claims as untrusted content; the model treats them as data.
-      const claimsText = selectedClaims
-        .map(
-          (c) =>
-            `Claim ${c.id} [${c.type}]: ${c.text}\n` +
-            `  scope: ${c.scope}\n  baseline: ${c.baseline}\n` +
-            `  metric: ${c.metric}\n  falsifies if: ${c.falsificationCondition}`,
-        )
-        .join("\n\n");
-
-      const planOutput = await structuredCall<ExperimentPlanOutput>({
-        client: ctx.llm,
-        model: ctx.llmConfig.defaultModel,
-        systemPrompt: experimentPlanPrompt.system,
-        userPrompt:
-          "Propose a controlled experiment plan for the claims below. " +
-          "Include at least one important ablation. Label every estimate " +
-          "input as assumed or measured; never fabricate prices or throughput.",
-        untrusted: [{ label: "Atomic claims", text: claimsText }],
-        outputSchema: ExperimentPlanOutputSchema,
-      });
-
-      const now = new Date().toISOString();
-      const plan: ExperimentPlan = parseOrThrow(
-        ExperimentPlanSchema,
-        {
-          id: crypto.randomUUID(),
-          projectId: input.projectId,
-          tier: input.tier,
-          baselines: planOutput.baselines,
-          metrics: planOutput.metrics,
-          protocol: planOutput.protocol,
-          controls: planOutput.controls,
-          ablations: planOutput.ablations,
-          generalizationProposals: planOutput.generalizationProposals,
-          assumptions: planOutput.assumptions,
-          estimates: planOutput.estimates,
-          claimIds: selectedClaims.map((c) => c.id),
-          createdAt: now,
-          updatedAt: now,
-        },
-        "ExperimentPlan",
-      );
-      getOrCreate(experimentPlansByProject, input.projectId).push(plan);
-      return plan;
     }),
 
   /**
