@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { TRPCProvider } from "@/lib/trpc-provider";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SpecLoop · Structured decomposition",
+  title: "SpecResearch Loop",
   description:
-    "Reviewable typed research cards, relations and explicit warnings.",
+    "Project-scoped interpretation and typed research decomposition.",
 };
 
 export default function RootLayout({
@@ -13,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="vi">
       <body>
         <TRPCProvider>{children}</TRPCProvider>
       </body>
