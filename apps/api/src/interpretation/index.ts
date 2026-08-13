@@ -17,3 +17,18 @@ export {
   InterpretationGenerationError,
   type GenerateInterpretationDeps,
 } from "./service.js";
+
+export {
+  InMemoryInterpretationRepository,
+  InterpretationLifecycleError,
+  interpretationRepository,
+  type ConfirmInterpretationCommand,
+  type InterpretationRepository,
+  type ReviseInterpretationCommand,
+} from "./repository.js";
+
+export {
+  createInterpretationModule,
+  type InterpretationModule,
+  type InterpretationModuleDependencies,
+} from "./module.js";

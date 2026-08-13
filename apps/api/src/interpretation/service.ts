@@ -58,7 +58,7 @@ export class InterpretationGenerationError extends Error {
   constructor(
     message: string,
     readonly retryCount: number,
-    override readonly cause?: unknown,
+    override readonly cause?: unknown
   ) {
     super(message);
     this.name = "InterpretationGenerationError";
@@ -66,7 +66,7 @@ export class InterpretationGenerationError extends Error {
 }
 
 function extractContent(
-  completion: OpenAI.Chat.Completions.ChatCompletion,
+  completion: OpenAI.Chat.Completions.ChatCompletion
 ): string {
   const content = completion.choices[0]?.message.content;
   if (!content) {
@@ -81,7 +81,7 @@ function parseOutput(raw: string): InterpretationOutput {
     json = JSON.parse(raw);
   } catch (error) {
     throw new Error(
-      `Provider output was not valid JSON: ${(error as Error).message}`,
+      `Provider output was not valid JSON: ${(error as Error).message}`
     );
   }
   return InterpretationOutputSchema.parse(json);
@@ -96,7 +96,7 @@ function parseOutput(raw: string): InterpretationOutput {
  */
 export async function generateInterpretation(
   rawInput: InterpretIdeaInput,
-  deps: GenerateInterpretationDeps = {},
+  deps: GenerateInterpretationDeps = {}
 ): Promise<InterpretationRecord> {
   const input = InterpretIdeaInputSchema.parse(rawInput);
   const client = deps.client ?? getLlmClient();
@@ -127,6 +127,7 @@ export async function generateInterpretation(
       const output = parseOutput(extractContent(completion));
 
       return {
+        interpretationId: crypto.randomUUID(),
         projectId: input.projectId,
         output,
         status: "PROPOSED",
@@ -137,6 +138,7 @@ export async function generateInterpretation(
         model,
         retryCount,
         createdAt: new Date().toISOString(),
+        confirmedAt: null,
       };
     } catch (error) {
       lastError = error;
@@ -147,6 +149,6 @@ export async function generateInterpretation(
   throw new InterpretationGenerationError(
     "Idea interpretation failed to produce schema-valid output within the bounded repair budget.",
     retryCount - 1,
-    lastError,
+    lastError
   );
 }
