@@ -29,6 +29,14 @@ import {
   SectionHeader,
   StatusPill,
 } from "./section-card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 function errorMessage(error: { message?: string } | null | undefined) {
   return error?.message ?? "Step 2 operation failed.";
@@ -40,13 +48,13 @@ function typeLabel(type: SpecNode["type"]) {
 
 function PageHeading() {
   return (
-    <div className="page-heading">
-      <span className="page-heading-icon" aria-hidden="true">
+    <div className="flex items-start gap-4 mb-8">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
         <Search size={27} />
       </span>
       <div>
-        <h1>2. Structured decomposition</h1>
-        <p>
+        <h1 className="text-2xl font-bold text-foreground">2. Structured decomposition</h1>
+        <p className="text-muted-foreground mt-1">
           Chuyển interpretation đã xác nhận thành typed cards có thể review và
           chỉnh sửa. Literature, source provenance và novelty assessment không
           được suy diễn ở màn hình này.
@@ -66,22 +74,22 @@ function Metrics({ graph }: { graph: SpecGraphView | null }) {
     0;
 
   return (
-    <div className="metric-grid" aria-label="Decomposition summary">
-      <div className="metric">
-        <span className="metric-value">{nodeCount}</span>
-        <span className="metric-label">typed nodes</span>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4" aria-label="Decomposition summary">
+      <div className="rounded-lg bg-muted p-4 text-center">
+        <span className="text-2xl font-bold text-foreground">{nodeCount}</span>
+        <span className="block text-sm text-muted-foreground">typed nodes</span>
       </div>
-      <div className="metric">
-        <span className="metric-value">{reviewCount}</span>
-        <span className="metric-label">needs review</span>
+      <div className="rounded-lg bg-muted p-4 text-center">
+        <span className="text-2xl font-bold text-foreground">{reviewCount}</span>
+        <span className="block text-sm text-muted-foreground">needs review</span>
       </div>
-      <div className="metric">
-        <span className="metric-value">{warningCount}</span>
-        <span className="metric-label">warnings</span>
+      <div className="rounded-lg bg-muted p-4 text-center">
+        <span className="text-2xl font-bold text-foreground">{warningCount}</span>
+        <span className="block text-sm text-muted-foreground">warnings</span>
       </div>
-      <div className="metric">
-        <span className="metric-value">{sourceCount}</span>
-        <span className="metric-label">source refs</span>
+      <div className="rounded-lg bg-muted p-4 text-center">
+        <span className="text-2xl font-bold text-foreground">{sourceCount}</span>
+        <span className="block text-sm text-muted-foreground">source refs</span>
       </div>
     </div>
   );
@@ -115,111 +123,118 @@ function ReviewRow({
   }) => void;
 }) {
   return (
-    <tr>
-      <td>
+    <tr className="border-b border-border">
+      <td className="py-4">
         {editing ? (
-          <div className="node-editor">
-            <input
-              className="text-input"
+          <div className="space-y-2">
+            <Input
               value={draft.title}
               onChange={(event) =>
                 onDraftChange({ ...draft, title: event.target.value })
               }
+              className="w-full"
             />
-            <span className="node-ref">{row.clientRef}</span>
+            <Badge variant="secondary" className="text-xs">
+              {row.clientRef}
+            </Badge>
           </div>
         ) : (
           <>
-            <span className="node-title">{row.title}</span>
-            <span className="node-ref">{row.clientRef}</span>
+            <p className="font-medium text-foreground">{row.title}</p>
+            <Badge variant="secondary" className="text-xs mt-1">
+              {row.clientRef}
+            </Badge>
           </>
         )}
       </td>
-      <td>
-        <span className="node-type">{typeLabel(row.type)}</span>
+      <td className="py-4">
+        <Badge variant="outline" className="text-xs">
+          {typeLabel(row.type)}
+        </Badge>
       </td>
-      <td>
+      <td className="py-4 max-w-md">
         {editing ? (
-          <div className="node-editor">
-            <textarea
-              className="text-area"
+          <div className="space-y-2">
+            <Textarea
               value={draft.content}
               onChange={(event) =>
                 onDraftChange({ ...draft, content: event.target.value })
               }
+              rows={3}
+              className="w-full"
             />
-            <input
-              className="text-input"
+            <Input
               value={draft.reason}
               onChange={(event) =>
                 onDraftChange({ ...draft, reason: event.target.value })
               }
               placeholder="Reason (optional)"
+              className="w-full"
             />
           </div>
         ) : (
-          <div className="node-content">
-            {row.content}
+          <div className="space-y-1">
+            <p className="text-sm text-foreground">{row.content}</p>
             {row.reason ? (
-              <p className="meta-text">Reason: {row.reason}</p>
+              <p className="text-xs text-muted-foreground">Reason: {row.reason}</p>
             ) : null}
           </div>
         )}
       </td>
-      <td>
-        <StatusPill status={row.status} />
-        <p className="meta-text">{row.sourceCount} source ref(s)</p>
+      <td className="py-4">
+        <div className="space-y-1">
+          <StatusPill status={row.status} />
+          <p className="text-xs text-muted-foreground">{row.sourceCount} source ref(s)</p>
+        </div>
       </td>
-      <td>
-        <div className="action-row">
+      <td className="py-4">
+        <div className="flex items-center gap-2">
           {editing ? (
             <>
-              <button
-                className="button button-primary button-small"
-                type="button"
+              <Button
+                size="sm"
                 onClick={onSave}
                 disabled={pending}
               >
-                <Check size={13} /> Lưu
-              </button>
-              <button
-                className="button button-secondary button-small"
-                type="button"
+                <Check size={13} className="mr-1" /> Lưu
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={onCancel}
                 disabled={pending}
               >
                 Huỷ
-              </button>
+              </Button>
             </>
           ) : (
             <>
-              <button
-                className="button button-secondary button-small"
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={onEdit}
                 disabled={pending}
               >
-                <Pencil size={13} /> Sửa
-              </button>
+                <Pencil size={13} className="mr-1" /> Sửa
+              </Button>
               {row.status !== "USER_CONFIRMED" ? (
-                <button
-                  className="button button-primary button-small"
-                  type="button"
+                <Button
+                  size="sm"
                   onClick={onConfirm}
                   disabled={pending}
                 >
-                  <Check size={13} /> Confirm
-                </button>
+                  <Check size={13} className="mr-1" /> Confirm
+                </Button>
               ) : null}
               {row.status !== "USER_REJECTED" ? (
-                <button
-                  className="button button-danger button-small"
-                  type="button"
+                <Button
+                  variant="destructive"
+                  size="sm"
                   onClick={onReject}
                   disabled={pending}
                 >
-                  <X size={13} /> Reject
-                </button>
+                  <X size={13} className="mr-1" /> Reject
+                </Button>
               ) : null}
             </>
           )}
@@ -361,66 +376,77 @@ export function Step2Workspace({
       interpretationStatus="USER_CONFIRMED"
       hasGraph={Boolean(graph)}
     >
-      <div className="page-container">
+      <div className="space-y-8">
         <PageHeading />
 
         {fixtureMode ? (
-          <div className="alert alert-warning" role="status">
-            <LocalDevelopmentBadge />
-            <span>
-              Fixture này chỉ mô phỏng typed decomposition. Không có paper,
-              citation, source evidence hoặc novelty claim production.
-            </span>
-          </div>
+          <Alert className="bg-amber-50 border-amber-200 text-amber-800" role="status">
+            <div className="flex items-center gap-2">
+              <LocalDevelopmentBadge />
+              <span>
+                Fixture này chỉ mô phỏng typed decomposition. Không có paper,
+                citation, source evidence hoặc novelty claim production.
+              </span>
+            </div>
+          </Alert>
         ) : null}
 
         {error ? (
-          <div className="alert alert-error" role="alert">
-            <ShieldAlert size={17} />
-            <span>
-              <strong>API-backed Step 2 chưa khả dụng</strong>
-              {errorMessage(error)}. HTTP context hiện chưa compose production
-              <code>SpecStructureModule</code>; không tự chuyển sang fixture.
-            </span>
-          </div>
+          <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive" role="alert">
+            <div className="flex items-start gap-2">
+              <ShieldAlert size={17} className="shrink-0 mt-0.5" />
+              <span>
+                <strong>API-backed Step 2 chưa khả dụng</strong>
+                {errorMessage(error)}. HTTP context hiện chưa compose production
+                <code className="bg-muted px-1 rounded">SpecStructureModule</code>; không tự chuyển sang fixture.
+              </span>
+            </div>
+          </Alert>
         ) : null}
 
-        <SectionCard className="step2-actions-card">
-          <div className="step2-actions" style={{ marginTop: 0 }}>
-            <div>
-              <p className="eyebrow">BR-01 GATE</p>
-              <p className="helper-text">
-                Server chỉ nhận <code>projectId</code> và tự đọc interpretation
-                USER_CONFIRMED trước khi generate.
-              </p>
+        <SectionCard>
+          <CardContent className="pt-0">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">BR-01 GATE</p>
+                <p className="text-sm text-muted-foreground">
+                  Server chỉ nhận <code className="bg-muted px-1 rounded">projectId</code> và tự đọc interpretation
+                  USER_CONFIRMED trước khi generate.
+                </p>
+              </div>
+              <Button
+                onClick={handleGenerate}
+                disabled={pending}
+              >
+                <Sparkles size={15} className="mr-2" />
+                {pending
+                  ? "Đang xử lý…"
+                  : graph
+                    ? "Generate lại cards"
+                    : "Generate typed cards"}
+              </Button>
             </div>
-            <button
-              className="button button-primary"
-              type="button"
-              onClick={handleGenerate}
-              disabled={pending}
-            >
-              <Sparkles size={15} />
-              {pending
-                ? "Đang xử lý…"
-                : graph
-                  ? "Generate lại cards"
-                  : "Generate typed cards"}
-            </button>
-          </div>
-          <Metrics graph={graph} />
+            <Metrics graph={graph} />
+          </CardContent>
         </SectionCard>
 
-        <div className="step2-grid" style={{ marginTop: 20 }}>
-          <div className="stack-gap">
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4">
             <SectionCard>
               <SectionHeader icon={FileText} title="Review plan" tone="blue" />
-              <ul className="bullet-list">
-                <li>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
                   Kiểm tra type, status, reason và source refs của từng card.
                 </li>
-                <li>Chỉnh sửa nội dung bằng mutation có validation ở API.</li>
-                <li>Không dùng card này để khẳng định source hoặc novelty.</li>
+                <li className="flex items-start gap-2">
+                  <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
+                  Chỉnh sửa nội dung bằng mutation có validation ở API.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
+                  Không dùng card này để khẳng định source hoặc novelty.
+                </li>
               </ul>
             </SectionCard>
             <SectionCard>
@@ -429,11 +455,11 @@ export function Step2Workspace({
                 title="Literature handoff"
                 tone="neutral"
               />
-              <div className="boundary-box">
-                <h3>Step 3 boundary</h3>
-                <p>
+              <div className="rounded-lg border border-border bg-muted/50 p-4">
+                <h3 className="font-semibold text-foreground mb-2">Step 3 boundary</h3>
+                <p className="text-sm text-muted-foreground">
                   Search plan, priority sources và related-work provenance chưa
-                  có contract Step 2. `search_arxiv` không phải generator của
+                  có contract Step 2. <code className="bg-muted px-1 rounded">search_arxiv</code> không phải generator của
                   decomposition và không được gọi từ UI này.
                 </p>
               </div>
@@ -447,15 +473,15 @@ export function Step2Workspace({
               tone="purple"
             />
             {rows.length > 0 ? (
-              <div className="node-table-wrap">
-                <table className="node-table">
+              <div className="overflow-x-auto">
+                <table className="w-full">
                   <thead>
-                    <tr>
-                      <th>Card</th>
-                      <th>Type</th>
-                      <th>Content / reason</th>
-                      <th>Status</th>
-                      <th>Review</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Card</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Content / reason</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Review</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -482,19 +508,21 @@ export function Step2Workspace({
                 </table>
               </div>
             ) : graphQuery.isPending && !fixtureMode ? (
-              <p className="loading-state">Đang đọc graph view…</p>
+              <p className="text-center text-muted-foreground py-8">Đang đọc graph view…</p>
             ) : (
-              <div className="empty-state">
-                <h3>Chưa có typed cards</h3>
-                <p>
+              <div className="text-center py-8">
+                <h3 className="font-semibold text-foreground mb-1">Chưa có typed cards</h3>
+                <p className="text-sm text-muted-foreground">
                   Chỉ generate sau khi server xác nhận BR-01, hoặc mở
-                  `?fixture=1` để smoke-test local.
+                  <code className="bg-muted px-1 rounded">?fixture=1</code> để smoke-test local.
                 </p>
               </div>
             )}
           </SectionCard>
+        </div>
 
-          <div className="stack-gap">
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-4">
             <SectionCard>
               <SectionHeader
                 icon={AlertTriangle}
@@ -502,15 +530,18 @@ export function Step2Workspace({
                 tone="amber"
               />
               {gaps.length > 0 ? (
-                <div className="field-stack">
+                <div className="space-y-4">
                   {gaps.map((gap) => (
-                    <div className="gap-card" key={gap.clientRef}>
-                      <h3>{gap.title}</h3>
-                      <p>{gap.content}</p>
-                      <div style={{ marginTop: 9 }}>
+                    <div
+                      key={gap.clientRef}
+                      className="rounded-lg border border-border bg-card p-4"
+                    >
+                      <h3 className="font-semibold text-foreground">{gap.title}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{gap.content}</p>
+                      <div className="mt-3">
                         <StatusPill status={gap.status} />
                       </div>
-                      <p style={{ marginTop: 9 }}>
+                      <p className="text-xs text-muted-foreground mt-3">
                         Đây chỉ là candidate trong decomposition; cần
                         corpus-bounded evidence trước mọi kết luận.
                       </p>
@@ -518,9 +549,9 @@ export function Step2Workspace({
                   ))}
                 </div>
               ) : (
-                <div className="empty-state">
-                  <h3>Chưa có GAP node</h3>
-                  <p>Không tạo gap giả để lấp giao diện.</p>
+                <div className="text-center py-8">
+                  <h3 className="font-semibold text-foreground mb-1">Chưa có GAP node</h3>
+                  <p className="text-sm text-muted-foreground">Không tạo gap giả để lấp giao diện.</p>
                 </div>
               )}
             </SectionCard>
@@ -531,49 +562,51 @@ export function Step2Workspace({
                 tone="amber"
               />
               {graph && graph.warnings.length > 0 ? (
-                <ul className="warning-list">
+                <ul className="space-y-4">
                   {graph.warnings.map((warning, index) => (
                     <li
-                      className="warning-item"
                       key={`${warning.code}-${warning.targetClientRef ?? index}`}
+                      className="rounded-lg border border-border bg-card p-4"
                     >
-                      <strong>
+                      <strong className="text-foreground">
                         {warning.code} · {warning.targetType}
                       </strong>
-                      <p>{warning.reason}</p>
-                      <p style={{ marginTop: 5 }}>
+                      <p className="text-sm text-muted-foreground mt-1">{warning.reason}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
                         Action: {warning.suggestedAction}
                       </p>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <div className="empty-state">
-                  <h3>Chưa có warnings</h3>
-                  <p>Warnings sẽ xuất hiện từ graph output đã validate.</p>
+                <div className="text-center py-8">
+                  <h3 className="font-semibold text-foreground mb-1">Chưa có warnings</h3>
+                  <p className="text-sm text-muted-foreground">Warnings sẽ xuất hiện từ graph output đã validate.</p>
                 </div>
               )}
             </SectionCard>
           </div>
         </div>
 
-        <SectionCard className="summary-card">
-          <div className="summary-label">
-            <span className="section-icon card-tone-purple" aria-hidden="true">
-              <FileText size={18} />
-            </span>
-            <span>Step 2 review</span>
-          </div>
-          <div className="summary-meta">
-            <span className="meta-text">
-              {getLocalDevelopmentLabel(fixtureMode) ?? "API-backed mode"}
-            </span>
-            <StatusPill status={graph ? "AVAILABLE" : "MISSING"} />
-          </div>
-          <div className="summary-tip">
-            <strong>Next boundary:</strong> Step 3 literature/evidence contract,
-            không thuộc UI refresh này.
-          </div>
+        <SectionCard>
+          <CardContent className="pt-0">
+            <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
+              <span className="flex size-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600" aria-hidden="true">
+                <FileText size={18} />
+              </span>
+              <span>Step 2 review</span>
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                {getLocalDevelopmentLabel(fixtureMode) ?? "API-backed mode"}
+              </span>
+              <StatusPill status={graph ? "AVAILABLE" : "MISSING"} />
+            </div>
+            <div className="mt-4 text-sm text-muted-foreground">
+              <strong>Next boundary:</strong> Step 3 literature/evidence contract,
+              không thuộc UI refresh này.
+            </div>
+          </CardContent>
         </SectionCard>
       </div>
     </AppShell>
