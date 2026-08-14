@@ -90,8 +90,8 @@ export function AppShell({
     : "/projects/new";
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+    <div className="min-h-screen bg-[color-mix(in_oklch,var(--background),var(--primary)_2%)]">
+      <header className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-40">
         <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-8 px-6">
           <Link
             className="flex items-center gap-2.5"
@@ -128,7 +128,7 @@ export function AppShell({
       <div className="mx-auto flex max-w-[1600px]">
         <main className="flex-1 min-w-0 px-6 py-8">{children}</main>
 
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] shrink-0 border-l border-border lg:block w-[380px]" aria-label="Trạng thái project">
+        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] shrink-0 border-l border-border lg:block w-95 bg-card" aria-label="Trạng thái project">
           <div className="flex items-center gap-3 p-4">
             <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true">
               <PanelRight size={17} />
@@ -191,7 +191,7 @@ export function AppShell({
           </div>
 
           {fixtureMode ? (
-            <p className="p-4 text-xs text-amber-600 bg-amber-50 border-t border-amber-200">
+            <p className="p-4 text-xs text-amber-700 bg-amber-500/10 border-t border-amber-500/20 dark:text-amber-300">
               Fixture mode không ghi production data và không đại diện cho live
               LLM, PostgreSQL hay literature results.
             </p>

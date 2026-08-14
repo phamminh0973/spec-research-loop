@@ -14,10 +14,10 @@ export function StepBreadcrumb({ steps }: { steps: WorkflowStep[] }) {
           <div
             className={cn(
               "flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors",
-              step.state === "complete" && "border-green-500 bg-green-500 text-white",
-              step.state === "current" && "border-blue-500 bg-blue-50 text-blue-600",
-              step.state === "pending" && "border-amber-500 bg-amber-50 text-amber-600",
-              step.state === "blocked" && "border-slate-300 bg-white text-slate-400"
+              step.state === "complete" && "border-emerald-500 bg-emerald-500 text-white",
+              step.state === "current" && "border-primary bg-primary/10 text-primary",
+              step.state === "pending" && "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+              step.state === "blocked" && "border-border bg-background text-muted-foreground"
             )}
             aria-current={step.state === "current" ? "step" : undefined}
           >
@@ -26,10 +26,10 @@ export function StepBreadcrumb({ steps }: { steps: WorkflowStep[] }) {
           <span
             className={cn(
               "mt-1 text-xs",
-              step.state === "complete" && "font-medium text-slate-600",
-              step.state === "current" && "font-semibold text-blue-600",
-              step.state === "pending" && "font-medium text-amber-600",
-              step.state === "blocked" && "text-slate-500"
+              step.state === "complete" && "font-medium text-foreground",
+              step.state === "current" && "font-semibold text-primary",
+              step.state === "pending" && "font-medium text-amber-600 dark:text-amber-400",
+              step.state === "blocked" && "text-muted-foreground"
             )}
           >
             {step.label}
@@ -38,7 +38,7 @@ export function StepBreadcrumb({ steps }: { steps: WorkflowStep[] }) {
             <div
               className={cn(
                 "mx-2 h-0.5 flex-1 rounded-full transition-colors",
-                step.state === "complete" ? "bg-green-500" : "bg-slate-200"
+                step.state === "complete" ? "bg-emerald-500" : "bg-border"
               )}
               aria-hidden="true"
             />

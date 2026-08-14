@@ -99,23 +99,32 @@ function SummaryBar({
   return (
     <SectionCard>
       <CardContent>
-        <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <FileText className="size-4.5" />
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <FileText className="size-4.5" />
+            </div>
+            <span>Workflow status</span>
           </div>
-          <span>Workflow status</span>
+          <div className="flex-1 min-w-75">
+            <StepBreadcrumb steps={steps} />
+          </div>
+          <div className="hidden md:block flex-1">
+            <div className="rounded-lg border border-border bg-[color-mix(in_oklch,var(--background),var(--primary)_3%)] p-3 text-sm text-primary min-h-15 flex items-center">
+              <span><strong>{fixtureMode ? "Local check:" : "BR-01:"}</strong> {fixtureMode ? "fixture chỉ mô phỏng lifecycle; không phải production result." : "decomposition chỉ mở sau khi người dùng xác nhận interpretation."}</span>
+            </div>
+          </div>
         </div>
-        <div className="mt-4">
-          <StepBreadcrumb steps={steps} />
+        <div className="md:hidden mt-4">
+          <Alert>
+            <AlertDescription>
+              <strong className="font-semibold">{fixtureMode ? "Local check:" : "BR-01:"}</strong>{" "}
+              {fixtureMode
+                ? "fixture chỉ mô phỏng lifecycle; không phải production result."
+                : "decomposition chỉ mở sau khi người dùng xác nhận interpretation."}
+            </AlertDescription>
+          </Alert>
         </div>
-        <Alert className="mt-4">
-          <AlertDescription>
-            <strong className="font-semibold">{fixtureMode ? "Local check:" : "BR-01:"}</strong>{" "}
-            {fixtureMode
-              ? "fixture chỉ mô phỏng lifecycle; không phải production result."
-              : "decomposition chỉ mở sau khi người dùng xác nhận interpretation."}
-          </AlertDescription>
-        </Alert>
       </CardContent>
     </SectionCard>
   );
@@ -157,7 +166,7 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
         />
 
         {fixtureMode ? (
-          <Alert className="bg-amber-50 border-amber-200 text-amber-800" role="status">
+          <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200" role="status">
             <div className="flex items-center gap-2">
               <LocalDevelopmentBadge />
               <span>
@@ -168,8 +177,8 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
           </Alert>
         ) : null}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <SectionCard className="lg:col-span-2">
+        <div className="grid gap-6 grid-cols-3">
+          <SectionCard>
             <SectionHeader
               icon={Lightbulb}
               title="Ý tưởng ban đầu"

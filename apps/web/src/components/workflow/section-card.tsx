@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 export type CardTone = "blue" | "green" | "purple" | "amber" | "neutral";
 
 const toneClass: Record<CardTone, string> = {
-  blue: "bg-blue-50 text-blue-600",
-  green: "bg-green-50 text-green-600",
-  purple: "bg-purple-50 text-purple-600",
-  amber: "bg-amber-50 text-amber-600",
-  neutral: "bg-slate-100 text-slate-600",
+  blue: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400",
+  green: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
+  purple: "bg-violet-500/10 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400",
+  amber: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+  neutral: "bg-muted text-muted-foreground",
 };
 
 export function SectionCard({
@@ -55,7 +55,7 @@ export function SectionHeader({
 
 export function LocalDevelopmentBadge() {
   return (
-    <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-amber-800">
+    <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
       LOCAL DEVELOPMENT FIXTURE
     </span>
   );
@@ -83,10 +83,10 @@ export function StatusPill({
   return (
     <span className={cn(
       "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
-      variant === "default" && "bg-blue-50 text-blue-700",
-      variant === "secondary" && "bg-slate-100 text-slate-700",
-      variant === "outline" && "border border-slate-300 bg-white text-slate-700",
-      variant === "destructive" && "bg-red-50 text-red-700"
+      variant === "default" && "bg-primary/10 text-primary dark:bg-primary/20",
+      variant === "secondary" && "bg-secondary text-secondary-foreground",
+      variant === "outline" && "border border-border bg-background text-foreground",
+      variant === "destructive" && "bg-destructive/10 text-destructive"
     )}>
       {display}
     </span>
