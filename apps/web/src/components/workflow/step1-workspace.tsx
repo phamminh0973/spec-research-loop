@@ -74,62 +74,6 @@ function PageHeading({
   );
 }
 
-function SummaryBar({
-  currentStep,
-  confirmed,
-  fixtureMode,
-}: {
-  currentStep: 1 | 2;
-  confirmed: boolean;
-  fixtureMode: boolean;
-}) {
-  const steps: WorkflowStep[] = [
-    { label: "Ý tưởng", state: "complete" },
-    {
-      label: "Interpretation",
-      state: confirmed ? "complete" : currentStep === 1 ? "current" : "blocked",
-    },
-    {
-      label: "Typed cards",
-      state: currentStep === 2 ? "current" : confirmed ? "pending" : "blocked",
-    },
-    { label: "Evidence", state: "blocked" },
-  ];
-
-  return (
-    <SectionCard>
-      <CardContent>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <FileText className="size-4.5" />
-            </div>
-            <span>Workflow status</span>
-          </div>
-          <div className="flex-1 min-w-75">
-            <StepBreadcrumb steps={steps} />
-          </div>
-          <div className="hidden md:block flex-1">
-            <div className="rounded-lg border border-border bg-[color-mix(in_oklch,var(--background),var(--primary)_3%)] p-3 text-sm text-primary min-h-15 flex items-center">
-              <span><strong>{fixtureMode ? "Local check:" : "BR-01:"}</strong> {fixtureMode ? "fixture chỉ mô phỏng lifecycle; không phải production result." : "decomposition chỉ mở sau khi người dùng xác nhận interpretation."}</span>
-            </div>
-          </div>
-        </div>
-        <div className="md:hidden mt-4">
-          <Alert>
-            <AlertDescription>
-              <strong className="font-semibold">{fixtureMode ? "Local check:" : "BR-01:"}</strong>{" "}
-              {fixtureMode
-                ? "fixture chỉ mô phỏng lifecycle; không phải production result."
-                : "decomposition chỉ mở sau khi người dùng xác nhận interpretation."}
-            </AlertDescription>
-          </Alert>
-        </div>
-      </CardContent>
-    </SectionCard>
-  );
-}
-
 export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -315,12 +259,6 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
             </CardContent>
           </SectionCard>
         </div>
-
-        <SummaryBar
-          currentStep={1}
-          confirmed={false}
-          fixtureMode={fixtureMode}
-        />
       </div>
     </AppShell>
   );
