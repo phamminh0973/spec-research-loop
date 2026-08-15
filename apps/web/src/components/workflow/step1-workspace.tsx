@@ -260,18 +260,15 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                 tone="green"
               />
               <CardContent>
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-start gap-2">
-                    <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
+                <ul className="space-y-2 text-sm list-disc pl-5">
+                  <li>
                     Interpretation chỉ là proposal cho đến khi bạn xác nhận.
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
-                    Hệ thống không được tự gán `USER_CONFIRMED` từ output AI.
+                  <li>
+                    Hệ thống không được tự gán <code>USER_CONFIRMED</code> từ output AI.
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
-                    Decomposition sẽ nhận projectId và tự kiểm tra gate ở server.
+                  <li>
+                    Decomposition sẽ nhận <code>projectId</code> và tự kiểm tra gate ở server.
                   </li>
                 </ul>
               </CardContent>
