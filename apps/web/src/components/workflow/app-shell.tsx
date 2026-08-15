@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   CircleHelp,
@@ -12,6 +14,9 @@ import type { ReactNode } from "react";
 
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
 import { StepBreadcrumb, type WorkflowStep } from "./step-breadcrumb";
+import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 
 type ActiveStep = 1 | 2;
 
@@ -85,98 +90,100 @@ export function AppShell({
     : "/projects/new";
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="topbar-inner">
+    <div className="min-h-screen bg-[color-mix(in_oklch,var(--background),var(--primary)_2%)]">
+      <header className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-40">
+        <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-8 px-6">
           <Link
-            className="brand"
+            className="flex items-center gap-2.5"
             href="/projects/new"
             aria-label="SpecResearch Loop"
           >
-            <span className="brand-mark" aria-hidden="true">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground" aria-hidden="true">
               <Infinity size={20} />
             </span>
-            <span>SpecResearch Loop</span>
+            <span className="text-lg font-extrabold tracking-tight text-foreground">SpecResearch Loop</span>
           </Link>
 
-          <nav className="topnav" aria-label="Điều hướng chính">
-            <Link className="topnav-link active" href="/projects/new">
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Điều hướng chính">
+            <Link className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-primary" href="/projects/new">
               <Folder size={16} /> Dự án
             </Link>
-            <span className="topnav-link muted" aria-disabled="true">
+            <span className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground" aria-disabled="true">
               <History size={16} /> Lịch sử phiên bản
             </span>
-            <span className="topnav-link muted" aria-disabled="true">
+            <span className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground" aria-disabled="true">
               <CircleHelp size={16} /> Trợ giúp
             </span>
           </nav>
 
-          <div className="topbar-actions">
+          <div className="ml-auto flex items-center gap-2">
             {fixtureMode ? <LocalDevelopmentBadge /> : null}
-            <span className="account-chip" aria-label="Demo user">
+            <span className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" aria-label="Demo user">
               Demo user
             </span>
           </div>
         </div>
       </header>
 
-      <div className="shell-layout">
-        <main className="main-content">{children}</main>
+      <div className="mx-auto flex max-w-[1600px]">
+        <main className="flex-1 min-w-0 px-6 py-8">{children}</main>
 
-        <aside className="status-rail" aria-label="Trạng thái project">
-          <div className="rail-header">
-            <span className="rail-icon" aria-hidden="true">
+        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] shrink-0 border-l border-border lg:block w-95 bg-card" aria-label="Trạng thái project">
+          <div className="flex items-center gap-3 p-4">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true">
               <PanelRight size={17} />
             </span>
             <div>
-              <p className="eyebrow">PROJECT WORKFLOW</p>
-              <h2>Bản đặc tả hiện tại</h2>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT WORKFLOW</p>
+              <h2 className="text-base font-bold text-foreground">Bản đặc tả hiện tại</h2>
             </div>
           </div>
 
-          <div className="rail-project">
-            <p className="eyebrow">PROJECT</p>
-            <p className="rail-project-title">
+          <div className="p-4 border-t border-border">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT</p>
+            <p className="text-base font-medium text-foreground mt-1">
               {projectTitle ?? "Chưa chọn project"}
             </p>
             {projectId ? (
-              <code>{projectId}</code>
+              <code className="text-xs text-muted-foreground mt-1 block font-mono">{projectId}</code>
             ) : (
-              <span>Chưa tạo project</span>
+              <span className="text-xs text-muted-foreground mt-1 block">Chưa tạo project</span>
             )}
           </div>
 
-          <StepBreadcrumb steps={steps} />
+          <div className="p-4 border-t border-border">
+            <StepBreadcrumb steps={steps} />
+          </div>
 
-          <div className="rail-summary">
-            <p className="eyebrow">API STATUS</p>
+          <div className="p-4 border-t border-border">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API STATUS</p>
             {interpretationStatus ? (
-              <div className="rail-status-row">
-                <span>Interpretation</span>
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-sm text-foreground">Interpretation</span>
                 <StatusPill status={interpretationStatus} />
               </div>
             ) : (
-              <p className="rail-muted">Chưa có interpretation record.</p>
+              <p className="text-sm text-muted-foreground mt-3">Chưa có interpretation record.</p>
             )}
             {hasGraph ? (
-              <div className="rail-status-row">
-                <span>Decomposition</span>
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-sm text-foreground">Decomposition</span>
                 <StatusPill status="AVAILABLE" label="AVAILABLE" />
               </div>
             ) : (
-              <p className="rail-muted">Chưa có graph view.</p>
+              <p className="text-sm text-muted-foreground mt-3">Chưa có graph view.</p>
             )}
           </div>
 
-          <div className="rail-actions">
+          <div className="p-4 border-t border-border flex flex-col gap-2">
             <Link
-              className={`rail-link ${activeStep === 1 ? "selected" : ""}`}
+              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 1 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
               href={understandingHref}
             >
               <FileText size={15} /> Step 1 · Interpretation
             </Link>
             <Link
-              className={`rail-link ${activeStep === 2 ? "selected" : ""}`}
+              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 2 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
               href={decompositionHref}
             >
               <Search size={15} /> Step 2 · Typed cards
@@ -184,7 +191,7 @@ export function AppShell({
           </div>
 
           {fixtureMode ? (
-            <p className="rail-warning">
+            <p className="p-4 text-xs text-amber-700 bg-amber-500/10 border-t border-amber-500/20 dark:text-amber-300">
               Fixture mode không ghi production data và không đại diện cho live
               LLM, PostgreSQL hay literature results.
             </p>
