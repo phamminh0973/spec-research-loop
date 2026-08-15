@@ -8,9 +8,9 @@ export type WorkflowStep = {
 
 export function StepBreadcrumb({ steps }: { steps: WorkflowStep[] }) {
   return (
-    <ol className={cn("flex items-start gap-2")} aria-label="Tiến trình nghiên cứu">
+    <ol className={cn("flex flex-col items-start gap-2")} aria-label="Tiến trình nghiên cứu">
       {steps.map((step, index) => (
-        <li key={step.label} className={cn("flex flex-col items-center")}>
+        <li key={step.label} className={cn("flex flex-row gap-2 items-center")}>
           <div
             className={cn(
               "flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors",
@@ -25,7 +25,7 @@ export function StepBreadcrumb({ steps }: { steps: WorkflowStep[] }) {
           </div>
           <span
             className={cn(
-              "mt-1 text-xs",
+              "text-xs",
               step.state === "complete" && "font-medium text-foreground",
               step.state === "current" && "font-semibold text-primary",
               step.state === "pending" && "font-medium text-amber-600 dark:text-amber-400",

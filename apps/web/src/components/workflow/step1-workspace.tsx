@@ -259,20 +259,22 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                 title="Nguyên tắc review"
                 tone="green"
               />
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
-                  Interpretation chỉ là proposal cho đến khi bạn xác nhận.
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
-                  Hệ thống không được tự gán `USER_CONFIRMED` từ output AI.
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
-                  Decomposition sẽ nhận projectId và tự kiểm tra gate ở server.
-                </li>
-              </ul>
+              <CardContent>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-start gap-2">
+                    <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
+                    Interpretation chỉ là proposal cho đến khi bạn xác nhận.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
+                    Hệ thống không được tự gán `USER_CONFIRMED` từ output AI.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
+                    Decomposition sẽ nhận projectId và tự kiểm tra gate ở server.
+                  </li>
+                </ul>
+              </CardContent>
             </SectionCard>
             <SectionCard>
               <SectionHeader
@@ -280,11 +282,13 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                 title="Phạm vi bước này"
                 tone="amber"
               />
-              <p className="text-sm text-muted-foreground">
-                Màn hình này chỉ thu thập raw idea và constraints. Search paper,
-                related-work, evidence và research gap có provenance sẽ xuất
-                hiện sau khi capability tương ứng được tích hợp.
-              </p>
+              <CardContent>
+                <p className="text-sm text-muted-foreground text-justify">
+                  Màn hình này chỉ thu thập raw idea và constraints. Search paper,
+                  related-work, evidence và research gap có provenance sẽ xuất
+                  hiện sau khi capability tương ứng được tích hợp.
+                </p>
+              </CardContent>
             </SectionCard>
           </div>
 
@@ -294,22 +298,24 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
               title="Bạn sẽ xác nhận gì?"
               tone="purple"
             />
-            <div className="space-y-4">
-              <div className="rounded-lg bg-muted p-4">
-                <h3 className="font-semibold text-foreground mb-2">Interpretation contract</h3>
-                <p className="text-sm text-muted-foreground">
-                  simple interpretation, technical interpretation, assumptions,
-                  objectives và ambiguities — đúng theo schema AIT-01 hiện có.
-                </p>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="rounded-lg bg-muted p-4 border-border border-2">
+                  <h3 className="font-semibold text-foreground mb-2">Interpretation contract</h3>
+                  <p className="text-sm text-muted-foreground text-justify">
+                    simple interpretation, technical interpretation, assumptions,
+                    objectives và ambiguities — đúng theo schema AIT-01 hiện có.
+                  </p>
+                </div>
+                <div className="rounded-lg bg-muted p-4 border-border border-2">
+                  <h3 className="font-semibold text-foreground mb-2">Quyền quyết định</h3>
+                  <p className="text-sm text-muted-foreground text-justify">
+                    Bạn có thể Confirm, Edit, Other hoặc Regenerate. Mỗi lựa chọn
+                    phải đi qua lifecycle API tương ứng.
+                  </p>
+                </div>
               </div>
-              <div className="rounded-lg bg-muted p-4">
-                <h3 className="font-semibold text-foreground mb-2">Quyền quyết định</h3>
-                <p className="text-sm text-muted-foreground">
-                  Bạn có thể Confirm, Edit, Other hoặc Regenerate. Mỗi lựa chọn
-                  phải đi qua lifecycle API tương ứng.
-                </p>
-              </div>
-            </div>
+            </CardContent>
           </SectionCard>
         </div>
 
