@@ -58,4 +58,58 @@ describe("SpecStructureModule", () => {
     });
     await expect(module.byProject(projectId)).resolves.toEqual(generatedView);
   });
+
+  it("does not replace the previous graph when generation fails", async () => {
+    const store = new InMemorySpecGraphRepository();
+    let shouldFail = false;
+    const module = createSpecStructureModule({
+      reader: new DeterministicConfirmedInterpretationReader([interpretation]),
+      generator: {
+        async generate() {
+          if (shouldFail) throw new Error("provider unavailable");
+          return generated;
+        },
+      },
+      store,
+    });
+
+    const before = await module.generate(projectId);
+    shouldFail = true;
+
+    await expect(module.generate(projectId)).rejects.toThrow(
+      "provider unavailable"
+    );
+    await expect(module.byProject(projectId)).resolves.toEqual(before);
+  });
+
+  it("replaces the complete graph only after a successful regeneration", async () => {
+    const store = new InMemorySpecGraphRepository();
+    let next = generated;
+    const module = createSpecStructureModule({
+      reader: new DeterministicConfirmedInterpretationReader([interpretation]),
+      generator: {
+        async generate() {
+          return next;
+        },
+      },
+      store,
+    });
+
+    await module.generate(projectId);
+    next = {
+      ...generated,
+      nodes: [
+        {
+          ...generated.nodes[0]!,
+          clientRef: "replacement-1",
+          title: "Replacement problem",
+        },
+      ],
+    };
+
+    const replacement = await module.generate(projectId);
+    expect(replacement.nodes.map((node) => node.clientRef)).toEqual([
+      "replacement-1",
+    ]);
+  });
 });

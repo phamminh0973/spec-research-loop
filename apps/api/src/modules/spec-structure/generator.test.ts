@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type OpenAI from "openai";
 import type { DecomposeIdeaInput } from "@specloop/schemas";
+import { decompositionOutputFixture } from "@specloop/schemas/fixtures";
 import { LlmDecompositionGenerator } from "./generator.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
@@ -41,6 +42,32 @@ describe("LlmDecompositionGenerator", () => {
   it("produces schema-validated proposed nodes from confirmed interpretation only", async () => {
     const generator = new LlmDecompositionGenerator({
       client: fakeClient({
+        ...decompositionOutputFixture,
+        projectId,
+        nodes: decompositionOutputFixture.nodes.map((node) => ({
+          ...node,
+          projectId,
+        })),
+        relations: decompositionOutputFixture.relations.map((relation) => ({
+          ...relation,
+          projectId,
+        })),
+      }),
+      model: "test-model",
+    });
+
+    await expect(generator.generate(input)).resolves.toMatchObject({
+      projectId,
+      nodes: expect.arrayContaining([
+        expect.objectContaining({ type: "PROBLEM", status: "PROPOSED" }),
+        expect.objectContaining({ type: "EVIDENCE" }),
+      ]),
+    });
+  });
+
+  it("rejects a provider graph that omits a required Step 2 type", async () => {
+    const generator = new LlmDecompositionGenerator({
+      client: fakeClient({
         projectId,
         nodes: [
           {
@@ -59,10 +86,9 @@ describe("LlmDecompositionGenerator", () => {
       model: "test-model",
     });
 
-    await expect(generator.generate(input)).resolves.toMatchObject({
-      projectId,
-      nodes: [expect.objectContaining({ status: "PROPOSED" })],
-    });
+    await expect(generator.generate(input)).rejects.toThrow(
+      "Generated decomposition omitted required types"
+    );
   });
 
   it("rejects provider output that does not match the decomposition contract", async () => {

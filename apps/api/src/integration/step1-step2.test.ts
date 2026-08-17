@@ -1,9 +1,16 @@
 import type {
+  DecompositionOutput,
   InterpretationOutput,
   InterpretationRecord,
   InterpretIdeaInput,
 } from "@specloop/schemas";
+import {
+  SpecGraphViewSchema,
+  STEP2_REQUIRED_NODE_TYPES,
+} from "@specloop/schemas";
 import { describe, expect, it } from "vitest";
+
+import { decompositionOutputFixture } from "@specloop/schemas/fixtures";
 
 import {
   InMemoryInterpretationRepository,
@@ -49,6 +56,23 @@ function generatedInterpretation(
   };
 }
 
+function completeOutput(projectId: string): DecompositionOutput {
+  return {
+    ...decompositionOutputFixture,
+    projectId,
+    nodes: decompositionOutputFixture.nodes.map((node) => ({
+      ...node,
+      projectId,
+      sourceRefs: [...node.sourceRefs],
+    })),
+    relations: decompositionOutputFixture.relations.map((relation) => ({
+      ...relation,
+      projectId,
+    })),
+    warnings: [...decompositionOutputFixture.warnings],
+  };
+}
+
 describe("Step 1 to Step 2 integration", () => {
   it("enforces BR-01 before confirm, unlocks the exact confirmed version, and blocks again after regenerate", async () => {
     const interpretations = new InMemoryInterpretationRepository();
@@ -63,31 +87,9 @@ describe("Step 1 to Step 2 integration", () => {
     const graphStore = new InMemorySpecGraphRepository();
     const specStructure = createSpecStructureModule({
       reader,
-      generator: new DeterministicDecompositionGenerator((input) => ({
-        projectId: input.projectId,
-        nodes: [
-          {
-            projectId: input.projectId,
-            clientRef: "problem-1",
-            type: "PROBLEM",
-            title: "Retrieval uncertainty",
-            content: "The effect of retrieval remains to be tested.",
-            status: "PROPOSED",
-            sourceRefs: [],
-          },
-          {
-            projectId: input.projectId,
-            clientRef: "question-1",
-            type: "RESEARCH_QUESTION",
-            title: "Does retrieval improve factual accuracy?",
-            content: "Measure the factual-accuracy delta with retrieval.",
-            status: "PROPOSED",
-            sourceRefs: [],
-          },
-        ],
-        relations: [],
-        warnings: [],
-      })),
+      generator: new DeterministicDecompositionGenerator((input) =>
+        completeOutput(input.projectId)
+      ),
       store: graphStore,
     });
     const context = createContextInner({
@@ -120,10 +122,79 @@ describe("Step 1 to Step 2 integration", () => {
     const graph = await caller.decomposition.generate({
       projectId: project.id,
     });
-    expect(graph.nodes.map((node) => node.type)).toEqual([
-      "PROBLEM",
-      "RESEARCH_QUESTION",
-    ]);
+    expect(
+      STEP2_REQUIRED_NODE_TYPES.every((type) =>
+        graph.nodes.some((node) => node.type === type)
+      )
+    ).toBe(true);
+    expect(graph.nodes.some((node) => node.type === "EVIDENCE")).toBe(true);
+    expect(graph.nodes.find((node) => node.type === "EVIDENCE")).toMatchObject({
+      sourceRefs: [],
+    });
+    expect(() => SpecGraphViewSchema.parse(graph)).not.toThrow();
+
+    const edited = await caller.decomposition.updateNode({
+      projectId: project.id,
+      clientRef: "problem-1",
+      title: "Edited retrieval problem",
+      content: "The user clarified the retrieval problem.",
+      reason: "Clarified during Step 2 review.",
+    });
+    expect(
+      edited.nodes.find((node) => node.clientRef === "problem-1")
+    ).toMatchObject({
+      title: "Edited retrieval problem",
+      status: "PROPOSED",
+    });
+
+    const confirmed = await caller.decomposition.changeStatus({
+      projectId: project.id,
+      clientRef: "problem-1",
+      toStatus: "USER_CONFIRMED",
+      reason: "Confirmed after reviewing the decomposition.",
+    });
+    expect(confirmed.statusHistory.at(-1)).toMatchObject({
+      toStatus: "USER_CONFIRMED",
+      actor: "USER",
+      authority: "USER",
+    });
+
+    const withRelation = await caller.decomposition.createRelation({
+      projectId: project.id,
+      sourceClientRef: "contribution-1",
+      targetClientRef: "problem-1",
+      type: "ADDRESSES",
+    });
+    const createdRelation = withRelation.relations.find((relation) => {
+      const source = withRelation.nodes.find(
+        (node) => node.id === relation.sourceNodeId
+      );
+      const target = withRelation.nodes.find(
+        (node) => node.id === relation.targetNodeId
+      );
+      return (
+        source?.clientRef === "contribution-1" &&
+        target?.clientRef === "problem-1" &&
+        relation.type === "ADDRESSES"
+      );
+    });
+    expect(createdRelation).toBeDefined();
+
+    const withoutRelation = await caller.decomposition.deleteRelation({
+      projectId: project.id,
+      relationId: createdRelation!.id,
+    });
+    expect(withoutRelation.relations).not.toContainEqual(
+      expect.objectContaining({ id: createdRelation!.id })
+    );
+    for (const candidate of [
+      edited,
+      confirmed,
+      withRelation,
+      withoutRelation,
+    ]) {
+      expect(() => SpecGraphViewSchema.parse(candidate)).not.toThrow();
+    }
 
     await caller.interpretation.regenerate({ projectId: project.id });
     await expect(

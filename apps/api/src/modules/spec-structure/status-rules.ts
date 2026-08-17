@@ -1,26 +1,24 @@
 import type {
-  DecompositionNode,
   DecompositionOutput,
   DecompositionRelation,
   DecompositionWarning,
   DecompositionWarningCode,
+  PersistedNodeStatus,
   SpecNodeType,
 } from "@specloop/schemas";
+import { STEP2_REQUIRED_NODE_TYPES } from "@specloop/schemas";
 
-const requiredNodeTypes: readonly SpecNodeType[] = [
-  "PROBLEM",
-  "RESEARCH_QUESTION",
-  "GAP",
-  "CONTRIBUTION",
-  "CLAIM",
-  "CONSTRAINT",
-  "RISK",
-  "OPEN_QUESTION",
-];
+type RuleNode = {
+  projectId: string;
+  clientRef: string;
+  type: SpecNodeType;
+  status: PersistedNodeStatus;
+  sourceRefs: readonly string[];
+};
 
 export type RuleGraph = {
   projectId: string;
-  nodes: readonly Pick<DecompositionNode, "projectId" | "clientRef" | "type">[];
+  nodes: readonly RuleNode[];
   relations: readonly Pick<
     DecompositionRelation,
     "projectId" | "sourceClientRef" | "targetClientRef" | "type"
@@ -83,7 +81,7 @@ export function calculateDeterministicWarnings(
     }
   }
 
-  for (const type of requiredNodeTypes) {
+  for (const type of STEP2_REQUIRED_NODE_TYPES) {
     if (!graph.nodes.some((node) => node.type === type)) {
       addWarning(warnings, {
         code: "MISSING",
@@ -99,7 +97,7 @@ export function calculateDeterministicWarnings(
     const hasSupportOrTest = graph.relations.some(
       (relation) =>
         relation.sourceClientRef === claim.clientRef &&
-        (relation.type === "SUPPORTED_BY" || relation.type === "TESTED_BY")
+        relationProvidesSupport(relation, nodeByRef)
     );
 
     if (!hasSupportOrTest) {
@@ -144,6 +142,21 @@ export function calculateDeterministicWarnings(
   }
 
   return warnings;
+}
+
+function relationProvidesSupport(
+  relation: RuleGraph["relations"][number],
+  nodeByRef: ReadonlyMap<string, RuleNode>
+): boolean {
+  if (relation.type === "TESTED_BY") return true;
+  if (relation.type !== "SUPPORTED_BY") return false;
+
+  const target = nodeByRef.get(relation.targetClientRef);
+  return (
+    target?.type === "EVIDENCE" &&
+    target.sourceRefs.length > 0 &&
+    (target.status === "USER_CONFIRMED" || target.status === "SYSTEM_VERIFIED")
+  );
 }
 
 function issuePriority(code: DecompositionWarningCode): number {
