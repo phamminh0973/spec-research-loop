@@ -1,6 +1,6 @@
 import type { SpecGraphView } from "@specloop/schemas";
 
-import { DecompositionService } from "./decomposition-service.js";
+import { DecompositionService } from "./service.js";
 import { SpecGraphNotFoundError } from "./errors.js";
 import type {
   ChangeStatusCommand,

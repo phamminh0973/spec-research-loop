@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import type { DecompositionOutput } from "@specloop/schemas";
 import { applyDeterministicRules } from "./status-rules.js";
-import { InMemorySpecGraphStore } from "./in-memory-store.js";
+import { InMemorySpecGraphStore } from "./repository.js";
 import { SpecGraphConflictError } from "./errors.js";
+import { resetProjectStore } from "../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 
@@ -64,6 +65,8 @@ function claimWithEvidenceRequirement(): DecompositionOutput {
 }
 
 describe("InMemorySpecGraphStore", () => {
+  beforeEach(() => resetProjectStore());
+
   it("records AI authority history for generated node statuses", async () => {
     const store = new InMemorySpecGraphStore();
     const reviewed = applyDeterministicRules(graph());

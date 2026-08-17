@@ -4,7 +4,7 @@ import {
   type ConfirmedInterpretationSnapshot,
 } from "@specloop/schemas";
 
-import type { InterpretationRepository } from "../../interpretation/repository.js";
+import type { InterpretationRepository } from "../interpretation/repository.js";
 import type { ConfirmedInterpretationReader } from "./ports.js";
 
 export interface Step1ProjectBoundary {

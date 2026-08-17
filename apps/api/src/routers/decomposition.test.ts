@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import type { ApiContext } from "../trpc/context.js";
 import { appRouter } from "./index.js";
@@ -6,8 +6,9 @@ import {
   DeterministicConfirmedInterpretationReader,
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
-} from "../modules/spec-structure/testing-adapters.js";
-import { createSpecStructureModule } from "../modules/spec-structure/spec-structure-module.js";
+} from "../decomposition/testing-adapters.js";
+import { createSpecStructureModule } from "../decomposition/module.js";
+import { resetProjectStore } from "../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 
@@ -83,6 +84,8 @@ function makeCaller(withConfirmation = true) {
 }
 
 describe("decomposition tRPC router", () => {
+  beforeEach(() => resetProjectStore());
+
   it("fails closed when Step 2 dependencies are absent", async () => {
     const caller = appRouter.createCaller(contextWithModule(undefined));
 

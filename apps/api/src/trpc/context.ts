@@ -17,13 +17,13 @@ import {
   interpretationRepository,
   type InterpretationModule,
 } from "../interpretation/index.js";
-import { Step1ConfirmedInterpretationReader } from "../modules/spec-structure/interpretation-reader-adapter.js";
-import { LlmDecompositionGenerator } from "../modules/spec-structure/generator.js";
-import { InMemorySpecGraphStore } from "../modules/spec-structure/in-memory-store.js";
+import { Step1ConfirmedInterpretationReader } from "../decomposition/interpretation-reader-adapter.js";
+import { LlmDecompositionGenerator } from "../decomposition/generator.js";
+import { InMemorySpecGraphStore } from "../decomposition/repository.js";
 import {
   createSpecStructureModule,
   type SpecStructureModule,
-} from "../modules/spec-structure/spec-structure-module.js";
+} from "../decomposition/module.js";
 import { getLlmClient, getLlmConfig, type LlmConfig } from "../llm/index.js";
 import { getProjectById } from "../routers/projects.js";
 

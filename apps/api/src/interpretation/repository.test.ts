@@ -2,9 +2,10 @@ import type {
   InterpretationOutput,
   InterpretationRecord,
 } from "@specloop/schemas";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { InMemoryInterpretationRepository } from "./repository.js";
+import { resetProjectStore } from "../store/project-store.js";
 
 const PROJECT_ID = "123e4567-e89b-42d3-a456-426614174000";
 const ACTOR_ID = "123e4567-e89b-42d3-a456-426614174099";
@@ -36,6 +37,8 @@ function proposal(id: string, output = OUTPUT): InterpretationRecord {
 }
 
 describe("InMemoryInterpretationRepository", () => {
+  beforeEach(() => resetProjectStore());
+
   it("stores an initial proposal without creating a user decision", async () => {
     const repository = new InMemoryInterpretationRepository();
     const first = proposal("123e4567-e89b-42d3-a456-426614174001");

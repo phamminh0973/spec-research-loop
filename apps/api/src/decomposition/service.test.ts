@@ -4,7 +4,7 @@ import type {
   ConfirmedInterpretationSnapshot,
   DecompositionOutput,
 } from "@specloop/schemas";
-import { DecompositionService } from "./decomposition-service.js";
+import { DecompositionService } from "./service.js";
 import {
   ConfirmationRequiredError,
   DecompositionValidationError,

@@ -16,12 +16,12 @@ import {
   InMemoryInterpretationRepository,
   createInterpretationModule,
 } from "../interpretation/index.js";
-import { Step1ConfirmedInterpretationReader } from "../modules/spec-structure/interpretation-reader-adapter.js";
-import { createSpecStructureModule } from "../modules/spec-structure/spec-structure-module.js";
+import { Step1ConfirmedInterpretationReader } from "../decomposition/interpretation-reader-adapter.js";
+import { createSpecStructureModule } from "../decomposition/module.js";
 import {
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
-} from "../modules/spec-structure/testing-adapters.js";
+} from "../decomposition/testing-adapters.js";
 import { appRouter } from "../routers/index.js";
 import { getProjectById } from "../routers/projects.js";
 import { createContextInner, type ApiContext } from "../trpc/context.js";
