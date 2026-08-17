@@ -4,24 +4,33 @@ import {
   AlertTriangle,
   Check,
   FileText,
+  History,
   Info,
+  Link2,
   Pencil,
   Search,
   ShieldAlert,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { useState } from "react";
-import type { SpecGraphView, SpecNode } from "@specloop/schemas";
+import type {
+  SpecGraphView,
+  SpecNode,
+  SpecRelationType,
+} from "@specloop/schemas";
 
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "./app-shell";
 import { cloneLocalGraph, LOCAL_PROJECT } from "./local-fixtures";
 import {
   buildNodeReviewRows,
+  buildRelationReviewRows,
   getGapCandidates,
   getLocalDevelopmentLabel,
   type NodeReviewRow,
+  type RelationReviewRow,
 } from "./workflow-model";
 import {
   LocalDevelopmentBadge,
@@ -34,9 +43,22 @@ function errorMessage(error: { message?: string } | null | undefined) {
   return error?.message ?? "Step 2 operation failed.";
 }
 
-function typeLabel(type: SpecNode["type"]) {
+function typeLabel(type: SpecNode["type"] | SpecRelationType) {
   return type.replaceAll("_", " ");
 }
+
+const RELATION_TYPES: readonly SpecRelationType[] = [
+  "ADDRESSES",
+  "SUPPORTED_BY",
+  "CONTRADICTED_BY",
+  "TESTED_BY",
+  "MEASURED_BY",
+  "COMPARED_WITH",
+  "REQUIRES",
+  "LIMITED_BY",
+  "DERIVED_FROM",
+  "PART_OF",
+];
 
 function PageHeading() {
   return (
@@ -229,6 +251,43 @@ function ReviewRow({
   );
 }
 
+function RelationRow({
+  row,
+  onDelete,
+  pending,
+}: {
+  row: RelationReviewRow;
+  onDelete: () => void;
+  pending: boolean;
+}) {
+  return (
+    <tr>
+      <td>
+        <span className="node-title">{row.sourceTitle}</span>
+        <span className="node-ref">{row.sourceClientRef}</span>
+      </td>
+      <td>
+        <span className="node-type">{typeLabel(row.type)}</span>
+      </td>
+      <td>
+        <span className="node-title">{row.targetTitle}</span>
+        <span className="node-ref">{row.targetClientRef}</span>
+      </td>
+      <td>
+        <button
+          className="button button-danger button-small"
+          type="button"
+          onClick={onDelete}
+          disabled={pending}
+          aria-label={`Delete relation ${row.sourceClientRef} ${row.type} ${row.targetClientRef}`}
+        >
+          <Trash2 size={13} /> Xoá
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 export function Step2Workspace({
   projectId,
   fixtureMode,
@@ -239,6 +298,15 @@ export function Step2Workspace({
   const [localGraph, setLocalGraph] = useState<SpecGraphView | null>(null);
   const [editingRef, setEditingRef] = useState<string | null>(null);
   const [draft, setDraft] = useState({ title: "", content: "", reason: "" });
+  const [relationDraft, setRelationDraft] = useState<{
+    sourceClientRef: string;
+    targetClientRef: string;
+    type: SpecRelationType;
+  }>({
+    sourceClientRef: "",
+    targetClientRef: "",
+    type: "ADDRESSES",
+  });
   const utils = trpc.useUtils();
   const projectQuery = trpc.projects.byId.useQuery(
     { id: projectId },
@@ -264,18 +332,45 @@ export function Step2Workspace({
       utils.decomposition.byProject.setData({ projectId }, next);
     },
   });
+  const createRelation = trpc.decomposition.createRelation.useMutation({
+    onSuccess: (next) => {
+      utils.decomposition.byProject.setData({ projectId }, next);
+    },
+  });
+  const deleteRelation = trpc.decomposition.deleteRelation.useMutation({
+    onSuccess: (next) => {
+      utils.decomposition.byProject.setData({ projectId }, next);
+    },
+  });
 
   const graph = fixtureMode ? localGraph : (graphQuery.data ?? null);
   const project = fixtureMode ? LOCAL_PROJECT : projectQuery.data;
   const pending =
-    generate.isPending || updateNode.isPending || changeStatus.isPending;
+    generate.isPending ||
+    updateNode.isPending ||
+    changeStatus.isPending ||
+    createRelation.isPending ||
+    deleteRelation.isPending;
   const error =
     generate.error ??
     updateNode.error ??
     changeStatus.error ??
+    createRelation.error ??
+    deleteRelation.error ??
     graphQuery.error;
   const rows = graph ? buildNodeReviewRows(graph) : [];
+  const relationRows = graph ? buildRelationReviewRows(graph) : [];
   const gaps = graph ? getGapCandidates(graph) : [];
+  const relationSource =
+    relationDraft.sourceClientRef || graph?.nodes[0]?.clientRef || "";
+  const relationTarget =
+    relationDraft.targetClientRef || graph?.nodes[1]?.clientRef || "";
+  const canCreateRelation =
+    graph !== null &&
+    graph.nodes.length > 1 &&
+    relationSource.length > 0 &&
+    relationTarget.length > 0 &&
+    relationSource !== relationTarget;
 
   function handleGenerate() {
     if (fixtureMode) {
@@ -332,12 +427,35 @@ export function Step2Workspace({
   ) {
     if (!graph) return;
     if (fixtureMode) {
+      const node = graph.nodes.find(
+        (candidate) => candidate.clientRef === clientRef
+      );
+      if (!node) return;
+      const occurredAt = new Date().toISOString();
       setLocalGraph({
         ...graph,
         nodes: graph.nodes.map((node) =>
-          node.clientRef === clientRef ? { ...node, status: toStatus } : node
+          node.clientRef === clientRef
+            ? { ...node, status: toStatus, updatedAt: occurredAt }
+            : node
         ),
-        statusHistory: graph.statusHistory,
+        statusHistory: [
+          ...graph.statusHistory,
+          {
+            id: crypto.randomUUID(),
+            projectId,
+            nodeId: node.id,
+            fromStatus: node.status,
+            toStatus,
+            actor: "USER",
+            authority: "USER",
+            reason:
+              toStatus === "USER_CONFIRMED"
+                ? "User confirmed in local Step 2 fixture."
+                : "User rejected in local Step 2 fixture.",
+            occurredAt,
+          },
+        ],
       });
       return;
     }
@@ -350,6 +468,73 @@ export function Step2Workspace({
           ? "User confirmed in Step 2 UI."
           : "User rejected in Step 2 UI.",
     });
+  }
+
+  function handleCreateRelation() {
+    if (!graph) return;
+    const sourceClientRef =
+      relationDraft.sourceClientRef || graph.nodes[0]?.clientRef;
+    const targetClientRef =
+      relationDraft.targetClientRef || graph.nodes[1]?.clientRef;
+    if (
+      !sourceClientRef ||
+      !targetClientRef ||
+      sourceClientRef === targetClientRef
+    )
+      return;
+
+    if (fixtureMode) {
+      const source = graph.nodes.find(
+        (node) => node.clientRef === sourceClientRef
+      );
+      const target = graph.nodes.find(
+        (node) => node.clientRef === targetClientRef
+      );
+      if (!source || !target) return;
+      const duplicate = graph.relations.some(
+        (relation) =>
+          relation.sourceNodeId === source.id &&
+          relation.targetNodeId === target.id &&
+          relation.type === relationDraft.type
+      );
+      if (duplicate) return;
+      setLocalGraph({
+        ...graph,
+        relations: [
+          ...graph.relations,
+          {
+            id: crypto.randomUUID(),
+            projectId,
+            sourceNodeId: source.id,
+            targetNodeId: target.id,
+            type: relationDraft.type,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+      return;
+    }
+
+    createRelation.mutate({
+      projectId,
+      sourceClientRef,
+      targetClientRef,
+      type: relationDraft.type,
+    });
+  }
+
+  function handleDeleteRelation(relationId: string) {
+    if (!graph) return;
+    if (fixtureMode) {
+      setLocalGraph({
+        ...graph,
+        relations: graph.relations.filter(
+          (relation) => relation.id !== relationId
+        ),
+      });
+      return;
+    }
+    deleteRelation.mutate({ projectId, relationId });
   }
 
   return (
@@ -378,9 +563,9 @@ export function Step2Workspace({
           <div className="alert alert-error" role="alert">
             <ShieldAlert size={17} />
             <span>
-              <strong>API-backed Step 2 chưa khả dụng</strong>
-              {errorMessage(error)}. HTTP context hiện chưa compose production
-              <code>SpecStructureModule</code>; không tự chuyển sang fixture.
+              <strong>API-backed Step 2 gặp lỗi</strong>
+              {errorMessage(error)}. Kiểm tra lại graph và context runtime; UI
+              không tự chuyển sang fixture.
             </span>
           </div>
         ) : null}
@@ -555,6 +740,157 @@ export function Step2Workspace({
               )}
             </SectionCard>
           </div>
+        </div>
+
+        <div className="step2-grid" style={{ marginTop: 20 }}>
+          <SectionCard>
+            <SectionHeader icon={Link2} title="Relations" tone="blue" />
+            <div className="field-stack">
+              <label className="field-label">
+                Source card
+                <select
+                  className="select-input"
+                  value={relationSource}
+                  onChange={(event) =>
+                    setRelationDraft((current) => ({
+                      ...current,
+                      sourceClientRef: event.target.value,
+                    }))
+                  }
+                  disabled={!graph || graph.nodes.length < 2 || pending}
+                >
+                  <option value="">Select source</option>
+                  {graph?.nodes.map((node) => (
+                    <option key={node.clientRef} value={node.clientRef}>
+                      {node.title} ({node.clientRef})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-label">
+                Relation type
+                <select
+                  className="select-input"
+                  value={relationDraft.type}
+                  onChange={(event) =>
+                    setRelationDraft((current) => ({
+                      ...current,
+                      type: event.target.value as SpecRelationType,
+                    }))
+                  }
+                  disabled={!graph || graph.nodes.length < 2 || pending}
+                >
+                  {RELATION_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {typeLabel(type)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-label">
+                Target card
+                <select
+                  className="select-input"
+                  value={relationTarget}
+                  onChange={(event) =>
+                    setRelationDraft((current) => ({
+                      ...current,
+                      targetClientRef: event.target.value,
+                    }))
+                  }
+                  disabled={!graph || graph.nodes.length < 2 || pending}
+                >
+                  <option value="">Select target</option>
+                  {graph?.nodes.map((node) => (
+                    <option key={node.clientRef} value={node.clientRef}>
+                      {node.title} ({node.clientRef})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={handleCreateRelation}
+                disabled={!canCreateRelation || pending}
+              >
+                <Link2 size={15} /> Thêm relation
+              </button>
+            </div>
+            {relationRows.length > 0 ? (
+              <div className="node-table-wrap" style={{ marginTop: 18 }}>
+                <table className="node-table">
+                  <thead>
+                    <tr>
+                      <th>Source</th>
+                      <th>Type</th>
+                      <th>Target</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {relationRows.map((row) => (
+                      <RelationRow
+                        key={row.id}
+                        row={row}
+                        pending={pending}
+                        onDelete={() => handleDeleteRelation(row.id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state" style={{ marginTop: 18 }}>
+                <h3>Chưa có relation</h3>
+                <p>Thêm quan hệ giữa các typed cards để làm rõ cấu trúc.</p>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard>
+            <SectionHeader
+              icon={History}
+              title="Status history"
+              tone="neutral"
+            />
+            {graph && graph.statusHistory.length > 0 ? (
+              <div className="field-stack">
+                {graph.statusHistory
+                  .slice()
+                  .reverse()
+                  .map((change) => {
+                    const node = graph.nodes.find(
+                      (candidate) => candidate.id === change.nodeId
+                    );
+                    return (
+                      <div className="gap-card" key={change.id}>
+                        <div className="summary-meta">
+                          <strong>{node?.title ?? change.nodeId}</strong>
+                          <span className="meta-text">
+                            {change.actor} · {change.authority}
+                          </span>
+                        </div>
+                        <p style={{ marginTop: 7 }}>
+                          {change.fromStatus ?? "—"} → {change.toStatus}
+                        </p>
+                        <p className="meta-text" style={{ marginTop: 5 }}>
+                          {change.reason}
+                        </p>
+                        <p className="meta-text" style={{ marginTop: 5 }}>
+                          {change.occurredAt}
+                        </p>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <h3>Chưa có status history</h3>
+                <p>Lịch sử sẽ xuất hiện sau generate hoặc review status.</p>
+              </div>
+            )}
+          </SectionCard>
         </div>
 
         <SectionCard className="summary-card">

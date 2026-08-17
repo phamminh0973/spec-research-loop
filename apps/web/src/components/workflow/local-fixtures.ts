@@ -90,7 +90,16 @@ export const LOCAL_GRAPH: SpecGraphView = {
       updatedAt: "2026-08-13T00:00:00Z",
     },
   ],
-  relations: [],
+  relations: [
+    {
+      id: "00000000-0000-4000-8000-000000000301",
+      projectId: LOCAL_PROJECT_ID,
+      sourceNodeId: "00000000-0000-4000-8000-000000000101",
+      targetNodeId: "00000000-0000-4000-8000-000000000102",
+      type: "ADDRESSES",
+      createdAt: "2026-08-13T00:00:00Z",
+    },
+  ],
   warnings: [
     {
       code: "MISSING",
@@ -109,7 +118,19 @@ export const LOCAL_GRAPH: SpecGraphView = {
         "Chờ literature/evidence contract và provenance trước khi đánh giá.",
     },
   ],
-  statusHistory: [],
+  statusHistory: [
+    {
+      id: "00000000-0000-4000-8000-000000000401",
+      projectId: LOCAL_PROJECT_ID,
+      nodeId: "00000000-0000-4000-8000-000000000101",
+      fromStatus: null,
+      toStatus: "PROPOSED",
+      actor: "AI",
+      authority: "AI",
+      reason: "Fixture card generated for local Step 2 review.",
+      occurredAt: "2026-08-13T00:00:00Z",
+    },
+  ],
 };
 
 export function cloneLocalInterpretation(

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildNodeReviewRows,
+  buildRelationReviewRows,
   getGapCandidates,
   getLocalDevelopmentLabel,
 } from "./workflow-model";
@@ -73,5 +74,32 @@ describe("workflow UI model", () => {
   it("labels fixture mode explicitly and leaves API mode unlabeled", () => {
     expect(getLocalDevelopmentLabel(true)).toBe("LOCAL DEVELOPMENT FIXTURE");
     expect(getLocalDevelopmentLabel(false)).toBeNull();
+  });
+
+  it("builds relation review rows from node references", () => {
+    const relationGraph = {
+      ...graph,
+      relations: [
+        {
+          id: "00000000-0000-4000-8000-000000000301",
+          projectId: graph.projectId,
+          sourceNodeId: graph.nodes[0]!.id,
+          targetNodeId: graph.nodes[1]!.id,
+          type: "ADDRESSES" as const,
+          createdAt: "2026-08-13T00:00:00Z",
+        },
+      ],
+    };
+
+    expect(buildRelationReviewRows(relationGraph)).toEqual([
+      {
+        id: "00000000-0000-4000-8000-000000000301",
+        sourceClientRef: "problem-1",
+        sourceTitle: "Problem",
+        targetClientRef: "gap-1",
+        targetTitle: "Gap candidate",
+        type: "ADDRESSES",
+      },
+    ]);
   });
 });

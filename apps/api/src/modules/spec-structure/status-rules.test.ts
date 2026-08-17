@@ -11,6 +11,9 @@ const requiredTypes = [
   "GAP",
   "CONTRIBUTION",
   "CLAIM",
+  "CONSTRAINT",
+  "RISK",
+  "OPEN_QUESTION",
 ] as const;
 
 function node(
@@ -46,7 +49,7 @@ describe("deterministic decomposition rules", () => {
     "warns MISSING when the required %s card is absent",
     (missingType) => {
       const reviewed = applyDeterministicRules(
-        output([node("open-question-1", "OPEN_QUESTION")])
+        output([node("evidence-1", "EVIDENCE")])
       );
       const warning = reviewed.warnings.find(
         (candidate) =>
@@ -81,6 +84,10 @@ describe("deterministic decomposition rules", () => {
           warning.targetClientRef === "claim-1"
       )
     ).toMatchObject({ targetType: "CLAIM" });
+    expect(reviewed.nodes.find((node) => node.clientRef === "claim-1")).toMatchObject({
+      status: "UNSUPPORTED",
+      reason: expect.stringContaining("no supporting evidence"),
+    });
   });
 
   it("does not treat an Evidence requirement as support", () => {
@@ -215,6 +222,12 @@ describe("deterministic decomposition rules", () => {
         targetClientRef: "claim-1",
       }),
     ]);
+    expect(
+      reviewed.nodes.find((node) => node.clientRef === "claim-1")
+    ).toMatchObject({
+      status: "AMBIGUOUS",
+      reason: "The claim scope is unclear.",
+    });
   });
 
   it("drops an ambiguity warning without a target", () => {

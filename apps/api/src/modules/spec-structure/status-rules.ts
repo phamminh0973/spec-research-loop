@@ -1,6 +1,9 @@
 import type {
+  DecompositionNode,
   DecompositionOutput,
+  DecompositionRelation,
   DecompositionWarning,
+  DecompositionWarningCode,
   SpecNodeType,
 } from "@specloop/schemas";
 
@@ -10,7 +13,19 @@ const requiredNodeTypes: readonly SpecNodeType[] = [
   "GAP",
   "CONTRIBUTION",
   "CLAIM",
+  "CONSTRAINT",
+  "RISK",
+  "OPEN_QUESTION",
 ];
+
+export type RuleGraph = {
+  projectId: string;
+  nodes: readonly Pick<DecompositionNode, "projectId" | "clientRef" | "type">[];
+  relations: readonly Pick<
+    DecompositionRelation,
+    "projectId" | "sourceClientRef" | "targetClientRef" | "type"
+  >[];
+};
 
 function warningKey(warning: DecompositionWarning): string {
   return [warning.code, warning.targetClientRef ?? "", warning.targetType].join(
@@ -28,27 +43,48 @@ function addWarning(
   }
 }
 
+function isValidExistingWarning(
+  warning: DecompositionWarning,
+  nodeByRef: ReadonlyMap<string, RuleGraph["nodes"][number]>
+): boolean {
+  if (!warning.reason.trim() || !warning.suggestedAction.trim()) return false;
+  if (warning.code === "MISSING") {
+    return (
+      warning.targetClientRef === undefined || warning.targetClientRef === null
+    );
+  }
+
+  if (!warning.targetClientRef) return false;
+  return nodeByRef.get(warning.targetClientRef)?.type === warning.targetType;
+}
+
 /**
- * Apply only explicit, explainable integrity rules. In particular, this
- * function does not infer ambiguity from prose length or create evidence
- * provenance that the generator did not provide.
+ * Calculate explainable warnings for a graph. Existing warnings may be
+ * preserved selectively for generator-proposed findings such as ambiguity;
+ * structural missing/unsupported/conflict findings are always recalculated.
  */
-export function applyDeterministicRules(
-  output: DecompositionOutput
-): DecompositionOutput {
-  const nodeByRef = new Map(output.nodes.map((node) => [node.clientRef, node]));
-  const warnings = output.warnings.filter(
-    (warning) =>
-      warning.code !== "AMBIGUOUS" ||
-      (warning.targetClientRef !== undefined &&
-        warning.targetClientRef !== null &&
-        nodeByRef.has(warning.targetClientRef) &&
-        warning.reason.trim().length > 0 &&
-        warning.suggestedAction.trim().length > 0)
-  );
+export function calculateDeterministicWarnings(
+  graph: RuleGraph,
+  options: {
+    existingWarnings?: readonly DecompositionWarning[];
+    preserveCodes?: readonly DecompositionWarningCode[];
+  } = {}
+): DecompositionWarning[] {
+  const nodeByRef = new Map(graph.nodes.map((node) => [node.clientRef, node]));
+  const preserveCodes = new Set(options.preserveCodes ?? ["AMBIGUOUS"]);
+  const warnings: DecompositionWarning[] = [];
+
+  for (const warning of options.existingWarnings ?? []) {
+    if (
+      preserveCodes.has(warning.code) &&
+      isValidExistingWarning(warning, nodeByRef)
+    ) {
+      addWarning(warnings, warning);
+    }
+  }
 
   for (const type of requiredNodeTypes) {
-    if (!output.nodes.some((node) => node.type === type)) {
+    if (!graph.nodes.some((node) => node.type === type)) {
       addWarning(warnings, {
         code: "MISSING",
         targetClientRef: null,
@@ -59,8 +95,8 @@ export function applyDeterministicRules(
     }
   }
 
-  for (const claim of output.nodes.filter((node) => node.type === "CLAIM")) {
-    const hasSupportOrTest = output.relations.some(
+  for (const claim of graph.nodes.filter((node) => node.type === "CLAIM")) {
+    const hasSupportOrTest = graph.relations.some(
       (relation) =>
         relation.sourceClientRef === claim.clientRef &&
         (relation.type === "SUPPORTED_BY" || relation.type === "TESTED_BY")
@@ -80,7 +116,7 @@ export function applyDeterministicRules(
   }
 
   const relationKinds = new Map<string, Set<string>>();
-  for (const relation of output.relations) {
+  for (const relation of graph.relations) {
     const key = `${relation.sourceClientRef}->${relation.targetClientRef}`;
     const kinds = relationKinds.get(key) ?? new Set<string>();
     kinds.add(relation.type);
@@ -94,9 +130,7 @@ export function applyDeterministicRules(
 
     const [sourceClientRef] = pair.split("->");
     const source = sourceClientRef ? nodeByRef.get(sourceClientRef) : undefined;
-    if (!source) {
-      continue;
-    }
+    if (!source) continue;
 
     addWarning(warnings, {
       code: "CONFLICT",
@@ -109,5 +143,53 @@ export function applyDeterministicRules(
     });
   }
 
-  return { ...output, warnings };
+  return warnings;
+}
+
+function issuePriority(code: DecompositionWarningCode): number {
+  switch (code) {
+    case "CONFLICT":
+      return 4;
+    case "AMBIGUOUS":
+      return 3;
+    case "UNSUPPORTED":
+      return 2;
+    case "MISSING":
+      return 1;
+  }
+}
+
+/**
+ * Apply only explicit, explainable integrity rules. Generator warnings are
+ * validated, deterministic structural findings are recalculated, and a
+ * targeted finding is reflected on its AI-proposed node status/reason.
+ */
+export function applyDeterministicRules(
+  output: DecompositionOutput
+): DecompositionOutput {
+  const warnings = calculateDeterministicWarnings(output, {
+    existingWarnings: output.warnings,
+    preserveCodes: ["AMBIGUOUS"],
+  });
+  const warningByRef = new Map<string, DecompositionWarning>();
+
+  for (const warning of warnings) {
+    if (!warning.targetClientRef) continue;
+    const current = warningByRef.get(warning.targetClientRef);
+    if (!current || issuePriority(warning.code) > issuePriority(current.code)) {
+      warningByRef.set(warning.targetClientRef, warning);
+    }
+  }
+
+  const nodes = output.nodes.map((node) => {
+    const warning = warningByRef.get(node.clientRef);
+    if (!warning) return node;
+    return {
+      ...node,
+      status: warning.code,
+      reason: warning.reason,
+    };
+  });
+
+  return { ...output, nodes, warnings };
 }
