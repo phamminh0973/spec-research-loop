@@ -5,6 +5,7 @@ import {
   DecompositionOutputSchema,
   DecomposeIdeaInputSchema,
 } from "../decomposition";
+import { STEP2_REQUIRED_NODE_TYPES } from "../spec-graph";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 
@@ -67,6 +68,20 @@ const validOutput = {
 };
 
 describe("Step 2 shared contracts", () => {
+  it("publishes the assignment Step 2 required node types", () => {
+    expect(STEP2_REQUIRED_NODE_TYPES).toEqual([
+      "PROBLEM",
+      "RESEARCH_QUESTION",
+      "GAP",
+      "CONTRIBUTION",
+      "CLAIM",
+      "EVIDENCE",
+      "CONSTRAINT",
+      "OPEN_QUESTION",
+    ]);
+    expect(STEP2_REQUIRED_NODE_TYPES).not.toContain("RISK");
+  });
+
   it("accepts a trusted user-confirmed interpretation", () => {
     expect(
       ConfirmedInterpretationSnapshotSchema.parse(confirmedInterpretation)

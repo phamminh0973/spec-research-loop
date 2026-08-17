@@ -29,6 +29,20 @@ export const SpecNodeTypeSchema = z.enum([
 ]);
 export type SpecNodeType = z.infer<typeof SpecNodeTypeSchema>;
 
+export const STEP2_REQUIRED_NODE_TYPES = [
+  "PROBLEM",
+  "RESEARCH_QUESTION",
+  "GAP",
+  "CONTRIBUTION",
+  "CLAIM",
+  "EVIDENCE",
+  "CONSTRAINT",
+  "OPEN_QUESTION",
+] as const satisfies readonly SpecNodeType[];
+
+export const Step2RequiredNodeTypeSchema = z.enum(STEP2_REQUIRED_NODE_TYPES);
+export type Step2RequiredNodeType = z.infer<typeof Step2RequiredNodeTypeSchema>;
+
 export const SpecRelationTypeSchema = z.enum([
   "ADDRESSES",
   "SUPPORTED_BY",
