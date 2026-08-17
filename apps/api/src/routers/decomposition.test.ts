@@ -107,7 +107,7 @@ describe("decomposition tRPC router", () => {
     ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 
-  it("maps missing graphs/nodes to NOT_FOUND and invalid edits to BAD_REQUEST", async () => {
+  it("maps missing graphs/nodes to NOT_FOUND and graph conflicts to CONFLICT", async () => {
     const { caller } = makeCaller();
 
     await expect(
@@ -137,7 +137,23 @@ describe("decomposition tRPC router", () => {
         targetClientRef: "problem-1",
         type: "ADDRESSES",
       })
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    const relation = await caller.decomposition.createRelation({
+      projectId,
+      sourceClientRef: "problem-1",
+      targetClientRef: "question-1",
+      type: "ADDRESSES",
+    });
+    await expect(
+      caller.decomposition.createRelation({
+        projectId,
+        sourceClientRef: "problem-1",
+        targetClientRef: "question-1",
+        type: "ADDRESSES",
+      })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(relation.relations).toHaveLength(1);
   });
 
   it("round-trips generate, read and node edit through the typed caller", async () => {
@@ -220,7 +236,7 @@ describe("decomposition tRPC router", () => {
         targetClientRef: "problem-1",
         type: "ADDRESSES",
       })
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    ).rejects.toMatchObject({ code: "CONFLICT" });
 
     await expect(
       caller.decomposition.byProject({ projectId })

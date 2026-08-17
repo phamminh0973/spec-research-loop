@@ -1,6 +1,7 @@
 import {
   DecomposeIdeaInputSchema,
   DecompositionOutputSchema,
+  STEP2_REQUIRED_NODE_TYPES,
   type DecomposeIdeaInput,
   type DecompositionOutput,
 } from "@specloop/schemas";
@@ -8,6 +9,7 @@ import type OpenAI from "openai";
 
 import { getLlmClient, getLlmConfig } from "../../llm/index.js";
 import { structuredCall } from "../../llm/structured-call.js";
+import { DecompositionValidationError } from "./errors.js";
 import { buildDecompositionMessages } from "./prompt.js";
 import type { DecompositionGenerator } from "./ports.js";
 
@@ -33,7 +35,7 @@ export class LlmDecompositionGenerator implements DecompositionGenerator {
     const client = this.dependencies.client ?? getLlmClient();
     const model = this.dependencies.model ?? getLlmConfig().defaultModel;
 
-    return structuredCall({
+    const output = await structuredCall({
       client,
       model,
       systemPrompt: messages.system,
@@ -42,5 +44,16 @@ export class LlmDecompositionGenerator implements DecompositionGenerator {
       outputSchema: DecompositionOutputSchema,
       maxTokens: 4_000,
     });
+
+    const missingTypes = STEP2_REQUIRED_NODE_TYPES.filter(
+      (type) => !output.nodes.some((node) => node.type === type)
+    );
+    if (missingTypes.length > 0) {
+      throw new DecompositionValidationError(
+        `Generated decomposition omitted required types: ${missingTypes.join(", ")}.`
+      );
+    }
+
+    return output;
   }
 }

@@ -12,6 +12,7 @@ import {
 
 import {
   SpecGraphEditValidationError,
+  SpecGraphConflictError,
   SpecGraphNotFoundError,
   SpecNodeNotFoundError,
   SpecRelationNotFoundError,
@@ -182,7 +183,7 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
     if (!source) throw new SpecNodeNotFoundError(command.sourceClientRef);
     if (!target) throw new SpecNodeNotFoundError(command.targetClientRef);
     if (source.id === target.id) {
-      throw new SpecGraphEditValidationError("Self-relations are not allowed.");
+      throw new SpecGraphConflictError("Self-relations are not allowed.");
     }
 
     const duplicate = view.relations.some(
@@ -192,7 +193,7 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
         relation.type === command.type
     );
     if (duplicate) {
-      throw new SpecGraphEditValidationError(
+      throw new SpecGraphConflictError(
         "The requested relation already exists."
       );
     }
@@ -281,6 +282,8 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
         projectId: node.projectId,
         clientRef: node.clientRef,
         type: node.type,
+        status: node.status,
+        sourceRefs: node.sourceRefs,
       })),
       relations: view.relations.flatMap((relation) => {
         const source = nodeById.get(relation.sourceNodeId);

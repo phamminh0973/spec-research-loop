@@ -9,6 +9,7 @@ import { z } from "zod";
 
 import {
   ConfirmationRequiredError,
+  SpecGraphConflictError,
   DecompositionValidationError,
   SpecGraphEditValidationError,
   SpecGraphNotFoundError,
@@ -63,6 +64,14 @@ function mapDomainError(error: unknown): never {
   if (error instanceof ConfirmationRequiredError) {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
+      message: error.message,
+      cause: error,
+    });
+  }
+
+  if (error instanceof SpecGraphConflictError) {
+    throw new TRPCError({
+      code: "CONFLICT",
       message: error.message,
       cause: error,
     });

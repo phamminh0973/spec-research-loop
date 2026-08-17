@@ -1,20 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { DecompositionOutput } from "@specloop/schemas";
-import { DecompositionOutputSchema } from "@specloop/schemas";
+import {
+  DecompositionOutputSchema,
+  STEP2_REQUIRED_NODE_TYPES,
+} from "@specloop/schemas";
 import { applyDeterministicRules } from "./status-rules.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
-const requiredTypes = [
-  "PROBLEM",
-  "RESEARCH_QUESTION",
-  "GAP",
-  "CONTRIBUTION",
-  "CLAIM",
-  "CONSTRAINT",
-  "RISK",
-  "OPEN_QUESTION",
-] as const;
+const requiredTypes = STEP2_REQUIRED_NODE_TYPES;
 
 function node(
   clientRef: string,
@@ -49,7 +43,11 @@ describe("deterministic decomposition rules", () => {
     "warns MISSING when the required %s card is absent",
     (missingType) => {
       const reviewed = applyDeterministicRules(
-        output([node("evidence-1", "EVIDENCE")])
+        output(
+          requiredTypes
+            .filter((type) => type !== missingType)
+            .map((type, index) => node(`${type.toLowerCase()}-${index}`, type))
+        )
       );
       const warning = reviewed.warnings.find(
         (candidate) =>
@@ -84,37 +82,15 @@ describe("deterministic decomposition rules", () => {
           warning.targetClientRef === "claim-1"
       )
     ).toMatchObject({ targetType: "CLAIM" });
-    expect(reviewed.nodes.find((node) => node.clientRef === "claim-1")).toMatchObject({
+    expect(
+      reviewed.nodes.find((node) => node.clientRef === "claim-1")
+    ).toMatchObject({
       status: "UNSUPPORTED",
       reason: expect.stringContaining("no supporting evidence"),
     });
   });
 
   it("does not treat an Evidence requirement as support", () => {
-    const reviewed = applyDeterministicRules(
-      output(
-        [node("claim-1", "CLAIM"), node("evidence-1", "EVIDENCE")],
-        [
-          {
-            projectId,
-            sourceClientRef: "claim-1",
-            targetClientRef: "evidence-1",
-            type: "REQUIRES",
-          },
-        ]
-      )
-    );
-
-    expect(
-      reviewed.warnings.some(
-        (warning) =>
-          warning.code === "UNSUPPORTED" &&
-          warning.targetClientRef === "claim-1"
-      )
-    ).toBe(true);
-  });
-
-  it("does not warn unsupported when a claim is supported or tested", () => {
     const reviewed = applyDeterministicRules(
       output(
         [node("claim-1", "CLAIM"), node("evidence-1", "EVIDENCE")],
@@ -135,7 +111,42 @@ describe("deterministic decomposition rules", () => {
           warning.code === "UNSUPPORTED" &&
           warning.targetClientRef === "claim-1"
       )
+    ).toBe(true);
+  });
+
+  it("does not warn unsupported when a claim has a planned experiment", () => {
+    const reviewed = applyDeterministicRules(
+      output(
+        [node("claim-1", "CLAIM"), node("experiment-1", "EXPERIMENT")],
+        [
+          {
+            projectId,
+            sourceClientRef: "claim-1",
+            targetClientRef: "experiment-1",
+            type: "TESTED_BY",
+          },
+        ]
+      )
+    );
+
+    expect(
+      reviewed.warnings.some(
+        (warning) =>
+          warning.code === "UNSUPPORTED" &&
+          warning.targetClientRef === "claim-1"
+      )
     ).toBe(false);
+  });
+
+  it("requires EVIDENCE even when optional RISK is present", () => {
+    const reviewed = applyDeterministicRules(output([node("risk-1", "RISK")]));
+
+    expect(reviewed.warnings).toContainEqual(
+      expect.objectContaining({ code: "MISSING", targetType: "EVIDENCE" })
+    );
+    expect(reviewed.warnings).not.toContainEqual(
+      expect.objectContaining({ code: "MISSING", targetType: "RISK" })
+    );
   });
 
   it("warns CONFLICT for contradictory relations on the same ordered pair", () => {

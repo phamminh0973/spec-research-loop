@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { DecompositionOutput } from "@specloop/schemas";
 import { applyDeterministicRules } from "./status-rules.js";
 import { InMemorySpecGraphStore } from "./in-memory-store.js";
+import { SpecGraphConflictError } from "./errors.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 
@@ -25,6 +26,34 @@ function graph(): DecompositionOutput {
         type: "EXPERIMENT",
         title: "Experiment",
         content: "A planned experiment.",
+        status: "PROPOSED",
+        sourceRefs: [],
+      },
+    ],
+    relations: [],
+    warnings: [],
+  };
+}
+
+function claimWithEvidenceRequirement(): DecompositionOutput {
+  return {
+    projectId,
+    nodes: [
+      {
+        projectId,
+        clientRef: "claim-1",
+        type: "CLAIM",
+        title: "Claim",
+        content: "A claim that needs verified evidence.",
+        status: "PROPOSED",
+        sourceRefs: [],
+      },
+      {
+        projectId,
+        clientRef: "evidence-1",
+        type: "EVIDENCE",
+        title: "Evidence requirement",
+        content: "A future source span or planned experiment result.",
         status: "PROPOSED",
         sourceRefs: [],
       },
@@ -94,5 +123,85 @@ describe("InMemorySpecGraphStore", () => {
         }),
       ])
     );
+  });
+
+  it("does not treat an unverified evidence requirement as claim support", async () => {
+    const store = new InMemorySpecGraphStore();
+    await store.saveGeneratedGraph(
+      applyDeterministicRules(claimWithEvidenceRequirement())
+    );
+
+    const after = await store.createRelation({
+      projectId,
+      sourceClientRef: "claim-1",
+      targetClientRef: "evidence-1",
+      type: "SUPPORTED_BY",
+    });
+
+    expect(after.warnings).toContainEqual(
+      expect.objectContaining({
+        code: "UNSUPPORTED",
+        targetClientRef: "claim-1",
+      })
+    );
+    expect(
+      after.nodes.find((node) => node.clientRef === "claim-1")
+    ).toMatchObject({ status: "UNSUPPORTED" });
+  });
+
+  it("classifies self and duplicate relations as graph conflicts", async () => {
+    const store = new InMemorySpecGraphStore();
+    await store.saveGeneratedGraph(applyDeterministicRules(graph()));
+
+    await expect(
+      store.createRelation({
+        projectId,
+        sourceClientRef: "claim-1",
+        targetClientRef: "claim-1",
+        type: "ADDRESSES",
+      })
+    ).rejects.toBeInstanceOf(SpecGraphConflictError);
+
+    await store.createRelation({
+      projectId,
+      sourceClientRef: "claim-1",
+      targetClientRef: "experiment-1",
+      type: "TESTED_BY",
+    });
+    await expect(
+      store.createRelation({
+        projectId,
+        sourceClientRef: "claim-1",
+        targetClientRef: "experiment-1",
+        type: "TESTED_BY",
+      })
+    ).rejects.toBeInstanceOf(SpecGraphConflictError);
+  });
+
+  it("replaces the previous graph atomically when a new graph is saved", async () => {
+    const store = new InMemorySpecGraphStore();
+    await store.saveGeneratedGraph(applyDeterministicRules(graph()));
+
+    await store.saveGeneratedGraph({
+      projectId,
+      nodes: [
+        {
+          projectId,
+          clientRef: "new-problem-1",
+          type: "PROBLEM",
+          title: "New problem",
+          content: "The replacement graph is distinct.",
+          status: "PROPOSED",
+          sourceRefs: [],
+        },
+      ],
+      relations: [],
+      warnings: [],
+    });
+
+    const view = await store.getByProject(projectId);
+    expect(view?.nodes).toHaveLength(1);
+    expect(view?.nodes[0]?.clientRef).toBe("new-problem-1");
+    expect(view?.statusHistory).toHaveLength(1);
   });
 });

@@ -51,3 +51,12 @@ export class SpecGraphEditValidationError extends Error {
     this.name = "SpecGraphEditValidationError";
   }
 }
+
+export class SpecGraphConflictError extends Error {
+  readonly code = "SPEC_GRAPH_CONFLICT" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "SpecGraphConflictError";
+  }
+}
