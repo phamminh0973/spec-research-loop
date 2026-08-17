@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { UuidSchema } from "@specloop/schemas";
 
 import { createContextInner } from "./context.js";
 import type { ApiContext } from "./context.js";
@@ -25,6 +26,12 @@ describe("API context", () => {
     const context = testContext();
 
     expect(context.specStructure).toBeDefined();
+  });
+
+  it("uses a schema-valid demo user id for lifecycle actor metadata", () => {
+    const context = testContext();
+
+    expect(() => UuidSchema.parse(context.user.id)).not.toThrow();
   });
 
   it("routes the default Step 2 read through the composed module", async () => {

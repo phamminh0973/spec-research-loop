@@ -10,7 +10,7 @@
     "./router": "./src/routers/index.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
