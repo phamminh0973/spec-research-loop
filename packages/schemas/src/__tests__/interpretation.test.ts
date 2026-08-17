@@ -10,7 +10,7 @@ import {
   InterpretationOutputSchema,
   InterpretationRecordSchema,
   InterpretIdeaInputSchema,
-} from "./index.js";
+} from "../index.js";
 
 const VALID_INPUT = {
   projectId: "123e4567-e89b-12d3-a456-426614174000",

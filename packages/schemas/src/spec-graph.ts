@@ -1,7 +1,6 @@
 import { z } from "zod";
 
-const UuidSchema = z.string().uuid();
-const IsoTimestampSchema = z.string().datetime({ offset: true });
+import { IsoTimestampSchema, UuidSchema } from "./common";
 
 export const ClientRefSchema = z
   .string()

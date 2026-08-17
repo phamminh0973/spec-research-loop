@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ConfirmedInterpretationSnapshotSchema } from "../interpretations";
+import { ConfirmedInterpretationSnapshotSchema } from "../interpretation";
 import {
   DecompositionOutputSchema,
   DecomposeIdeaInputSchema,

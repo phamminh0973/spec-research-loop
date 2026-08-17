@@ -9,13 +9,11 @@ import {
   SpecRelationSchema,
   SpecRelationTypeSchema,
 } from "./spec-graph";
+import { NonEmptyTextSchema, UuidSchema } from "./common";
 import {
   ConfirmedDecisionSchema,
   ConfirmedInterpretationSnapshotSchema,
-} from "./interpretations";
-
-const UuidSchema = z.string().uuid();
-const NonEmptyTextSchema = z.string().trim().min(1);
+} from "./interpretation";
 
 export const DecomposeIdeaInputSchema = z
   .object({
