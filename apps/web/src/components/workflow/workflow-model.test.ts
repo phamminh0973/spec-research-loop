@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  STEP2_REQUIRED_NODE_TYPES,
+  SpecGraphViewSchema,
+  type SpecGraphView,
+} from "@specloop/schemas";
+import { cloneLocalGraph } from "./local-fixtures";
+import {
   buildNodeReviewRows,
   buildRelationReviewRows,
+  buildStep2Coverage,
+  calculateStep2Readiness,
+  filterAndSortNodeReviewRows,
   getGapCandidates,
   getLocalDevelopmentLabel,
 } from "./workflow-model";
@@ -39,6 +48,22 @@ const graph = {
   relations: [],
   warnings: [],
   statusHistory: [],
+};
+
+const completeGraph: SpecGraphView = {
+  ...graph,
+  nodes: STEP2_REQUIRED_NODE_TYPES.map((type, index) => ({
+    id: `00000000-0000-4000-8000-000000000${String(index + 101).padStart(3, "0")}`,
+    projectId: graph.projectId,
+    clientRef: `${type.toLowerCase()}-1`,
+    type,
+    title: `${type} title`,
+    content: `${type} content`,
+    status: "PROPOSED" as const,
+    sourceRefs: [],
+    createdAt: "2026-08-13T00:00:00Z",
+    updatedAt: "2026-08-13T00:00:00Z",
+  })),
 };
 
 describe("workflow UI model", () => {
@@ -101,5 +126,109 @@ describe("workflow UI model", () => {
         type: "ADDRESSES",
       },
     ]);
+  });
+
+  it("builds coverage in assignment order and excludes optional risk", () => {
+    const coverage = buildStep2Coverage(completeGraph);
+
+    expect(coverage).toEqual(
+      STEP2_REQUIRED_NODE_TYPES.map((type) => ({
+        type,
+        count: 1,
+        state: "PRESENT",
+      }))
+    );
+    expect(coverage.map((item) => item.type)).not.toContain("RISK");
+  });
+
+  it("marks evidence missing even when an optional risk card exists", () => {
+    const graphWithRisk = {
+      ...completeGraph,
+      nodes: completeGraph.nodes
+        .filter((node) => node.type !== "EVIDENCE")
+        .concat({
+          ...completeGraph.nodes[0]!,
+          id: "00000000-0000-4000-8000-000000000199",
+          clientRef: "risk-1",
+          type: "RISK" as const,
+        }),
+    };
+
+    expect(buildStep2Coverage(graphWithRisk)).toContainEqual({
+      type: "EVIDENCE",
+      count: 0,
+      state: "MISSING",
+    });
+  });
+
+  it("filters and sorts review rows without mutating their input", () => {
+    const rows = buildNodeReviewRows({
+      ...completeGraph,
+      nodes: [
+        completeGraph.nodes.find((node) => node.type === "CLAIM")!,
+        completeGraph.nodes.find((node) => node.type === "PROBLEM")!,
+        completeGraph.nodes.find((node) => node.type === "GAP")!,
+      ],
+    });
+    const originalOrder = rows.map((row) => row.type);
+
+    expect(
+      filterAndSortNodeReviewRows(rows, { type: "ALL", status: "ALL" })
+    ).toEqual([
+      expect.objectContaining({ type: "PROBLEM" }),
+      expect.objectContaining({ type: "GAP" }),
+      expect.objectContaining({ type: "CLAIM" }),
+    ]);
+    expect(
+      filterAndSortNodeReviewRows(rows, {
+        type: "GAP",
+        status: "NEEDS_REVIEW",
+      })
+    ).toHaveLength(0);
+    expect(rows.map((row) => row.type)).toEqual(originalOrder);
+  });
+
+  it("blocks readiness for missing required types and unresolved cards", () => {
+    const readiness = calculateStep2Readiness({
+      ...completeGraph,
+      nodes: completeGraph.nodes.map((node) =>
+        node.type === "EVIDENCE"
+          ? { ...node, status: "USER_REJECTED" as const }
+          : node.type === "CLAIM"
+            ? { ...node, status: "UNSUPPORTED" as const }
+            : node
+      ),
+    });
+
+    expect(readiness.ready).toBe(false);
+    expect(readiness.unresolvedRequiredTypes).toEqual(["EVIDENCE"]);
+    expect(readiness.unresolvedNodeRefs).toContain("claim-1");
+    expect(readiness.unsupportedClaimCount).toBe(1);
+  });
+
+  it("reports ready when every required card is reviewable", () => {
+    expect(calculateStep2Readiness(completeGraph)).toEqual({
+      ready: true,
+      unresolvedRequiredTypes: [],
+      unresolvedNodeRefs: [],
+      unsupportedClaimCount: 0,
+    });
+  });
+
+  it("provides a complete local Step 2 review fixture", () => {
+    const fixture = cloneLocalGraph();
+    const fixtureTypes = new Set(fixture.nodes.map((node) => node.type));
+    const authorities = new Set(
+      fixture.statusHistory.map((entry) => entry.authority)
+    );
+
+    expect(SpecGraphViewSchema.parse(fixture)).toEqual(fixture);
+    expect(
+      STEP2_REQUIRED_NODE_TYPES.every((type) => fixtureTypes.has(type))
+    ).toBe(true);
+    expect(fixture.nodes.some((node) => node.type === "RISK")).toBe(true);
+    expect(fixture.relations.length).toBeGreaterThan(0);
+    expect(fixture.warnings.length).toBeGreaterThan(0);
+    expect(authorities).toEqual(new Set(["AI", "USER", "SYSTEM"]));
   });
 });
