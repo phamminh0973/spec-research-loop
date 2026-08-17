@@ -6,8 +6,8 @@ import {
   DeterministicConfirmedInterpretationReader,
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
-} from "../decomposition/testing-adapters.js";
-import { createSpecStructureModule } from "../decomposition/module.js";
+} from "../modules/decomposition/testing-adapters.js";
+import { createSpecStructureModule } from "../modules/decomposition/module.js";
 import { resetProjectStore } from "../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";

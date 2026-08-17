@@ -7,8 +7,8 @@ import {
 } from "@specloop/schemas";
 import type OpenAI from "openai";
 
-import { getLlmClient, getLlmConfig } from "../llm/index.js";
-import { structuredCall } from "../llm/structured-call.js";
+import { getLlmClient, getLlmConfig } from "../../llm/index.js";
+import { structuredCall } from "../../llm/structured-call.js";
 import { DecompositionValidationError } from "./errors.js";
 import { buildDecompositionMessages } from "./prompt.js";
 import type { DecompositionGenerator } from "./ports.js";

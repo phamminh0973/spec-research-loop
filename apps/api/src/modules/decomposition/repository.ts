@@ -25,7 +25,7 @@ import type {
   UpdateNodeCommand,
 } from "./ports.js";
 import { calculateDeterministicWarnings } from "./status-rules.js";
-import { specGraphsByProject } from "../store/project-store.js";
+import { specGraphsByProject } from "../../store/project-store.js";
 
 function isAiGeneratedStatus(
   status: PersistedNodeStatus

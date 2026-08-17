@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { InMemoryInterpretationRepository } from "../interpretation/repository.js";
 import { Step1ConfirmedInterpretationReader } from "./interpretation-reader-adapter.js";
-import { resetProjectStore } from "../store/project-store.js";
+import { resetProjectStore } from "../../store/project-store.js";
 
 const PROJECT_ID = "123e4567-e89b-42d3-a456-426614174000";
 const ACTOR_ID = "123e4567-e89b-42d3-a456-426614174099";

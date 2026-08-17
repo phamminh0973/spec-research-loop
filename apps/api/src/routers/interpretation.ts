@@ -11,7 +11,7 @@ import {
   InterpretationGenerationError,
   InterpretationLifecycleError,
   type InterpretationModule,
-} from "../interpretation/index.js";
+} from "../modules/interpretation/index.js";
 import { protectedProcedure, router } from "../trpc/trpc.js";
 import { getProjectById } from "./projects.js";
 

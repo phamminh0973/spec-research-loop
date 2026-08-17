@@ -20,14 +20,14 @@ import {
   EVIDENCE_SPAN_PROPOSAL_SYSTEM_PROMPT,
   EVIDENCE_REVIEW_SYSTEM_PROMPT,
 } from "./prompt.js";
-import { structuredCall } from "../llm/structured-call.js";
+import { structuredCall } from "../../llm/structured-call.js";
 import {
   claimEvidenceLinksByProject,
   evidenceSpansByProject,
   getOrCreate,
   parseOrThrow,
   sourcesByProject,
-} from "../store/project-store.js";
+} from "../../store/project-store.js";
 
 type IntegrityStatus = ClaimEvidenceLink["integrityStatus"];
 

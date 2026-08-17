@@ -48,7 +48,7 @@ import {
   listSources,
   selectSource,
   selectedCount,
-} from "../literature/service.js";
+} from "../modules/literature/service.js";
 
 export const literatureRouter = router({
   /**

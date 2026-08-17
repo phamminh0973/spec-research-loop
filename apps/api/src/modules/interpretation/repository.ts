@@ -10,7 +10,7 @@ import {
 import {
   interpretationDecisionsByProject,
   interpretationsByProject,
-} from "../store/project-store.js";
+} from "../../store/project-store.js";
 
 export class InterpretationLifecycleError extends Error {
   constructor(message: string) {

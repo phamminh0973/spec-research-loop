@@ -44,7 +44,7 @@ import {
   proposeSpans,
   runIntegrityChecks,
   runReview,
-} from "../evidence/service.js";
+} from "../modules/evidence/service.js";
 
 // ---------------------------------------------------------------------------
 // Procedures

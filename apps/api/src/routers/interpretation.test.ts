@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   InMemoryInterpretationRepository,
   createInterpretationModule,
-} from "../interpretation/index.js";
+} from "../modules/interpretation/index.js";
 import type { ApiContext } from "../trpc/context.js";
 import { appRouter } from "./index.js";
 

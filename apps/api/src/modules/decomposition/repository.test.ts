@@ -4,7 +4,7 @@ import type { DecompositionOutput } from "@specloop/schemas";
 import { applyDeterministicRules } from "./status-rules.js";
 import { InMemorySpecGraphStore } from "./repository.js";
 import { SpecGraphConflictError } from "./errors.js";
-import { resetProjectStore } from "../store/project-store.js";
+import { resetProjectStore } from "../../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 
