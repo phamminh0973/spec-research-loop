@@ -17,8 +17,15 @@ import {
   interpretationRepository,
   type InterpretationModule,
 } from "../interpretation/index.js";
-import type { SpecStructureModule } from "../modules/spec-structure/spec-structure-module.js";
+import { Step1ConfirmedInterpretationReader } from "../modules/spec-structure/interpretation-reader-adapter.js";
+import { LlmDecompositionGenerator } from "../modules/spec-structure/generator.js";
+import { InMemorySpecGraphStore } from "../modules/spec-structure/in-memory-store.js";
+import {
+  createSpecStructureModule,
+  type SpecStructureModule,
+} from "../modules/spec-structure/spec-structure-module.js";
 import { getLlmClient, getLlmConfig, type LlmConfig } from "../llm/index.js";
+import { getProjectById } from "../routers/projects.js";
 
 export interface ApiContext {
   requestId: string;
@@ -30,7 +37,7 @@ export interface ApiContext {
   llm: OpenAI;
   /** Resolved LLM configuration (model, timeout, retry, …). */
   llmConfig: LlmConfig;
-  /** Optional Step 2 capability composition; absent processes fail closed. */
+  /** Step 2 capability composition; explicit undefined remains fail-closed in tests. */
   specStructure?: SpecStructureModule;
   /** Step 1 interpretation/decision lifecycle for this API process. */
   interpretation?: InterpretationModule;
@@ -40,6 +47,28 @@ const runtimeInterpretationModule = createInterpretationModule({
   repository: interpretationRepository,
   generator: generateInterpretation,
 });
+
+// P0 runtime persistence is process-scoped and replaceable. Keeping the store
+// shared makes a graph created by one request visible to the next request;
+// PostgreSQL remains a later persistence adapter.
+const runtimeSpecGraphStore = new InMemorySpecGraphStore();
+
+function createRuntimeSpecStructure(
+  llm: OpenAI,
+  llmConfig: LlmConfig
+): SpecStructureModule {
+  return createSpecStructureModule({
+    reader: new Step1ConfirmedInterpretationReader(
+      interpretationRepository,
+      getProjectById
+    ),
+    generator: new LlmDecompositionGenerator({
+      client: llm,
+      model: llmConfig.defaultModel,
+    }),
+    store: runtimeSpecGraphStore,
+  });
+}
 
 export interface CreateContextInnerOptions {
   user?: ApiContext["user"];
@@ -52,18 +81,20 @@ export interface CreateContextInnerOptions {
 export function createContextInner(
   options: CreateContextInnerOptions = {}
 ): ApiContext {
+  const llm = options.llm ?? getLlmClient();
+  const llmConfig = options.llmConfig ?? getLlmConfig();
+
   return {
     requestId: crypto.randomUUID(),
     user: options.user ?? {
       id: "00000000-0000-0000-0000-000000000001",
       displayName: "Demo User",
     },
-    llm: options.llm ?? getLlmClient(),
-    llmConfig: options.llmConfig ?? getLlmConfig(),
+    llm,
+    llmConfig,
     interpretation: options.interpretation ?? runtimeInterpretationModule,
-    ...(options.specStructure === undefined
-      ? {}
-      : { specStructure: options.specStructure }),
+    specStructure:
+      options.specStructure ?? createRuntimeSpecStructure(llm, llmConfig),
   };
 }
 

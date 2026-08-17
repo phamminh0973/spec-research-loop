@@ -59,8 +59,11 @@ Thumbs.db
 .claude/worktrees/
 .worktrees/
 archives/
+/apps/web/AGENTS.md
+/apps/web/CLAUDE.md
 .agents/agent-docs/.tmp/
 .agents/agent-docs/*.local.md
+.agents/agent-docs/local/
 .agents/skills/drizzle-orm-patterns/
 .agents/skills/nestjs-best-practices/
 .agents/skills/codegraph/

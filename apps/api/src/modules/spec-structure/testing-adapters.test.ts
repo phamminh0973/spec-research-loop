@@ -83,6 +83,7 @@ describe("deterministic Step 2 adapters", () => {
     const view = await repository.getByProject(projectId);
 
     expect(view).not.toBeNull();
+    if (!view) throw new Error("Expected a persisted graph.");
     expect(view?.nodes).toHaveLength(2);
     expect(view?.nodes[0]).toMatchObject({
       projectId,
@@ -90,7 +91,12 @@ describe("deterministic Step 2 adapters", () => {
       status: "PROPOSED",
     });
     expect(view?.nodes[0]?.id).toEqual(expect.any(String));
-    expect(view?.statusHistory).toEqual([]);
+    expect(view.statusHistory).toHaveLength(view.nodes.length);
+    expect(view.statusHistory[0]).toMatchObject({
+      actor: "AI",
+      authority: "AI",
+      fromStatus: null,
+    });
   });
 
   it("rejects cross-project generated data before storing it", async () => {
@@ -144,11 +150,15 @@ describe("deterministic Step 2 adapters", () => {
     expect(
       changed.nodes.find((node) => node.clientRef === "problem-1")
     ).toMatchObject({ status: "USER_CONFIRMED" });
-    expect(changed.statusHistory).toHaveLength(1);
-    expect(changed.statusHistory[0]).toMatchObject({
+    expect(changed.statusHistory).toHaveLength(3);
+    expect(changed.statusHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
       actor: "USER",
       authority: "USER",
       toStatus: "USER_CONFIRMED",
-    });
+        }),
+      ])
+    );
   });
 });

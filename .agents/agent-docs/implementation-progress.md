@@ -1,6 +1,6 @@
 # Implementation progress
 
-Last reviewed: 2026-08-13
+Last reviewed: 2026-08-14
 
 Repository status: `SCAFFOLDED`, first Week-1 vertical-slice piece
 `IN_PROGRESS`. Local install, typecheck, production build and API/web smoke
@@ -14,6 +14,7 @@ benchmarking and Docker deployment remain `PLANNED`.
 | Web application (`apps/web`) | SCAFFOLDED — build/smoke verified | Next.js production build passed; local HTTP `/` returned 200 on 2026-08-10 |
 | API modular monolith (`apps/api`) | IN_PROGRESS / SCAFFOLDED — typecheck and smoke-verified | Added `literature`, `evidence`, `researchDesign` routers + project store; TypeScript build passed and local `/healthz` returned `status=ok` on 2026-08-10; `tsc --noEmit` clean 2026-08-10 |
 | US-02 idea interpretation (AIT-01, TT-US02-01) | IN_PROGRESS — schema/prompt/service + contract tests | `apps/api/src/interpretation/{prompt,service}.ts`, `apps/api/src/routers/interpretation.ts`; `packages/schemas` `InterpretIdeaInputSchema`/`InterpretationOutputSchema`/`InterpretationRecordSchema`; `vitest run` (7 passed) in `apps/api` observed 2026-08-13; no real provider call (tests use fake client) |
+| Step 2 structured decomposition (AIT-02 / US-04) | IN_PROGRESS — P0 runtime/API/UI locally verified | `apps/api/src/modules/spec-structure/{prompt,generator,in-memory-store}.ts`, default `createContextInner` composition, `apps/web/src/components/workflow/step2-workspace.tsx`; `pnpm test` passed schemas 20/API 72/web 4 tests on 2026-08-14; recursive `pnpm typecheck`, `pnpm build`, scoped Prettier check and `git diff --check` passed; no live provider, PostgreSQL or tenant-authorization claim |
 | Background worker (`apps/worker`) | PLANNED | `docs/03-architecture-and-technical-design.md` |
 | AI and evidence workflow | IN_PROGRESS | UC-04/UC-05/UC-06 routers added; LLM gateway and AIT stubs present; no real provider calls (no `OPENAI_API_KEY`) — tests use injected fake client |
 | Test and evaluation | PARTIAL — `vitest` wired in parts of the monorepo | `packages/schemas/vitest.config.ts`, `apps/api/vitest.config.ts`; `vitest` observed passing tests in `packages/schemas` and `apps/api`; package test/lint scripts remain placeholders |
@@ -82,3 +83,47 @@ AI gateway and prompts:
 
 Update this table when implementation begins. Before changing a status, read
 the relevant PBI and acceptance criteria and add verifiable evidence.
+
+## Step 2 P0 runtime update (2026-08-14)
+
+The confirmed-interpretation gate remains server-side and Step 2 consumes the
+snapshot through a read-only `Step1ConfirmedInterpretationReader`. The new PT-02
+generator uses the existing shared structured-output gateway; the domain service
+does not own an LLM client and Step 3 search/tooling remains outside this module.
+
+The default API context now composes the Step 2 module with a process-scoped
+in-memory graph store. Generated nodes receive AI-authority status history;
+node/relation edits recompute deterministic missing/unsupported/conflict findings
+and record SYSTEM status changes. The web workspace now supports relation
+create/delete and status-history review in both API and explicitly labeled fixture
+mode.
+
+Observed verification on 2026-08-14:
+
+- `pnpm test`: schemas 4 files/20 tests, API 14 files/72 tests, web 1 file/4
+  tests passed.
+- `pnpm typecheck`: schemas, API and web recursive typechecks passed.
+- `pnpm build`: schemas check, API TypeScript build and Next.js production build
+  passed.
+- `git diff --check`: no whitespace errors.
+
+This is a locally verified P0 runtime slice. Durable persistence, tenant/user
+authorization, live provider execution/configuration and Step 3 integration are
+still open; no Step 1 lifecycle behavior was changed for this slice.
+
+## Step 2 browser UI smoke (2026-08-14)
+
+Started the local API on port `4000` and the Next.js web app on port `3000`,
+then opened the visible in-app browser at
+`/projects/new?fixture=1`. The browser completed the user-facing path:
+
+`Mở local Step 1` → `Confirm` → `Mở Step 2` → `Generate typed cards` → edit a
+card → `Confirm`/`Reject` → add and delete a relation.
+
+The rendered Step 2 fixture showed 4 typed nodes, 1 `NEEDS_REVIEW` node, 2
+warnings, the initial relation, and status-history entries. Browser console
+errors and the local API/web error logs were empty during the run. This used
+the explicitly labeled local fixture so it is a real UI interaction smoke test,
+not a live LLM/provider result. Fixture graph state is recreated on a full
+page reload; durable persistence was therefore not claimed. The browser test
+did not change Step 1 implementation or lifecycle behavior.

@@ -190,7 +190,16 @@ describe("decomposition tRPC router", () => {
     expect(
       confirmed.nodes.find((node) => node.clientRef === "problem-1")
     ).toMatchObject({ status: "USER_CONFIRMED" });
-    expect(confirmed.statusHistory).toHaveLength(1);
+    expect(confirmed.statusHistory).toHaveLength(3);
+    expect(confirmed.statusHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actor: "USER",
+          authority: "USER",
+          toStatus: "USER_CONFIRMED",
+        }),
+      ])
+    );
 
     const deleted = await caller.decomposition.deleteRelation({
       projectId,
