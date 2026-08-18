@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import type {
   ConfirmedInterpretationSnapshot,
@@ -9,6 +9,7 @@ import {
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
 } from "./testing-adapters.js";
+import { resetProjectStore } from "../../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 const otherProjectId = "00000000-0000-4000-8000-000000000099";
@@ -54,6 +55,8 @@ const graph: DecompositionOutput = {
 };
 
 describe("deterministic Step 2 adapters", () => {
+  beforeEach(() => resetProjectStore());
+
   it("reads only the requested confirmed project and returns deterministic output", async () => {
     const reader = new DeterministicConfirmedInterpretationReader([
       interpretation,

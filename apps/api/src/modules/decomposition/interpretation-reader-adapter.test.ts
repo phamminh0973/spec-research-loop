@@ -1,8 +1,9 @@
 import type { InterpretationRecord } from "@specloop/schemas";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { InMemoryInterpretationRepository } from "../../interpretation/repository.js";
+import { InMemoryInterpretationRepository } from "../interpretation/repository.js";
 import { Step1ConfirmedInterpretationReader } from "./interpretation-reader-adapter.js";
+import { resetProjectStore } from "../../store/project-store.js";
 
 const PROJECT_ID = "123e4567-e89b-42d3-a456-426614174000";
 const ACTOR_ID = "123e4567-e89b-42d3-a456-426614174099";
@@ -40,6 +41,8 @@ function makeReader(repository: InMemoryInterpretationRepository) {
 }
 
 describe("Step1ConfirmedInterpretationReader", () => {
+  beforeEach(() => resetProjectStore());
+
   it("returns null for missing and proposed interpretations", async () => {
     const repository = new InMemoryInterpretationRepository();
     const reader = makeReader(repository);

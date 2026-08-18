@@ -27,7 +27,7 @@ import {
   type InterpretIdeaInput,
 } from "@specloop/schemas";
 import type OpenAI from "openai";
-import { getLlmClient, getLlmConfig } from "../llm/index.js";
+import { getLlmClient, getLlmConfig } from "../../llm/index.js";
 import {
   PROMPT_ID,
   PROMPT_VERSION,

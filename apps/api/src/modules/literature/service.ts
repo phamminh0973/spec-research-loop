@@ -19,14 +19,14 @@ import {
   QUERY_GENERATION_SYSTEM_PROMPT,
   PAPER_ANALYSIS_SYSTEM_PROMPT,
 } from "./prompt.js";
-import { structuredCall } from "../llm/structured-call.js";
-import { arxivSearchTool, executeArxivSearch } from "../llm/tools/arxiv-search.js";
-import { executeLlmTool } from "../llm/tools/index.js";
+import { structuredCall } from "../../llm/structured-call.js";
+import { arxivSearchTool, executeArxivSearch } from "../../llm/tools/arxiv-search.js";
+import { executeLlmTool } from "../../llm/tools/index.js";
 import {
   getOrCreate,
   parseOrThrow,
   sourcesByProject,
-} from "../store/project-store.js";
+} from "../../store/project-store.js";
 
 function toSourceDocument(
   projectId: string,

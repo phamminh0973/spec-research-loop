@@ -38,7 +38,7 @@ import {
   generateGapProposal,
   generateClaimDesign,
   generateExperimentPlan,
-} from "../research-design/service.js";
+} from "../modules/research-design/service.js";
 import {
   atomicClaimsByProject,
   experimentPlansByProject,

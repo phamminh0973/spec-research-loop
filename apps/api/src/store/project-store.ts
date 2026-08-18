@@ -20,7 +20,10 @@ import type {
   EvidenceSpan,
   ExperimentPlan,
   GapProposalOutput,
+  InterpretationDecision,
+  InterpretationRecord,
   SourceDocument,
+  SpecGraphView,
 } from "@specloop/schemas";
 import { UuidSchema } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
@@ -68,6 +71,29 @@ export const experimentPlansByProject = new Map<string, ExperimentPlan[]>();
  */
 export const gapProposalsByProject = new Map<string, GapProposalOutput>();
 
+/**
+ * Per-project decomposition graph (Bước 2 / AIT-02). Backs the
+ * spec-structure module's `InMemorySpecGraphStore`; each value is a validated
+ * `SpecGraphView` and is replaced atomically on regeneration.
+ */
+export const specGraphsByProject = new Map<string, SpecGraphView>();
+
+/**
+ * Per-project interpretation versions (Bước 1 / AIT-01). Outer key is project
+ * id; inner map is keyed by interpretation id so a project can retain
+ * superseded versions alongside the active proposal.
+ */
+export const interpretationsByProject = new Map<
+  string,
+  Map<string, InterpretationRecord>
+>();
+
+/** Per-project decision trail for the Step 1 confirm/revise/regenerate lifecycle. */
+export const interpretationDecisionsByProject = new Map<
+  string,
+  InterpretationDecision[]
+>();
+
 /** Test-only escape hatch: drop every in-memory collection. */
 export function resetProjectStore(): void {
   sourcesByProject.clear();
@@ -77,6 +103,9 @@ export function resetProjectStore(): void {
   contributionsByProject.clear();
   experimentPlansByProject.clear();
   gapProposalsByProject.clear();
+  specGraphsByProject.clear();
+  interpretationsByProject.clear();
+  interpretationDecisionsByProject.clear();
 }
 
 /** Return (or create) the list backing a project-scoped collection. */

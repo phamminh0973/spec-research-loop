@@ -15,8 +15,8 @@ import {
   SpecGraphNotFoundError,
   SpecNodeNotFoundError,
   SpecRelationNotFoundError,
-} from "../modules/spec-structure/errors.js";
-import type { SpecStructureModule } from "../modules/spec-structure/spec-structure-module.js";
+} from "../modules/decomposition/errors.js";
+import type { SpecStructureModule } from "../modules/decomposition/module.js";
 import { protectedProcedure, router } from "../trpc/trpc.js";
 
 const ProjectInputSchema = z.object({ projectId: UuidSchema });

@@ -7,6 +7,11 @@ import {
   type InterpretationRecord,
 } from "@specloop/schemas";
 
+import {
+  interpretationDecisionsByProject,
+  interpretationsByProject,
+} from "../../store/project-store.js";
+
 export class InterpretationLifecycleError extends Error {
   constructor(message: string) {
     super(message);
@@ -50,12 +55,6 @@ export interface InterpretationRepository {
 }
 
 export class InMemoryInterpretationRepository implements InterpretationRepository {
-  private readonly records = new Map<
-    string,
-    Map<string, InterpretationRecord>
-  >();
-  private readonly decisions = new Map<string, InterpretationDecision[]>();
-
   async saveInitialProposal(
     record: InterpretationRecord
   ): Promise<InterpretationRecord> {
@@ -190,14 +189,14 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
   }
 
   async listDecisions(projectId: string): Promise<InterpretationDecision[]> {
-    return structuredClone(this.decisions.get(projectId) ?? []);
+    return structuredClone(interpretationDecisionsByProject.get(projectId) ?? []);
   }
 
   private projectRecords(projectId: string): Map<string, InterpretationRecord> {
-    const existing = this.records.get(projectId);
+    const existing = interpretationsByProject.get(projectId);
     if (existing) return existing;
     const created = new Map<string, InterpretationRecord>();
-    this.records.set(projectId, created);
+    interpretationsByProject.set(projectId, created);
     return created;
   }
 
@@ -243,8 +242,12 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     });
-    const projectDecisions = this.decisions.get(input.projectId) ?? [];
-    this.decisions.set(input.projectId, [...projectDecisions, decision]);
+    const projectDecisions =
+      interpretationDecisionsByProject.get(input.projectId) ?? [];
+    interpretationDecisionsByProject.set(input.projectId, [
+      ...projectDecisions,
+      decision,
+    ]);
   }
 
   private cloneRecord(record: InterpretationRecord): InterpretationRecord {

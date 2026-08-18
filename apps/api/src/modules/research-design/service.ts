@@ -26,7 +26,7 @@ import {
   CLAIM_DESIGN_SYSTEM_PROMPT,
   EXPERIMENT_PLAN_SYSTEM_PROMPT,
 } from "./prompt.js";
-import { structuredCall } from "../llm/structured-call.js";
+import { structuredCall } from "../../llm/structured-call.js";
 import {
   atomicClaimsByProject,
   contributionsByProject,
@@ -35,7 +35,7 @@ import {
   getOrCreate,
   parseOrThrow,
   sourcesByProject,
-} from "../store/project-store.js";
+} from "../../store/project-store.js";
 
 /** Build corpus-bounded context for gap proposal. */
 export function selectedCorpusContext(projectId: string): {

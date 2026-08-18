@@ -25,6 +25,7 @@ import type {
   UpdateNodeCommand,
 } from "./ports.js";
 import { calculateDeterministicWarnings } from "./status-rules.js";
+import { specGraphsByProject } from "../../store/project-store.js";
 
 function isAiGeneratedStatus(
   status: PersistedNodeStatus
@@ -48,13 +49,13 @@ function warningPriority(
 }
 
 /**
- * P0 process-scoped graph store. It is intentionally small and replaceable:
- * the module boundary is production-safe, while PostgreSQL remains a later
- * persistence adapter rather than being silently presented as implemented.
+ * P0 process-scoped graph repository. It is intentionally small and
+ * replaceable: the module boundary is production-safe, while PostgreSQL
+ * remains a later persistence adapter rather than being silently presented
+ * as implemented. Backing data lives in the shared project store so the
+ * graph survives across module instances within the same process.
  */
 export class InMemorySpecGraphStore implements SpecGraphStore {
-  private readonly graphs = new Map<string, SpecGraphView>();
-
   async saveGeneratedGraph(graph: DecompositionOutput): Promise<void> {
     const parsed = DecompositionOutputSchema.parse(graph);
     const now = new Date().toISOString();
@@ -119,11 +120,11 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
       statusHistory,
     });
 
-    this.graphs.set(parsed.projectId, view);
+    specGraphsByProject.set(parsed.projectId, view);
   }
 
   async getByProject(projectId: string): Promise<SpecGraphView | null> {
-    const view = this.graphs.get(projectId);
+    const view = specGraphsByProject.get(projectId);
     return view ? this.clone(view) : null;
   }
 
@@ -268,7 +269,7 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
   }
 
   private requireGraph(projectId: string): SpecGraphView {
-    const view = this.graphs.get(projectId);
+    const view = specGraphsByProject.get(projectId);
     if (!view) throw new SpecGraphNotFoundError(projectId);
     return this.clone(view);
   }
@@ -361,7 +362,7 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
       warnings,
       statusHistory,
     });
-    this.graphs.set(parsed.projectId, parsed);
+    specGraphsByProject.set(parsed.projectId, parsed);
     return this.clone(parsed);
   }
 

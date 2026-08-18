@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   DeterministicConfirmedInterpretationReader,
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
 } from "./testing-adapters.js";
-import { createSpecStructureModule } from "./spec-structure-module.js";
+import { createSpecStructureModule } from "./module.js";
+import { resetProjectStore } from "../../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 
@@ -41,6 +42,8 @@ const generated = {
 };
 
 describe("SpecStructureModule", () => {
+  beforeEach(() => resetProjectStore());
+
   it("composes the domain service from injected reader, generator and store", async () => {
     const store = new InMemorySpecGraphRepository();
     const module = createSpecStructureModule({

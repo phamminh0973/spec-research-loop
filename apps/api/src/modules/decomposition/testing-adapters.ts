@@ -1,6 +1,6 @@
 /**
  * Deterministic adapters used by automated tests and explicit local fixtures.
- * The runtime graph store lives in `in-memory-store.ts` and is composed by the
+ * The runtime graph store lives in `repository.ts` and is composed by the
  * API context; this file keeps deterministic generator/reader fixtures only.
  */
 
@@ -50,4 +50,4 @@ export class DeterministicDecompositionGenerator implements DecompositionGenerat
   }
 }
 
-export { InMemorySpecGraphStore as InMemorySpecGraphRepository } from "./in-memory-store.js";
+export { InMemorySpecGraphStore as InMemorySpecGraphRepository } from "./repository.js";

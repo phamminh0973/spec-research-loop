@@ -15,13 +15,13 @@ import { decompositionOutputFixture } from "@specloop/schemas/fixtures";
 import {
   InMemoryInterpretationRepository,
   createInterpretationModule,
-} from "../interpretation/index.js";
-import { Step1ConfirmedInterpretationReader } from "../modules/spec-structure/interpretation-reader-adapter.js";
-import { createSpecStructureModule } from "../modules/spec-structure/spec-structure-module.js";
+} from "../modules/interpretation/index.js";
+import { Step1ConfirmedInterpretationReader } from "../modules/decomposition/interpretation-reader-adapter.js";
+import { createSpecStructureModule } from "../modules/decomposition/module.js";
 import {
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
-} from "../modules/spec-structure/testing-adapters.js";
+} from "../modules/decomposition/testing-adapters.js";
 import { appRouter } from "../routers/index.js";
 import { getProjectById } from "../routers/projects.js";
 import { createContextInner, type ApiContext } from "../trpc/context.js";
