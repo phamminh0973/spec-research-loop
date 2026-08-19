@@ -9,6 +9,7 @@ import {
   Infinity,
   PanelRight,
   Search,
+  ShieldCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -18,13 +19,14 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 
-type ActiveStep = 1 | 2;
+type ActiveStep = 1 | 2 | 3 | 4;
 
 const stepLabels = [
   { label: "Ý tưởng", icon: FileText },
   { label: "Làm rõ & xác nhận", icon: Search },
   { label: "Structured cards", icon: Folder },
   { label: "Literature / evidence", icon: CircleHelp },
+  { label: "Final review", icon: ShieldCheck },
 ];
 
 function getWorkflowSteps(
@@ -34,29 +36,11 @@ function getWorkflowSteps(
 ): WorkflowStep[] {
   const confirmed = interpretationStatus === "USER_CONFIRMED";
   return stepLabels.map((step, index) => {
-    if (index === 0) {
-      return {
-        label: step.label,
-        state: activeStep === 1 ? "current" : "complete",
-      };
-    }
-    if (index === 1) {
-      return {
-        label: step.label,
-        state: confirmed
-          ? activeStep === 1
-            ? "current"
-            : "complete"
-          : "blocked",
-      };
-    }
-    if (index === 2) {
-      return {
-        label: step.label,
-        state: hasGraph ? "complete" : activeStep === 2 ? "current" : "blocked",
-      };
-    }
-    return { label: step.label, state: "blocked" };
+    const stepNumber = index + 1;
+    if (stepNumber === 1) return { label: step.label, state: activeStep === 1 ? "current" : "complete" };
+    if (stepNumber === 2) return { label: step.label, state: confirmed ? (activeStep === 2 ? "current" : "complete") : "blocked" };
+    if (stepNumber === 3) return { label: step.label, state: hasGraph ? (activeStep === 3 ? "current" : "complete") : "blocked" };
+    return { label: step.label, state: hasGraph ? (activeStep === 4 ? "current" : "complete") : "blocked" };
   });
 }
 
@@ -87,6 +71,12 @@ export function AppShell({
     : "/projects/new";
   const decompositionHref = projectId
     ? `/projects/${projectId}/decomposition${fixtureMode ? "?fixture=1" : ""}`
+    : "/projects/new";
+  const researchHref = projectId
+    ? `/projects/${projectId}/research${fixtureMode ? "?fixture=1" : ""}`
+    : "/projects/new";
+  const finalReviewHref = projectId
+    ? `/projects/${projectId}/final-review${fixtureMode ? "?fixture=1" : ""}`
     : "/projects/new";
 
   return (
@@ -187,6 +177,18 @@ export function AppShell({
               href={decompositionHref}
             >
               <Search size={15} /> Step 2 · Typed cards
+            </Link>
+            <Link
+              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 3 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+              href={researchHref}
+            >
+              <CircleHelp size={15} /> Step 3–6 · Literature / evidence
+            </Link>
+            <Link
+              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 4 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+              href={finalReviewHref}
+            >
+              <ShieldCheck size={15} /> Step 7–10 · Final review
             </Link>
           </div>
 
