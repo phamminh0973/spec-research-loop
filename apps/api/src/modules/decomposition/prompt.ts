@@ -11,7 +11,7 @@ export interface DecompositionMessages {
 
 export const DECOMPOSITION_TASK_ID = "AIT-02";
 export const DECOMPOSITION_PROMPT_ID = "PT-02";
-export const DECOMPOSITION_PROMPT_VERSION = "0.2.0";
+export const DECOMPOSITION_PROMPT_VERSION = "0.3.0";
 
 const requiredTypeInstruction = STEP2_REQUIRED_NODE_TYPES.join(", ");
 
@@ -49,8 +49,8 @@ Rules:
   a concrete suggested action. A missing required element is not proof of a
   factual result.
 - Do not request or output private chain-of-thought.
-- Return ONLY one JSON object matching the DecompositionOutput contract:
-  { projectId, nodes, relations, warnings }.
+- The output JSON schema is passed in this call. Return ONLY one JSON object
+  that conforms to that schema.
 `,
 } as const;
 
@@ -68,7 +68,8 @@ export function buildDecompositionMessages(
     system: decompositionPrompt.system,
     user:
       "Create the Bước 2 typed decomposition from the confirmed data in the " +
-      "delimited input block. Do not include fields outside the contract.",
+      "delimited input block. Do not include fields outside the output schema " +
+      "passed in this call.",
     untrusted: [
       {
         label: "Confirmed interpretation, decisions and constraints",

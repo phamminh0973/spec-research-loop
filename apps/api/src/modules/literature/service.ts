@@ -96,6 +96,7 @@ export async function generateQueries(params: {
     userPrompt: "Propose arXiv search queries for the following research context. Return 1–5 queries using arXiv query syntax.",
     untrusted: [{ label: "Research context", text: researchContext }],
     outputSchema: QueryGenerationOutputSchema,
+    schemaName: "query_generation_output",
   });
   return output;
 }
@@ -187,6 +188,7 @@ export async function searchWithAnalysis(params: {
       { label: "arXiv search results", text: corpusText },
     ],
     outputSchema: SearchWithAnalysisOutputSchema,
+    schemaName: "search_with_analysis_output",
     allowedIds,
     extractReferencedIds: (out) => out.papers.map((p) => p.externalId),
   });

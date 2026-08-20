@@ -77,6 +77,7 @@ export async function generateGapProposal(params: {
       "Propose 1–3 corpus-bounded research gap candidates from the selected corpus below. Only reference the source IDs provided. Every candidate must include a novelty_risk warning.",
     untrusted: [{ label: "Selected corpus", text: corpusText }],
     outputSchema: GapProposalOutputSchema,
+    schemaName: "gap_proposal_output",
     allowedIds,
     extractReferencedIds: (out) => [
       ...out.candidates.flatMap((c) => c.evidenceRefs),
@@ -123,6 +124,7 @@ export async function generateClaimDesign(params: {
       "Propose contributions and falsifiable atomic claims for the selected gap below. Only reference the source IDs provided.",
     untrusted: [{ label: "Selected gap candidate", text: gapText }],
     outputSchema: ClaimDesignOutputSchema,
+    schemaName: "claim_design_output",
     allowedIds,
     extractReferencedIds: (out) => out.claims.flatMap((c) => c.evidenceRefs),
   });
@@ -217,6 +219,7 @@ export async function generateExperimentPlan(params: {
       "Propose a controlled experiment plan for the claims below. Include at least one important ablation. Label every estimate input as assumed or measured; never fabricate prices or throughput.",
     untrusted: [{ label: "Atomic claims", text: claimsText }],
     outputSchema: ExperimentPlanOutputSchema,
+    schemaName: "experiment_plan_output",
   });
 
   const now = new Date().toISOString();

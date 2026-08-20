@@ -42,6 +42,7 @@ export class LlmDecompositionGenerator implements DecompositionGenerator {
       userPrompt: messages.user,
       untrusted: messages.untrusted,
       outputSchema: DecompositionOutputSchema,
+      schemaName: "decomposition_output",
       maxTokens: 4_000,
     });
 

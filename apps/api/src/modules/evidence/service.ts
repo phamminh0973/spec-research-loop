@@ -141,6 +141,7 @@ export async function proposeSpans(params: {
       { label: "Selected corpus", text: corpusText },
     ],
     outputSchema: ProposeEvidenceSpansOutputSchema,
+    schemaName: "propose_evidence_spans_output",
     allowedIds,
     extractReferencedIds: (out) => out.proposals.map((p) => p.sourceId),
   });
@@ -243,6 +244,7 @@ export async function runReview(params: {
       { label: "Evidence span exact text", text: span.exactText },
     ],
     outputSchema: EvidenceReviewOutputSchema,
+    schemaName: "evidence_review_output",
   });
 
   link.review = {

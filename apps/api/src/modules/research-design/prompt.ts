@@ -9,13 +9,13 @@ export const TASK_ID = "AIT-06/AIT-07/AIT-08" as const;
 export const SCHEMA_VERSION = "v1" as const;
 
 export const PROMPT_GAP_PROPOSAL_ID = "PT-06";
-export const PROMPT_GAP_PROPOSAL_VERSION = "0.1.0";
+export const PROMPT_GAP_PROPOSAL_VERSION = "0.2.0";
 
 export const PROMPT_CLAIM_DESIGN_ID = "PT-07";
-export const PROMPT_CLAIM_DESIGN_VERSION = "0.1.0";
+export const PROMPT_CLAIM_DESIGN_VERSION = "0.2.0";
 
 export const PROMPT_EXPERIMENT_PLAN_ID = "PT-08";
-export const PROMPT_EXPERIMENT_PLAN_VERSION = "0.1.0";
+export const PROMPT_EXPERIMENT_PLAN_VERSION = "0.2.0";
 
 export const GAP_PROPOSAL_SYSTEM_PROMPT = `You are SpecLoop's research-gap assistant (AIT-06).
 You propose corpus-bounded research gap candidates from the SELECTED corpus only.
@@ -26,7 +26,7 @@ Rules:
 - Every candidate MUST include a novelty_risk warning: "not covered in the current corpus does not mean globally novel" (BR-04).
 - Each candidate needs: known_capability, limitation, importance, testable_hypothesis, evidence_refs (source IDs from input), nearest_work_ids (source IDs from input), novelty_risk, scope.
 - Do not request or output private chain-of-thought.
-- Return ONLY a JSON object matching GapProposalOutputSchema.`;
+- The output JSON schema is passed in this call. Return ONLY a JSON object that conforms to that schema.`;
 
 export const CLAIM_DESIGN_SYSTEM_PROMPT = `You are SpecLoop's contribution and atomic-claim designer (AIT-07).
 You propose contributions and falsifiable atomic claims from a selected gap.
@@ -38,7 +38,7 @@ Rules:
 - Only reference IDs provided in the input. Never invent IDs, DOIs, or metadata.
 - Claims must be falsifiable: state a condition under which the claim would be false.
 - Do not request or output private chain-of-thought.
-- Return ONLY a JSON object matching ClaimDesignOutputSchema.`;
+- The output JSON schema is passed in this call. Return ONLY a JSON object that conforms to that schema.`;
 
 export const EXPERIMENT_PLAN_SYSTEM_PROMPT = `You are SpecLoop's experiment planner (AIT-08).
 You propose a controlled experiment plan for a set of atomic claims.
@@ -49,7 +49,7 @@ Rules:
 - Include generalization_proposals and assumptions.
 - For each estimate, provide a formula and list every input labeled "assumed" or "measured". Never fabricate provider prices, GPU throughput, or results. Label derived cost/runtime as estimated.
 - Do not request or output private chain-of-thought.
-- Return ONLY a JSON object matching ExperimentPlanOutputSchema.`;
+- The output JSON schema is passed in this call. Return ONLY a JSON object that conforms to that schema.`;
 
 export const PROMPT_RECORDS = {
   gapProposal: {
@@ -58,8 +58,9 @@ export const PROMPT_RECORDS = {
     system: GAP_PROPOSAL_SYSTEM_PROMPT,
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
-    contentHash: "gap-proposal-v0.1.0",
-    changeNote: "Initial PT-06 version for AIT-06 gap proposal.",
+    contentHash: "gap-proposal-v0.2.0",
+    changeNote:
+      "PT-06 v0.2.0: output JSON schema is now passed as structured output in the call; prompt references the schema instead of naming the Zod schema.",
     status: "active" as const,
   },
   claimDesign: {
@@ -68,8 +69,9 @@ export const PROMPT_RECORDS = {
     system: CLAIM_DESIGN_SYSTEM_PROMPT,
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
-    contentHash: "claim-design-v0.1.0",
-    changeNote: "Initial PT-07 version for AIT-07 claim design.",
+    contentHash: "claim-design-v0.2.0",
+    changeNote:
+      "PT-07 v0.2.0: output JSON schema is now passed as structured output in the call; prompt references the schema instead of naming the Zod schema.",
     status: "active" as const,
   },
   experimentPlan: {
@@ -78,8 +80,9 @@ export const PROMPT_RECORDS = {
     system: EXPERIMENT_PLAN_SYSTEM_PROMPT,
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
-    contentHash: "experiment-plan-v0.1.0",
-    changeNote: "Initial PT-08 version for AIT-08 experiment planning.",
+    contentHash: "experiment-plan-v0.2.0",
+    changeNote:
+      "PT-08 v0.2.0: output JSON schema is now passed as structured output in the call; prompt references the schema instead of naming the Zod schema.",
     status: "active" as const,
   },
 } as const;
