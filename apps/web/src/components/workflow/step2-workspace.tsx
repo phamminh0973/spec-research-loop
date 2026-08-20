@@ -390,7 +390,7 @@ export function Step2Workspace({
           <StatusHistoryPanel graph={graph} />
         </div>
 
-        <Step2Handoff graph={graph} fixtureMode={fixtureMode} />
+        {graph && <Step2Handoff graph={graph} fixtureMode={fixtureMode} />}
       </div>
     </AppShell>
   );
