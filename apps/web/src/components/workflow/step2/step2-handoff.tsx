@@ -16,7 +16,7 @@ export function Step2Handoff({
   graph,
   fixtureMode,
 }: {
-  graph: SpecGraphView | null;
+  graph: SpecGraphView;
   fixtureMode: boolean;
 }) {
   const readiness = graph ? calculateStep2Readiness(graph) : null;
