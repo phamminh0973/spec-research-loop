@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, Download, FileText, GitCompare, Scale, ShieldCheck } from "lucide-react";
 import { AppShell } from "../shared/app-shell";
 import { SectionCard, SectionHeader } from "../shared/section-card";
+import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,56 +86,62 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
 
         <SectionCard>
           <SectionHeader icon={FileText} title="Research specification — 14 sections" tone="blue" />
-          <div className="divide-y">
-            {sections.map(([title, content]) => (
-              <div key={title} className="p-5">
-                <h3 className="font-semibold">{title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{content}</p>
-              </div>
-            ))}
-          </div>
+          <CardContent>
+            <div className="divide-y">
+              {sections.map(([title, content]) => (
+                <div key={title} className="py-5">
+                  <h3 className="font-semibold">{title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{content}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
         </SectionCard>
 
         <SectionCard>
           <SectionHeader icon={Scale} title="Independent Judges" tone="purple" />
-          <div className="grid gap-4 p-5 lg:grid-cols-3">
-            {judges.map((judge) => (
-              <div key={judge.name} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{judge.name}</h3><Badge variant={judge.score === "MAJOR" ? "destructive" : "secondary"}>{judge.score}</Badge></div>
-                <p className="mt-2 text-xs text-muted-foreground">{judge.focus}</p>
-                <p className="mt-3 text-sm">{judge.finding}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mx-5 mb-5 rounded-lg bg-muted p-4 text-sm">
-            <strong>Aggregation:</strong> consensus severity = <Badge className="ml-1">{consensus}</Badge>. Judges are displayed independently; aggregation happens only after individual findings exist.
-          </div>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              {judges.map((judge) => (
+                <div key={judge.name} className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{judge.name}</h3><Badge variant={judge.score === "MAJOR" ? "destructive" : "secondary"}>{judge.score}</Badge></div>
+                  <p className="mt-2 text-xs text-muted-foreground">{judge.focus}</p>
+                  <p className="mt-3 text-sm">{judge.finding}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-lg bg-muted p-4 text-sm">
+              <strong>Aggregation:</strong> consensus severity = <Badge className="ml-1">{consensus}</Badge>. Judges are displayed independently; aggregation happens only after individual findings exist.
+            </div>
+          </CardContent>
         </SectionCard>
 
         <SectionCard>
           <SectionHeader icon={ShieldCheck} title="User revision decision" tone="green" />
-          <div className="space-y-4 p-5">
-            <p className="text-sm">Claim hiện tại không nên khẳng định generalization ngoài domain đã test. Chọn cách xử lý:</p>
-            <div className="flex flex-wrap gap-2">
-              {["Narrow claim", "Expand experiment", "Convert to research question"].map((item) => (
-                <Button key={item} variant={decision === item ? "default" : "outline"} onClick={() => setDecision(item)}>{decision === item && <Check className="mr-1 size-4" />}{item}</Button>
-              ))}
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm">Claim hiện tại không nên khẳng định generalization ngoài domain đã test. Chọn cách xử lý:</p>
+              <div className="flex flex-wrap gap-2">
+                {["Narrow claim", "Expand experiment", "Convert to research question"].map((item) => (
+                  <Button key={item} variant={decision === item ? "default" : "outline"} onClick={() => setDecision(item)}>{decision === item && <Check className="mr-1 size-4" />}{item}</Button>
+                ))}
+              </div>
+              <Textarea value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Other — nhập quyết định riêng..." rows={3} />
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" onClick={() => setVersion((v) => v + 1)}><GitCompare className="mr-2 size-4" />Create version {version + 1}</Button>
+                <Button onClick={() => setFinalized(true)} disabled={!decision}>Confirm final version</Button>
+              </div>
+              {finalized && <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">Version {version} đã được đánh dấu FINALIZED trong phiên UI này. Production persistence/version API vẫn cần được nối nếu dùng ngoài fixture.</div>}
             </div>
-            <Textarea value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Other — nhập quyết định riêng..." rows={3} />
-            <div className="flex flex-wrap gap-3">
-              <Button variant="outline" onClick={() => setVersion((v) => v + 1)}><GitCompare className="mr-2 size-4" />Create version {version + 1}</Button>
-              <Button onClick={() => setFinalized(true)} disabled={!decision}>Confirm final version</Button>
-            </div>
-            {finalized && <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">Version {version} đã được đánh dấu FINALIZED trong phiên UI này. Production persistence/version API vẫn cần được nối nếu dùng ngoài fixture.</div>}
-          </div>
+          </CardContent>
         </SectionCard>
 
         <SectionCard>
           <SectionHeader icon={Download} title="Export" tone="amber" />
-          <div className="p-5">
+          <CardContent>
             <p className="text-sm text-muted-foreground">Xuất Markdown từ nội dung spec và decision hiện tại. Đây là artifact demo; không thay thế version/export persistence ở backend.</p>
             <Button className="mt-4" onClick={exportMarkdown}><Download className="mr-2 size-4" />Export Markdown</Button>
-          </div>
+          </CardContent>
         </SectionCard>
       </div>
     </AppShell>

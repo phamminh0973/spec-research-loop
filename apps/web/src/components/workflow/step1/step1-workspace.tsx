@@ -505,40 +505,42 @@ export function UnderstandingWorkspace({
         <div className="grid gap-6 lg:grid-cols-2">
           <SectionCard>
             <SectionHeader icon={Lightbulb} title="Project input" tone="blue" />
-            {project ? (
-              <div className="space-y-4">
-                <div className="rounded-lg bg-muted/50 p-4 text-foreground font-medium">
-                  {project.title}
+            <CardContent>
+              {project ? (
+                <div className="space-y-4">
+                  <div className="rounded-lg bg-muted/50 p-4 text-foreground font-medium">
+                    {project.title}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    API hiện trả về <code className="bg-muted px-1 rounded">ProjectSummary</code>; rawIdea không nằm
+                    trong response này. Nội dung interpretation bên cạnh vẫn được
+                    lấy từ lifecycle API.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {project.domain ? (
+                      <Badge variant="secondary" className="text-xs">
+                        {project.domain}
+                      </Badge>
+                    ) : null}
+                    <Badge variant="secondary" className="text-xs">project-scoped</Badge>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  API hiện trả về <code className="bg-muted px-1 rounded">ProjectSummary</code>; rawIdea không nằm
-                  trong response này. Nội dung interpretation bên cạnh vẫn được
-                  lấy từ lifecycle API.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {project.domain ? (
-                    <Badge variant="secondary" className="text-xs">
-                      {project.domain}
-                    </Badge>
-                  ) : null}
-                  <Badge variant="secondary" className="text-xs">project-scoped</Badge>
+              ) : (
+                <div className="text-center py-8">
+                  <h3 className="font-semibold text-foreground mb-1">Chưa đọc được project</h3>
+                  <p className="text-sm text-muted-foreground">Kiểm tra projectId hoặc mở local fixture để kiểm tra UI.</p>
                 </div>
+              )}
+              <div className="mt-4">
+                <Button
+                  onClick={handleGenerate}
+                  disabled={pending}
+                >
+                  <RefreshCw size={15} className="mr-2" />
+                  {record ? "Generate lại proposal" : "Generate interpretation"}
+                </Button>
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <h3 className="font-semibold text-foreground mb-1">Chưa đọc được project</h3>
-                <p className="text-sm text-muted-foreground">Kiểm tra projectId hoặc mở local fixture để kiểm tra UI.</p>
-              </div>
-            )}
-            <div className="mt-4">
-              <Button
-                onClick={handleGenerate}
-                disabled={pending}
-              >
-                <RefreshCw size={15} className="mr-2" />
-                {record ? "Generate lại proposal" : "Generate interpretation"}
-              </Button>
-            </div>
+            </CardContent>
           </SectionCard>
 
           <SectionCard>
@@ -548,38 +550,40 @@ export function UnderstandingWorkspace({
               tone="green"
               action={record ? <StatusPill status={record.status} /> : null}
             />
-            {record ? (
-              <>
-                <InterpretationDetails
-                  record={record}
-                  editing={editing}
-                  draft={draft}
-                  onDraftChange={setDraft}
-                />
-                {editing ? (
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      onClick={saveRevision}
-                      disabled={pending}
-                    >
-                      <Check size={15} className="mr-2" /> Lưu{" "}
-                      {editAction === "OTHER" ? "Other" : "Edit"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setEditing(false)}
-                    >
-                      Huỷ
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <h3 className="font-semibold text-foreground mb-1">Chưa có interpretation proposal</h3>
-                <p className="text-sm text-muted-foreground">Nhấn Generate để bắt đầu lifecycle AIT-01.</p>
-              </div>
-            )}
+            <CardContent>
+              {record ? (
+                <>
+                  <InterpretationDetails
+                    record={record}
+                    editing={editing}
+                    draft={draft}
+                    onDraftChange={setDraft}
+                  />
+                  {editing ? (
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        onClick={saveRevision}
+                        disabled={pending}
+                      >
+                        <Check size={15} className="mr-2" /> Lưu{" "}
+                        {editAction === "OTHER" ? "Other" : "Edit"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditing(false)}
+                      >
+                        Huỷ
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <h3 className="font-semibold text-foreground mb-1">Chưa có interpretation proposal</h3>
+                  <p className="text-sm text-muted-foreground">Nhấn Generate để bắt đầu lifecycle AIT-01.</p>
+                </div>
+              )}
+            </CardContent>
           </SectionCard>
         </div>
 
@@ -589,69 +593,71 @@ export function UnderstandingWorkspace({
             title="Câu hỏi cần xác nhận"
             tone="purple"
           />
-          {record ? (
-            <div className="space-y-6">
-              <div className="rounded-lg border border-border bg-card p-4">
-                <p className="font-medium text-foreground mb-3">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">1</span>
-                  Interpretation này có phản ánh đúng ý định của bạn không?
-                </p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <Button
-                    variant={confirmed ? "default" : "outline"}
-                    onClick={handleConfirm}
-                    disabled={pending || confirmed}
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => beginEdit("EDIT")}
-                    disabled={pending}
-                  >
-                    <Pencil size={13} className="mr-1" /> Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => beginEdit("OTHER")}
-                    disabled={pending}
-                  >
-                    Other
-                  </Button>
+          <CardContent>
+            {record ? (
+              <div className="space-y-6">
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="font-medium text-foreground mb-3">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">1</span>
+                    Interpretation này có phản ánh đúng ý định của bạn không?
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <Button
+                      variant={confirmed ? "default" : "outline"}
+                      onClick={handleConfirm}
+                      disabled={pending || confirmed}
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => beginEdit("EDIT")}
+                      disabled={pending}
+                    >
+                      <Pencil size={13} className="mr-1" /> Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => beginEdit("OTHER")}
+                      disabled={pending}
+                    >
+                      Other
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {confirmed
+                      ? "Phiên bản hiện tại đã USER_CONFIRMED."
+                      : "Chưa confirm thì Step 2 vẫn bị chặn theo BR-01."}
+                  </p>
                 </div>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="font-medium text-foreground mb-3">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">2</span>
+                    Bạn muốn chạy lại proposal không?
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={handleRegenerate}
+                    disabled={pending}
+                  >
+                    <RefreshCw size={14} className="mr-1" /> Regenerate
+                  </Button>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Regenerate tạo proposal mới và không tự mở khóa
+                    decomposition.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <h3 className="font-semibold text-foreground mb-1">Đợi proposal</h3>
                 <p className="text-sm text-muted-foreground">
-                  {confirmed
-                    ? "Phiên bản hiện tại đã USER_CONFIRMED."
-                    : "Chưa confirm thì Step 2 vẫn bị chặn theo BR-01."}
+                  Các lựa chọn Confirm/Edit/Other sẽ xuất hiện sau khi có output
+                  hợp lệ.
                 </p>
               </div>
-              <div className="rounded-lg border border-border bg-card p-4">
-                <p className="font-medium text-foreground mb-3">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">2</span>
-                  Bạn muốn chạy lại proposal không?
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={handleRegenerate}
-                  disabled={pending}
-                >
-                  <RefreshCw size={14} className="mr-1" /> Regenerate
-                </Button>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Regenerate tạo proposal mới và không tự mở khóa
-                  decomposition.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <h3 className="font-semibold text-foreground mb-1">Đợi proposal</h3>
-              <p className="text-sm text-muted-foreground">
-                Các lựa chọn Confirm/Edit/Other sẽ xuất hiện sau khi có output
-                hợp lệ.
-              </p>
-            </div>
-          )}
+            )}
+          </CardContent>
         </SectionCard>
 
         <SectionCard>
