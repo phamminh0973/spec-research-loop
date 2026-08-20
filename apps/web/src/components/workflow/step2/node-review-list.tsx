@@ -1,6 +1,6 @@
 "use client";
 
-import type { NodeReviewRow } from "../workflow-model";
+import type { NodeReviewRow } from "./step2-model";
 import { NodeReviewCard, type NodeDraft } from "./node-review-card";
 
 export type NodeReviewListProps = {

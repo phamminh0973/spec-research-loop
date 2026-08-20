@@ -6,11 +6,11 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 
 import { CardContent } from "@/components/ui/card";
-import { SectionCard, StatusPill } from "../section-card";
+import { SectionCard, StatusPill } from "../shared/section-card";
 import {
   calculateStep2Readiness,
   getLocalDevelopmentLabel,
-} from "../workflow-model";
+} from "./step2-model";
 
 export function Step2Handoff({
   graph,

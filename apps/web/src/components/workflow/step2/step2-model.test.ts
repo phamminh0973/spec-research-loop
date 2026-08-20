@@ -5,7 +5,7 @@ import {
   SpecGraphViewSchema,
   type SpecGraphView,
 } from "@specloop/schemas";
-import { cloneLocalGraph } from "./local-fixtures";
+import { cloneLocalGraph } from "./step2-fixtures";
 import {
   buildNodeReviewRows,
   buildRelationReviewRows,
@@ -14,7 +14,7 @@ import {
   filterAndSortNodeReviewRows,
   getGapCandidates,
   getLocalDevelopmentLabel,
-} from "./workflow-model";
+} from "./step2-model";
 
 const graph = {
   projectId: "00000000-0000-4000-8000-000000000001",

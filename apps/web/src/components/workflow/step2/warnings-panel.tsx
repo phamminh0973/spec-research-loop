@@ -5,8 +5,8 @@ import { AlertTriangle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
-import { SectionCard, SectionHeader, StatusPill } from "../section-card";
-import { getGapCandidates } from "../workflow-model";
+import { SectionCard, SectionHeader, StatusPill } from "../shared/section-card";
+import { getGapCandidates } from "./step2-model";
 
 export function WarningsPanel({ graph }: { graph: SpecGraphView | null }) {
   const gaps = graph ? getGapCandidates(graph) : [];

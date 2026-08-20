@@ -1,4 +1,4 @@
-import { UnderstandingWorkspace } from "@/components/workflow/step1-workspace";
+import { UnderstandingWorkspace } from "@/components/workflow/step1/step1-workspace";
 
 type PageProps = {
   params: Promise<{ projectId: string }>;

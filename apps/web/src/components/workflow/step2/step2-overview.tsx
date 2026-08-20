@@ -12,12 +12,12 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
-import { SectionCard, LocalDevelopmentBadge } from "../section-card";
+import { SectionCard, LocalDevelopmentBadge } from "../shared/section-card";
 import {
   buildStep2Coverage,
   calculateStep2Readiness,
   type Step2NodeFilters,
-} from "../workflow-model";
+} from "./step2-model";
 
 export type Step2OverviewProps = {
   graph: SpecGraphView | null;

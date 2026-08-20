@@ -6,8 +6,9 @@ import type { SpecGraphView, SpecRelationType } from "@specloop/schemas";
 import { Alert } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { AppShell } from "./app-shell";
-import { cloneLocalGraph, LOCAL_PROJECT } from "./local-fixtures";
+import { AppShell } from "../shared/app-shell";
+import { LOCAL_PROJECT } from "../shared/local-fixtures";
+import { cloneLocalGraph } from "./step2-fixtures";
 import {
   buildNodeReviewRows,
   buildRelationReviewRows,
@@ -15,14 +16,14 @@ import {
   type NodeReviewRow,
   type RelationReviewRow,
   type Step2NodeFilters,
-} from "./workflow-model";
-import { NodeReviewList } from "./step2/node-review-list";
-import { type NodeDraft } from "./step2/node-review-card";
-import { RelationsEditor, type RelationDraft } from "./step2/relations-editor";
-import { StatusHistoryPanel } from "./step2/status-history-panel";
-import { Step2Handoff } from "./step2/step2-handoff";
-import { Step2Overview } from "./step2/step2-overview";
-import { WarningsPanel } from "./step2/warnings-panel";
+} from "./step2-model";
+import { NodeReviewList } from "./node-review-list";
+import { type NodeDraft } from "./node-review-card";
+import { RelationsEditor, type RelationDraft } from "./relations-editor";
+import { StatusHistoryPanel } from "./status-history-panel";
+import { Step2Handoff } from "./step2-handoff";
+import { Step2Overview } from "./step2-overview";
+import { WarningsPanel } from "./warnings-panel";
 
 const INITIAL_NODE_DRAFT: NodeDraft = {
   title: "",

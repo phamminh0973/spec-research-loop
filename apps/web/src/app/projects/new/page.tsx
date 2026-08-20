@@ -1,4 +1,4 @@
-import { NewProjectWorkspace } from "@/components/workflow/step1-workspace";
+import { NewProjectWorkspace } from "@/components/workflow/step1/step1-workspace";
 
 type PageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;

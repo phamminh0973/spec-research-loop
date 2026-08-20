@@ -1,7 +1,7 @@
 "use client";
 
-import type { NodeReviewRow } from "../workflow-model";
-import { StatusPill } from "../section-card";
+import type { NodeReviewRow } from "./step2-model";
+import { StatusPill } from "../shared/section-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -22,19 +22,15 @@ import type {
 } from "@specloop/schemas";
 
 import { trpc } from "@/lib/trpc";
-import { AppShell } from "./app-shell";
+import { AppShell } from "../shared/app-shell";
 import {
   LocalDevelopmentBadge,
   SectionCard,
   SectionHeader,
   StatusPill,
-} from "./section-card";
-import {
-  cloneLocalInterpretation,
-  LOCAL_PROJECT,
-  LOCAL_PROJECT_ID,
-} from "./local-fixtures";
-import { StepBreadcrumb, type WorkflowStep } from "./step-breadcrumb";
+} from "../shared/section-card";
+import { cloneLocalInterpretation } from "./step1-fixtures";
+import { LOCAL_PROJECT, LOCAL_PROJECT_ID } from "../shared/local-fixtures";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

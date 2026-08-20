@@ -5,7 +5,7 @@ import { History } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
-import { SectionCard, SectionHeader } from "../section-card";
+import { SectionCard, SectionHeader } from "../shared/section-card";
 
 export function StatusHistoryPanel({ graph }: { graph: SpecGraphView | null }) {
   const history = graph

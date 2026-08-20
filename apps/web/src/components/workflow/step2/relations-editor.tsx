@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
-import { SectionCard, SectionHeader } from "../section-card";
-import type { RelationReviewRow } from "../workflow-model";
+import { SectionCard, SectionHeader } from "../shared/section-card";
+import type { RelationReviewRow } from "./step2-model";
 
 export type RelationDraft = {
   sourceClientRef: string;

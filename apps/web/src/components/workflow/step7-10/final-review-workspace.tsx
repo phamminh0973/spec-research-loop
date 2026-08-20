@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Check, Download, FileText, GitCompare, Scale, ShieldCheck } from "lucide-react";
-import { AppShell } from "./app-shell";
-import { SectionCard, SectionHeader } from "./section-card";
+import { AppShell } from "../shared/app-shell";
+import { SectionCard, SectionHeader } from "../shared/section-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";

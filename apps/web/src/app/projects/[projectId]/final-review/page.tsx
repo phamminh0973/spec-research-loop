@@ -1,4 +1,4 @@
-import { FinalReviewWorkspace } from "@/components/workflow/final-review-workspace";
+import { FinalReviewWorkspace } from "@/components/workflow/step7-10/final-review-workspace";
 
 type PageProps = { params: Promise<{ projectId: string }>; searchParams: Promise<{ fixture?: string }> };
 export default async function FinalReviewPage({ params, searchParams }: PageProps) {
