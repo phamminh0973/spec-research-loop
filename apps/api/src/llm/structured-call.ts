@@ -211,18 +211,53 @@ export async function structuredCall<TOutput>(
     throw new Error("AI task returned an empty response.");
   }
 
-  // Parse + validate application-side (single source of truth). Both a JSON
-  // syntax failure and a Zod schema mismatch get one bounded repair attempt
-  // (AI design §4); any further failure throws.
-  const parseAndValidate = (text: string): TOutput => {
+  // Parse + validate application-side (single source of truth). A JSON
+  // syntax failure, a Zod schema mismatch, and a reference-allowlist
+  // violation each get one bounded repair attempt (AI design §4); any
+  // further failure throws. Allowing the allowlist to participate in the
+  // repair keeps fabricated IDs from killing a call that is otherwise
+  // salvageable (e.g. a claim with one invented evidenceRef).
+  const validate = (text: string): TOutput => {
     const parsed: unknown = JSON.parse(text);
-    return outputSchema.parse(parsed);
+    const result = outputSchema.parse(parsed);
+    if (allowedIds && extractReferencedIds) {
+      const referenced = extractReferencedIds(result);
+      const invalid = referenced.filter((id) => !allowedIds.has(id));
+      if (invalid.length > 0) {
+        throw new Error(
+          `It references IDs not in the input allowlist: ${invalid.join(", ")}. ` +
+            `Only these IDs may be referenced: ${[...allowedIds].join(", ")}. ` +
+            "The application does not guess intended IDs (AI design §4)."
+        );
+      }
+    }
+    return result;
+  };
+
+  /** Turn a validation failure into concrete, actionable repair feedback. */
+  const rejectionReason = (error: unknown): string => {
+    if (error instanceof z.ZodError) {
+      const shown = error.issues.slice(0, 5);
+      const detail = shown
+        .map(
+          (issue) =>
+            `- ${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message}`,
+        )
+        .join("\n");
+      return (
+        `It does not match the required JSON schema (${error.issues.length} ` +
+        `issue${error.issues.length === 1 ? "" : "s"}; showing up to 5):\n${detail}`
+      );
+    }
+    return error instanceof Error ? error.message : String(error);
   };
 
   let output: TOutput;
+  let firstError: unknown;
   try {
-    output = parseAndValidate(raw);
-  } catch {
+    output = validate(raw);
+  } catch (err) {
+    firstError = err;
     onRepair?.();
     const repairResponse = await client.chat.completions.create({
       model: model ?? "gpt-4o-mini",
@@ -233,8 +268,10 @@ export async function structuredCall<TOutput>(
         {
           role: "user",
           content:
-            "Your previous response was rejected. Return ONLY a valid JSON " +
-            "object matching the schema, with no prose before or after.",
+            "Your previous response was rejected. Fix every issue listed below " +
+            "and return ONLY a valid JSON object matching the schema, with no " +
+            "prose before or after.\n" +
+            `Rejection reason:\n${rejectionReason(err)}`,
         },
       ],
       response_format: responseFormat,
@@ -242,22 +279,12 @@ export async function structuredCall<TOutput>(
     });
     const repairRaw = repairResponse.choices[0]?.message?.content ?? "";
     try {
-      output = parseAndValidate(repairRaw);
+      output = validate(repairRaw);
     } catch (repairError) {
       throw new Error(
-        `AI task output still rejected after one repair attempt: ${(repairError as Error).message}`
-      );
-    }
-  }
-
-  // Reference allowlist (layer 3): reject hallucinated IDs.
-  if (allowedIds && extractReferencedIds) {
-    const referenced = extractReferencedIds(output);
-    const invalid = referenced.filter((id) => !allowedIds.has(id));
-    if (invalid.length > 0) {
-      throw new Error(
-        `AI output referenced IDs not in the input allowlist: ${invalid.join(", ")}. ` +
-          "The application does not guess intended IDs (AI design §4)."
+        `AI task output still rejected after one repair attempt. ` +
+          `First failure: ${rejectionReason(firstError)}\n` +
+          `Repair failure: ${rejectionReason(repairError)}`
       );
     }
   }

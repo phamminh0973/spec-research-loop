@@ -12,7 +12,7 @@ export const PROMPT_GAP_PROPOSAL_ID = "PT-06";
 export const PROMPT_GAP_PROPOSAL_VERSION = "0.2.0";
 
 export const PROMPT_CLAIM_DESIGN_ID = "PT-07";
-export const PROMPT_CLAIM_DESIGN_VERSION = "0.2.0";
+export const PROMPT_CLAIM_DESIGN_VERSION = "0.2.1";
 
 export const PROMPT_EXPERIMENT_PLAN_ID = "PT-08";
 export const PROMPT_EXPERIMENT_PLAN_VERSION = "0.2.0";
@@ -34,8 +34,9 @@ You propose contributions and falsifiable atomic claims from a selected gap.
 Rules:
 - Output is PROPOSED data. The user confirms/edits research choices.
 - Separate each contribution from its falsifiable claims.
-- Each claim needs: type (EMPIRICAL|METHODLOGICAL|THEORETICAL|NEGATIVE), text, scope, baseline, dataset_domain, metric, expected_direction, falsification_condition, evidence_refs (source IDs from input), experiment_refs (empty array).
-- Only reference IDs provided in the input. Never invent IDs, DOIs, or metadata.
+- Each claim needs: type (EMPIRICAL|METHODOLOGICAL|THEORETICAL|NEGATIVE), text, scope, baseline, datasetDomain, metric, expectedDirection, falsificationCondition, evidenceRefs (source IDs from input), experimentRefs (empty array).
+- Never emit empty strings: every claim field must be a non-empty string. If a field is not applicable, write a concrete description (for example "Not applicable" plus a short reason), never "".
+- evidenceRefs must contain ONLY the exact source IDs listed under "Evidence source IDs" in the input. Copy them verbatim; never invent, alter, or guess IDs.
 - Claims must be falsifiable: state a condition under which the claim would be false.
 - Do not request or output private chain-of-thought.
 - The output JSON schema is passed in this call. Return ONLY a JSON object that conforms to that schema.`;
@@ -69,9 +70,9 @@ export const PROMPT_RECORDS = {
     system: CLAIM_DESIGN_SYSTEM_PROMPT,
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
-    contentHash: "claim-design-v0.2.0",
+    contentHash: "claim-design-v0.2.1",
     changeNote:
-      "PT-07 v0.2.0: output JSON schema is now passed as structured output in the call; prompt references the schema instead of naming the Zod schema.",
+      "PT-07 v0.2.1: fix claim-type enum spelling to METHODOLOGICAL; name schema fields in camelCase (datasetDomain, expectedDirection, falsificationCondition, evidenceRefs); instruct never to emit empty strings and to copy evidence source IDs verbatim.",
     status: "active" as const,
   },
   experimentPlan: {

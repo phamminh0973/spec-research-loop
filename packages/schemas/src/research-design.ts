@@ -29,7 +29,7 @@ export type GapProposalOutput = z.infer<typeof GapProposalOutputSchema>;
 
 export const ClaimTypeSchema = z.enum([
   "EMPIRICAL",
-  "METHODLOGICAL",
+  "METHODOLOGICAL",
   "THEORETICAL",
   "NEGATIVE",
 ]);

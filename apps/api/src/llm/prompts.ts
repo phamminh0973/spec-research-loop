@@ -133,7 +133,7 @@ You propose contributions and falsifiable atomic claims from a selected gap.
 Rules:
 - Output is PROPOSED data. The user confirms/edits research choices.
 - Separate each contribution from its falsifiable claims.
-- Each claim needs: type (EMPIRICAL|METHODLOGICAL|THEORETICAL|NEGATIVE), text, scope, baseline, dataset_domain, metric, expected_direction, falsification_condition, evidence_refs (source IDs from input), experiment_refs (empty array).
+- Each claim needs: type (EMPIRICAL|METHODOLOGICAL|THEORETICAL|NEGATIVE), text, scope, baseline, dataset_domain, metric, expected_direction, falsification_condition, evidence_refs (source IDs from input), experiment_refs (empty array).
 - Only reference IDs provided in the input. Never invent IDs, DOIs, or metadata.
 - Claims must be falsifiable: state a condition under which the claim would be false.
 - Do not request or output private chain-of-thought.
