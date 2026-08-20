@@ -88,6 +88,12 @@ export interface StructuredCallArgs<TOutput> {
   extractReferencedIds?: (output: TOutput) => string[];
   /** Max tokens for the response. Bounded per AI design §13/§14. */
   maxTokens?: number;
+  /**
+   * Optional callback invoked each time the single bounded repair attempt is
+   * used (on unparseable JSON or a schema-validation failure). Lets callers
+   * record how many repairs were needed (e.g. Step 1 stores `retryCount`).
+   */
+  onRepair?: () => void;
 }
 
 /**
@@ -178,6 +184,7 @@ export async function structuredCall<TOutput>(
     allowedIds,
     extractReferencedIds,
     maxTokens,
+    onRepair,
   } = args;
 
   const untrustedText = renderUntrusted(untrusted ?? []);
@@ -204,26 +211,30 @@ export async function structuredCall<TOutput>(
     throw new Error("AI task returned an empty response.");
   }
 
-  let parsed: unknown;
+  // Parse + validate application-side (single source of truth). Both a JSON
+  // syntax failure and a Zod schema mismatch get one bounded repair attempt
+  // (AI design §4); any further failure throws.
+  const parseAndValidate = (text: string): TOutput => {
+    const parsed: unknown = JSON.parse(text);
+    return outputSchema.parse(parsed);
+  };
+
+  let output: TOutput;
   try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    // One bounded repair attempt (AI design §4): ask the model to fix the
-    // JSON syntax only. This is the only retry; further failures throw.
+    output = parseAndValidate(raw);
+  } catch {
+    onRepair?.();
     const repairResponse = await client.chat.completions.create({
       model: model ?? "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: fullUserContent },
-        {
-          role: "assistant",
-          content: raw,
-        },
+        { role: "assistant", content: raw },
         {
           role: "user",
           content:
-            "Your previous response was not valid JSON. Return ONLY a valid " +
-            "JSON object matching the schema, with no prose before or after.",
+            "Your previous response was rejected. Return ONLY a valid JSON " +
+            "object matching the schema, with no prose before or after.",
         },
       ],
       response_format: responseFormat,
@@ -231,16 +242,13 @@ export async function structuredCall<TOutput>(
     });
     const repairRaw = repairResponse.choices[0]?.message?.content ?? "";
     try {
-      parsed = JSON.parse(repairRaw);
-    } catch {
+      output = parseAndValidate(repairRaw);
+    } catch (repairError) {
       throw new Error(
-        `AI task returned unparseable JSON after one repair attempt: ${(err as Error).message}`
+        `AI task output still rejected after one repair attempt: ${(repairError as Error).message}`
       );
     }
   }
-
-  // Schema validation (layer 2).
-  const output = outputSchema.parse(parsed);
 
   // Reference allowlist (layer 3): reject hallucinated IDs.
   if (allowedIds && extractReferencedIds) {

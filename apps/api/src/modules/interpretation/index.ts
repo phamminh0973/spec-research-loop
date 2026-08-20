@@ -9,7 +9,7 @@ export {
   TASK_ID,
   PROMPT_RECORD,
   buildInterpretationMessages,
-  type InterpretationChatMessage,
+  type InterpretationMessages,
 } from "./prompt.js";
 
 export {

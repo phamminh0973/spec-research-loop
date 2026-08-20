@@ -114,7 +114,7 @@ describe("generateInterpretation", () => {
     ).rejects.toBeInstanceOf(InterpretationGenerationError);
   });
 
-  it("treats a provider error as a bounded, retryable failure, not an infinite retry", async () => {
+  it("propagates a provider error as a terminal error, without an extra repair", async () => {
     const client = fakeClient([
       { throws: new Error("upstream 503") },
       { throws: new Error("upstream 503") },
@@ -126,7 +126,9 @@ describe("generateInterpretation", () => {
     }).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(InterpretationGenerationError);
-    expect((error as InterpretationGenerationError).retryCount).toBe(1);
+    // The service performs no retry/repair for a failing provider call; the
+    // shared OpenAI client's configured `maxRetries` covers transient errors.
+    expect((error as InterpretationGenerationError).retryCount).toBe(0);
   });
 
   it("never assigns USER_CONFIRMED — status is always PROPOSED on success", async () => {

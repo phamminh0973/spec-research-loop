@@ -28,19 +28,16 @@ import {
 } from "@specloop/schemas";
 import type OpenAI from "openai";
 import { getLlmClient, getLlmConfig } from "../../llm/index.js";
+import { structuredCall } from "../../llm/structured-call.js";
 import {
   PROMPT_ID,
   PROMPT_VERSION,
   SCHEMA_VERSION,
   buildInterpretationMessages,
-  type InterpretationChatMessage,
 } from "./prompt.js";
 
 /** Provider label recorded on every interpretation call (single configurable OpenAI-compatible provider; docs/04-ai-system-design.md §1). */
 const PROVIDER = "openai-compatible" as const;
-
-/** Bounded repair attempts on invalid JSON/schema output (docs/04-ai-system-design.md §13: "One repair attempt within proposal's 1-2 limit"). */
-const MAX_REPAIR_ATTEMPTS = 1;
 
 export interface GenerateInterpretationDeps {
   /** Injectable client, defaults to the shared process client. */
@@ -65,31 +62,14 @@ export class InterpretationGenerationError extends Error {
   }
 }
 
-function extractContent(
-  completion: OpenAI.Chat.Completions.ChatCompletion
-): string {
-  const content = completion.choices[0]?.message.content;
-  if (!content) {
-    throw new Error("Provider returned an empty completion.");
-  }
-  return content;
-}
-
-function parseOutput(raw: string): InterpretationOutput {
-  let json: unknown;
-  try {
-    json = JSON.parse(raw);
-  } catch (error) {
-    throw new Error(
-      `Provider output was not valid JSON: ${(error as Error).message}`
-    );
-  }
-  return InterpretationOutputSchema.parse(json);
-}
-
 /**
  * Run AIT-01 for one confirmed input and return a `PROPOSED` interpretation
  * record. Never assigns `USER_CONFIRMED`.
+ *
+ * The provider call, JSON parsing, Zod validation, and the single bounded
+ * repair attempt are delegated to the shared structured-output gateway
+ * (`structuredCall`), which requests `json_schema` constrained output and
+ * validates it against {@link InterpretationOutputSchema} application-side.
  *
  * @throws {InterpretationGenerationError} if the provider never returns
  *   schema-valid JSON within the bounded repair budget.
@@ -102,53 +82,43 @@ export async function generateInterpretation(
   const client = deps.client ?? getLlmClient();
   const model = deps.model ?? getLlmConfig().defaultModel;
 
-  const messages: InterpretationChatMessage[] =
-    buildInterpretationMessages(input);
+  const messages = buildInterpretationMessages(input);
   let retryCount = 0;
-  let lastError: unknown;
 
-  while (retryCount <= MAX_REPAIR_ATTEMPTS) {
-    if (retryCount > 0) {
-      messages.push({
-        role: "user",
-        content:
-          "Your previous response did not match the required JSON schema " +
-          `(${String(lastError)}). Reply again with corrected JSON only, ` +
-          "matching the same schema.",
-      });
-    }
-
-    try {
-      const completion = await client.chat.completions.create({
-        model,
-        messages,
-        response_format: { type: "json_object" },
-      });
-      const output = parseOutput(extractContent(completion));
-
-      return {
-        interpretationId: crypto.randomUUID(),
-        projectId: input.projectId,
-        output,
-        status: "PROPOSED",
-        promptId: PROMPT_ID,
-        promptVersion: PROMPT_VERSION,
-        schemaVersion: SCHEMA_VERSION,
-        provider: PROVIDER,
-        model,
-        retryCount,
-        createdAt: new Date().toISOString(),
-        confirmedAt: null,
-      };
-    } catch (error) {
-      lastError = error;
-      retryCount += 1;
-    }
+  let output: InterpretationOutput;
+  try {
+    output = await structuredCall({
+      client,
+      model,
+      systemPrompt: messages.system,
+      userPrompt: messages.user,
+      untrusted: messages.untrusted,
+      outputSchema: InterpretationOutputSchema,
+      schemaName: "interpretation_output",
+      onRepair: () => {
+        retryCount += 1;
+      },
+    });
+  } catch (error) {
+    throw new InterpretationGenerationError(
+      "Idea interpretation failed to produce schema-valid output within the bounded repair budget.",
+      retryCount,
+      error
+    );
   }
 
-  throw new InterpretationGenerationError(
-    "Idea interpretation failed to produce schema-valid output within the bounded repair budget.",
-    retryCount - 1,
-    lastError
-  );
+  return {
+    interpretationId: crypto.randomUUID(),
+    projectId: input.projectId,
+    output,
+    status: "PROPOSED",
+    promptId: PROMPT_ID,
+    promptVersion: PROMPT_VERSION,
+    schemaVersion: SCHEMA_VERSION,
+    provider: PROVIDER,
+    model,
+    retryCount,
+    createdAt: new Date().toISOString(),
+    confirmedAt: null,
+  };
 }
