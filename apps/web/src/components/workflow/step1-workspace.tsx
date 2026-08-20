@@ -13,6 +13,7 @@ import {
   Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import type {
   InterpretationOutput,
@@ -34,7 +35,7 @@ import {
   LOCAL_PROJECT_ID,
 } from "./local-fixtures";
 import { StepBreadcrumb, type WorkflowStep } from "./step-breadcrumb";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -358,7 +359,6 @@ export function UnderstandingWorkspace({
   projectId: string;
   fixtureMode: boolean;
 }) {
-  const router = useRouter();
   const utils = trpc.useUtils();
   const [localRecord, setLocalRecord] = useState(() =>
     cloneLocalInterpretation()
@@ -669,12 +669,12 @@ export function UnderstandingWorkspace({
             <div className="mt-4 flex items-center justify-between">
               <StatusPill status={record?.status ?? "MISSING"} />
               {confirmed ? (
-                <a
-                  href={`${`/projects/${projectId}/decomposition`}${fixtureMode ? "?fixture=1" : ""}`}
-                  className="text-sm font-medium text-primary hover:underline"
+                <Link
+                  href={`/projects/${projectId}/decomposition${fixtureMode ? "?fixture=1" : ""}`}
+                  className={buttonVariants({ variant: "link" })}
                 >
                   Mở Step 2 <ArrowRight size={14} className="inline ml-1" />
-                </a>
+                </Link>
               ) : (
                 <span className="text-sm text-muted-foreground">Step 2 locked by BR-01</span>
               )}

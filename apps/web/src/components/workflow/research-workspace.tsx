@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { BookOpen, CheckCircle2, FileCheck2, FlaskConical, Search, ShieldCheck, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "./app-shell";
 import { SectionCard, SectionHeader, StatusPill } from "./section-card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,6 @@ const fixtureSources = [
 ];
 
 export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
-  const router = useRouter();
   const [query, setQuery] = useState("prompt optimization evidence hallucination");
   const [claimText, setClaimText] = useState("The proposed method reduces unsupported claims.");
   const [selectedGap, setSelectedGap] = useState(0);
@@ -157,7 +156,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
               <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Claim–Evidence boundary</h3><Badge variant="secondary">Needs provenance</Badge></div>
               <p className="mt-2 text-sm text-muted-foreground">Evidence card chỉ mô tả bằng chứng cần có. Nó không tự chứng minh claim. Evidence span phải có provenance và qua integrity check.</p>
               <Textarea className="mt-3" value={claimText} onChange={(e) => setClaimText(e.target.value)} rows={3} />
-              <div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" onClick={() => router.push(`/projects/${projectId}/decomposition${fixtureMode ? "?fixture=1" : ""}`)}><FileCheck2 className="mr-2 size-4" />Review claims in Step 2</Button><StatusPill status={selectedItems.length ? "AVAILABLE" : "MISSING"} /></div>
+              <div className="mt-3 flex flex-wrap gap-2"><Link href={`/projects/${projectId}/decomposition${fixtureMode ? "?fixture=1" : ""}`} className={buttonVariants({ variant: "outline" })}><FileCheck2 className="mr-2 size-4" />Review claims in Step 2</Link><StatusPill status={selectedItems.length ? "AVAILABLE" : "MISSING"} /></div>
             </div>
             <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">Gap candidates</h3><p className="text-sm text-muted-foreground">{fixtureMode ? "Fixture candidate" : "Corpus-bounded proposal from selected sources."}</p></div><Button onClick={generateGap} disabled={gap.isPending || fixtureMode || selectedItems.length === 0}><Sparkles className="mr-2 size-4" />Generate gap</Button></div>
             {gapCandidates.map((candidate, index) => (
@@ -201,7 +200,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
           <SectionHeader icon={Sparkles} title="Next: Specification → Judges → Revision → Export" tone="amber" />
           <CardContent>
             <p className="text-sm text-muted-foreground">Sau khi corpus, evidence, gap, claims và experiment plan đủ, workflow tiếp tục sang bản research specification 14 phần, 3 Judge độc lập, revision/version diff và Markdown export.</p>
-            <Button className="mt-4" onClick={() => router.push(`/projects/${projectId}/final-review${fixtureMode ? "?fixture=1" : ""}`)}>Mở Final Review</Button>
+            <Link href={`/projects/${projectId}/final-review${fixtureMode ? "?fixture=1" : ""}`} className={buttonVariants({ className: "mt-4" })}>Mở Final Review</Link>
           </CardContent>
         </SectionCard>
       </div>

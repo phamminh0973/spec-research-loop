@@ -2,8 +2,8 @@
 
 import type { SpecGraphView } from "@specloop/schemas";
 import { FileText } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 
 import { CardContent } from "@/components/ui/card";
 import { SectionCard, StatusPill } from "../section-card";
@@ -20,7 +20,6 @@ export function Step2Handoff({
   fixtureMode: boolean;
 }) {
   const readiness = graph ? calculateStep2Readiness(graph) : null;
-  const router = useRouter();
   return (
     <SectionCard>
       <CardContent className="pt-0">
@@ -44,9 +43,9 @@ export function Step2Handoff({
             Step 2 đã đủ required cards và không còn unresolved status. Có thể
             chuyển sang literature/evidence của Step 3.
             <div className="mt-3">
-              <Button size="sm" onClick={() => router.push(`/projects/${graph.projectId}/research${fixtureMode ? "?fixture=1" : ""}`)}>
+              <Link href={`/projects/${graph.projectId}/research${fixtureMode ? "?fixture=1" : ""}`} className={buttonVariants({ size: "sm" })}>
                 Mở Literature & Research Design
-              </Button>
+              </Link>
             </div>
           </div>
         ) : (
