@@ -107,10 +107,34 @@ function renderUntrusted(blocks: UntrustedContent[]): string {
 }
 
 /**
+ * Remove `maxItems`/`minItems` from a JSON Schema subtree. Some
+ * OpenAI-compatible providers reject these keywords in the structured-output
+ * schema (e.g. Gemini's OpenAI-compat layer returns 400 for `maxItems >= 300`).
+ * Array size bounds are still enforced application-side by the caller's Zod
+ * schema (single source of truth), so dropping them from the provider-facing
+ * schema is safe and keeps the call portable across providers.
+ */
+function stripArrayBounds(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripArrayBounds(item));
+  }
+  if (value !== null && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "maxItems" || key === "minItems") continue;
+      result[key] = stripArrayBounds(child);
+    }
+    return result;
+  }
+  return value;
+}
+
+/**
  * Build the structured-output response format from the caller's Zod schema.
  * The Zod schema is converted to JSON Schema (single source of truth) and
- * passed to the provider so it constrains the JSON it generates. Schema
- * validation still happens application-side after parsing (AI design §4).
+ * passed to the provider so it constrains the JSON it generates. Array size
+ * bounds are stripped for provider portability; the Zod schema still validates
+ * the parsed output application-side after parsing (AI design §4).
  */
 function buildResponseFormat<TOutput>(
   outputSchema: z.ZodType<TOutput>,
@@ -121,7 +145,7 @@ function buildResponseFormat<TOutput>(
     type: "json_schema",
     json_schema: {
       name: schemaName,
-      schema: { ...jsonSchema },
+      schema: stripArrayBounds(jsonSchema) as Record<string, unknown>,
     },
   };
 }
