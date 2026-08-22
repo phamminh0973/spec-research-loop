@@ -184,7 +184,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Automated literature finding</Label>
-              <p className="text-xs text-muted-foreground">LLM sẽ tự động tạo query arXiv từ project title và claim hiện tại, thực hiện tìm kiếm và phân tích độ liên quan.</p>
+              <p className="text-xs text-muted-foreground">LLM tự chọn query arXiv từ project title và research questions, lọc bỏ paper không liên quan và thử query mới tới khi đủ số paper yêu cầu.</p>
               <Button onClick={runAutoFind} disabled={autoFind.isPending || fixtureMode} className="mt-2"><Sparkles className="mr-2 size-4" />Auto find literature</Button>
               {autoFindQuery && <p className="text-xs text-muted-foreground mt-2">Query used: <code>{autoFindQuery}</code></p>}
             </div>

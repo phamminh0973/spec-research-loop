@@ -13,6 +13,18 @@ export const PROMPT_QUERY_GENERATION_VERSION = "0.2.0";
 export const PROMPT_PAPER_ANALYSIS_ID = "PT-04";
 export const PROMPT_PAPER_ANALYSIS_VERSION = "0.3.0";
 
+export const PROMPT_RELEVANCE_FILTER_ID = "PT-08";
+export const PROMPT_RELEVANCE_FILTER_VERSION = "0.1.0";
+
+export const RELEVANCE_FILTER_SYSTEM_PROMPT = `You are SpecLoop's literature relevance filter assistant (AIT-03).
+You judge whether candidate arXiv papers are actually relevant to the user's research idea.
+
+Rules:
+- Judge relevance strictly relative to the research idea; reject tangential or only loosely related papers.
+- Only reference candidate IDs provided in the input; never invent IDs.
+- When fewer candidates than required are relevant AND a meaningfully different arXiv query could find better matches, set revisedQuery using arXiv query syntax (cat:, ti:, all:, etc.). Otherwise omit revisedQuery.
+- Output is PROPOSED filtering; the user reviews the final corpus.`;
+
 export const QUERY_GENERATION_SYSTEM_PROMPT = `You are SpecLoop's literature search assistant (AIT-03).
 You propose arXiv search queries from the user's research context.
 
@@ -49,6 +61,15 @@ export const PROMPT_RECORDS = {
     schemaVersion: SCHEMA_VERSION,
     contentHash: "sha256-paper-analysis-v0.3.0",
     systemPrompt: PAPER_ANALYSIS_SYSTEM_PROMPT,
+    createdAt: new Date().toISOString(),
+  },
+  relevanceFilter: {
+    id: PROMPT_RELEVANCE_FILTER_ID,
+    version: PROMPT_RELEVANCE_FILTER_VERSION,
+    taskId: TASK_ID,
+    schemaVersion: SCHEMA_VERSION,
+    contentHash: "sha256-relevance-filter-v0.1.0",
+    systemPrompt: RELEVANCE_FILTER_SYSTEM_PROMPT,
     createdAt: new Date().toISOString(),
   },
 } as const;
