@@ -25,6 +25,10 @@ async function main() {
     logger: {
       level: env.LOG_LEVEL,
     },
+    // Batched tRPC GET requests join procedure names into a single `:path`
+    // param (e.g. `/trpc/projects.byId,decomposition.byProject,...`), which
+    // exceeds Fastify's 200-char default.
+    maxParamLength: 1000,
   });
 
   await app.register(await import("@fastify/cors").then((m) => m.default), {
