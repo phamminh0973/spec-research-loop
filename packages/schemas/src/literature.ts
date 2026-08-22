@@ -15,6 +15,20 @@ export const SourceProvenanceTierSchema = z.enum([
 export type SourceProvenanceTier = z.infer<typeof SourceProvenanceTierSchema>;
 
 /**
+ * LLM-proposed per-paper analysis (AIT-03), stored alongside the source so
+ * it survives refetches. The arXiv metadata on the parent document is
+ * verbatim; these three fields are PROPOSED analysis relative to the user's
+ * research idea and must be reviewed by the user (AI design §17). Null for
+ * sources that have not been analyzed.
+ */
+export const SourcePaperAnalysisSchema = z.object({
+  achievedOutcome: z.string().min(1).max(2_000),
+  methodology: z.string().min(1).max(2_000),
+  additionalResearchNeeded: z.string().min(1).max(2_000),
+});
+export type SourcePaperAnalysis = z.infer<typeof SourcePaperAnalysisSchema>;
+
+/**
  * A normalized scholarly source stored in a project's corpus. Fields are
  * sourced verbatim from the academic API or from user-provided manual
  * metadata; the application never synthesizes fields the API did not
@@ -40,6 +54,12 @@ export const SourceDocumentSchema = z.object({
   primaryCategory: z.string().nullable(),
   /** Abstract text; may be empty for manual imports. */
   abstract: z.string().max(20_000).default(""),
+  /**
+   * LLM-proposed analysis (methodology, shortcomings) relative to the
+   * research idea; PROPOSED data pending user review. Null until an
+   * analysis run attaches it.
+   */
+  analysis: SourcePaperAnalysisSchema.nullable().default(null),
   /** Whether the user has selected this source into the active corpus. */
   selected: z.boolean().default(false),
   createdAt: IsoTimestampSchema,
