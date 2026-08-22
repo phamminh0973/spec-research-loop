@@ -9,6 +9,7 @@ import {
   AnalyzedPaperSchema,
   QueryGenerationOutputSchema,
   SourceDocumentSchema,
+  SourcePaperAnalysisSchema,
   SourceProvenanceTierSchema,
   type QueryGenerationOutput,
   type SearchWithAnalysisOutput,
@@ -276,6 +277,32 @@ export async function searchWithAnalysis(params: {
     throw new Error(
       `Analysis references IDs not in the search results: ${invalidIds.join(", ")}.`,
     );
+  }
+
+  // Persist the PROPOSED analysis onto the stored corpus sources (joined on
+  // externalId) so it survives refetches. Existing non-null analyses are
+  // never overwritten by a later run.
+  const analysisByExternalId = new Map(
+    analyzed.papers.map((p) => [
+      p.externalId,
+      {
+        achievedOutcome: p.achievedOutcome,
+        methodology: p.methodology,
+        additionalResearchNeeded: p.additionalResearchNeeded,
+      },
+    ]),
+  );
+  const nowIso = new Date().toISOString();
+  for (const source of getOrCreate(sourcesByProject, projectId)) {
+    const nextAnalysis = analysisByExternalId.get(source.externalId);
+    if (nextAnalysis && source.analysis === null) {
+      source.analysis = parseOrThrow(
+        SourcePaperAnalysisSchema,
+        nextAnalysis,
+        "SourcePaperAnalysis",
+      );
+      source.updatedAt = nowIso;
+    }
   }
 
   return { query, papers: analyzed.papers };

@@ -10,16 +10,11 @@ import {
   EvidenceEntryTypeSchema,
   EvidenceReviewOutputSchema,
   EvidenceSpanSchema,
-  ProposeEvidenceSpansOutputSchema,
   type ClaimEvidenceLink,
   type EvidenceReviewOutput,
   type EvidenceSpan,
-  type ProposeEvidenceSpansOutput,
 } from "@specloop/schemas";
-import {
-  EVIDENCE_SPAN_PROPOSAL_SYSTEM_PROMPT,
-  EVIDENCE_REVIEW_SYSTEM_PROMPT,
-} from "./prompt.js";
+import { EVIDENCE_REVIEW_SYSTEM_PROMPT } from "./prompt.js";
 import { structuredCall } from "../../llm/structured-call.js";
 import {
   claimEvidenceLinksByProject,
@@ -109,43 +104,6 @@ export function listSpans(params: {
     (s) => !sourceId || s.sourceId === sourceId,
   );
   return { items: all.slice(0, limit) };
-}
-
-export async function proposeSpans(params: {
-  projectId: string;
-  claimText: string;
-  client: any;
-  model: string;
-}): Promise<ProposeEvidenceSpansOutput> {
-  const { projectId, claimText, client, model } = params;
-
-  const list = sourcesByProject.get(projectId) ?? [];
-  const selected = list.filter((s) => s.selected);
-  if (selected.length === 0) {
-    throw new Error("Select at least one source into the corpus before proposing evidence spans (AI design §6).");
-  }
-
-  const allowedIds = new Set(selected.map((s) => s.id));
-  const corpusText = selected
-    .map((s) => `Source ${s.id}: ${s.title}\n${s.abstract}`)
-    .join("\n\n");
-
-  const output = await structuredCall<ProposeEvidenceSpansOutput>({
-    client,
-    model,
-    systemPrompt: EVIDENCE_SPAN_PROPOSAL_SYSTEM_PROMPT,
-    userPrompt:
-      "Propose evidence excerpts from the selected corpus below that support the given claim. Only reference the source IDs provided. Use verbatim excerpts; do not rewrite the text.",
-    untrusted: [
-      { label: "Claim", text: claimText },
-      { label: "Selected corpus", text: corpusText },
-    ],
-    outputSchema: ProposeEvidenceSpansOutputSchema,
-    schemaName: "propose_evidence_spans_output",
-    allowedIds,
-    extractReferencedIds: (out) => out.proposals.map((p) => p.sourceId),
-  });
-  return output;
 }
 
 export function createLink(params: {

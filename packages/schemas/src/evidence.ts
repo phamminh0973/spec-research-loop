@@ -150,36 +150,3 @@ export const RunEvidenceReviewInputSchema = z.object({
   evidenceText: z.string().min(1).max(10_000),
 });
 export type RunEvidenceReviewInput = z.infer<typeof RunEvidenceReviewInputSchema>;
-
-/**
- * An evidence span proposed by the LLM (AIT-05-propose). The model suggests
- * which excerpt of a source abstract supports a given claim; the user
- * confirms/edits before the span is stored as `EXACT`/`MANUAL` evidence.
- * The model never rewrites the exact text (AI design §7.1).
- */
-export const ProposedEvidenceSpanSchema = z.object({
-  sourceId: UuidSchema,
-  /** Verbatim excerpt from the source; not rewritten by the model. */
-  exactText: z.string().min(1).max(10_000),
-  /** Why this excerpt supports the claim (concise rationale). */
-  rationale: z.string().min(1).max(1_000),
-  /** Suggested entry type; the application validates offsets for EXACT. */
-  entryType: EvidenceEntryTypeSchema,
-});
-export type ProposedEvidenceSpan = z.infer<typeof ProposedEvidenceSpanSchema>;
-
-export const ProposeEvidenceSpansInputSchema = z.object({
-  projectId: UuidSchema,
-  /** The claim text to find evidence for. */
-  claimText: z.string().min(1).max(2_000),
-});
-export type ProposeEvidenceSpansInput = z.infer<
-  typeof ProposeEvidenceSpansInputSchema
->;
-
-export const ProposeEvidenceSpansOutputSchema = z.object({
-  proposals: z.array(ProposedEvidenceSpanSchema),
-});
-export type ProposeEvidenceSpansOutput = z.infer<
-  typeof ProposeEvidenceSpansOutputSchema
->;

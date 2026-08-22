@@ -28,8 +28,6 @@ import {
   ListClaimEvidenceLinksOutputSchema,
   ListEvidenceSpansInputSchema,
   ListEvidenceSpansOutputSchema,
-  ProposeEvidenceSpansInputSchema,
-  ProposeEvidenceSpansOutputSchema,
   RunIntegrityChecksInputSchema,
   RunIntegrityChecksOutputSchema,
 } from "@specloop/schemas";
@@ -41,7 +39,6 @@ import {
   createSpan,
   listLinks,
   listSpans,
-  proposeSpans,
   runIntegrityChecks,
   runReview,
 } from "../modules/evidence/service.js";
@@ -73,26 +70,6 @@ export const evidenceRouter = router({
     .input(ListEvidenceSpansInputSchema)
     .output(ListEvidenceSpansOutputSchema)
     .query(({ input }) => listSpans(input)),
-
-  proposeSpans: publicProcedure
-    .input(ProposeEvidenceSpansInputSchema)
-    .output(ProposeEvidenceSpansOutputSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        return await proposeSpans({
-          projectId: input.projectId,
-          claimText: input.claimText,
-          client: ctx.llm,
-          model: ctx.llmConfig.defaultModel,
-        });
-      } catch (e) {
-        const msg = (e as Error).message;
-        if (msg.includes("Select at least one source")) {
-          throw new TRPCError({ code: "PRECONDITION_FAILED", message: msg });
-        }
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg });
-      }
-    }),
 
   createLink: publicProcedure
     .input(CreateClaimEvidenceLinkInputSchema)
