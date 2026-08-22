@@ -11,7 +11,7 @@ export const PROMPT_QUERY_GENERATION_ID = "PT-03";
 export const PROMPT_QUERY_GENERATION_VERSION = "0.2.0";
 
 export const PROMPT_PAPER_ANALYSIS_ID = "PT-04";
-export const PROMPT_PAPER_ANALYSIS_VERSION = "0.2.0";
+export const PROMPT_PAPER_ANALYSIS_VERSION = "0.3.0";
 
 export const QUERY_GENERATION_SYSTEM_PROMPT = `You are SpecLoop's literature search assistant (AIT-03).
 You propose arXiv search queries from the user's research context.
@@ -30,7 +30,7 @@ Rules:
 - For each paper produce achievedOutcome, methodology, additionalResearchNeeded.
 - Only describe papers actually returned by the search; do not invent papers.
 - Reference only provided paper IDs.
-- The output JSON schema is passed in this call. Return ONLY a JSON object that conforms to that schema.`;
+- Submit the complete analysis by calling the submit_paper_analysis tool exactly once. Never write the analysis as prose or free-standing JSON.`;
 
 export const PROMPT_RECORDS = {
   queryGeneration: {
@@ -47,7 +47,7 @@ export const PROMPT_RECORDS = {
     version: PROMPT_PAPER_ANALYSIS_VERSION,
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
-    contentHash: "sha256-paper-analysis-v0.2.0",
+    contentHash: "sha256-paper-analysis-v0.3.0",
     systemPrompt: PAPER_ANALYSIS_SYSTEM_PROMPT,
     createdAt: new Date().toISOString(),
   },
