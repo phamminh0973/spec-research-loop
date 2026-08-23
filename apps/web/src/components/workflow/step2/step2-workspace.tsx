@@ -12,6 +12,7 @@ import { cloneLocalGraph } from "./step2-fixtures";
 import {
   buildNodeReviewRows,
   buildRelationReviewRows,
+  calculateStep2Readiness,
   filterAndSortNodeReviewRows,
   type NodeReviewRow,
   type RelationReviewRow,
@@ -104,6 +105,7 @@ export function Step2Workspace({
 
   const graph = fixtureMode ? localGraph : (graphQuery.data ?? null);
   const project = fixtureMode ? LOCAL_PROJECT : projectQuery.data;
+  const readiness = graph ? calculateStep2Readiness(graph) : null;
   const pending =
     generate.isPending ||
     updateNode.isPending ||
@@ -319,6 +321,10 @@ export function Step2Workspace({
       fixtureMode={fixtureMode}
       interpretationStatus="USER_CONFIRMED"
       hasGraph={Boolean(graph)}
+      workflowFacts={{
+        interpretationStatus: "USER_CONFIRMED",
+        decompositionReady: Boolean(graph && readiness?.ready),
+      }}
     >
       <div className="space-y-8">
         <Step2Overview

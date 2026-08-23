@@ -16,35 +16,15 @@ import { useState, type ReactNode } from "react";
 
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
 import { LOCAL_PROJECT } from "./local-fixtures";
-import { StepBreadcrumb, type WorkflowStep } from "./step-breadcrumb";
+import { StepBreadcrumb } from "./step-breadcrumb";
+import {
+  buildWorkflowSteps,
+  type ActiveStep,
+  type WorkflowFacts,
+} from "./workflow-progress";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-
-type ActiveStep = 1 | 2 | 3 | 4;
-
-const stepLabels = [
-  { label: "Ý tưởng", icon: FileText },
-  { label: "Làm rõ & xác nhận", icon: Search },
-  { label: "Structured cards", icon: Folder },
-  { label: "Literature / evidence", icon: CircleHelp },
-  { label: "Final review", icon: ShieldCheck },
-];
-
-function getWorkflowSteps(
-  activeStep: ActiveStep,
-  interpretationStatus: string | null,
-  hasGraph: boolean
-): WorkflowStep[] {
-  const confirmed = interpretationStatus === "USER_CONFIRMED";
-  return stepLabels.map((step, index) => {
-    const stepNumber = index + 1;
-    if (stepNumber === 1) return { label: step.label, state: activeStep === 1 ? "current" : "complete" };
-    if (stepNumber === 2) return { label: step.label, state: confirmed ? (activeStep === 2 ? "current" : "complete") : "blocked" };
-    if (stepNumber === 3) return { label: step.label, state: hasGraph ? (activeStep === 3 ? "current" : "complete") : "blocked" };
-    return { label: step.label, state: hasGraph ? (activeStep === 4 ? "current" : "complete") : "blocked" };
-  });
-}
 
 export function AppShell({
   children,
@@ -54,6 +34,7 @@ export function AppShell({
   fixtureMode,
   interpretationStatus,
   hasGraph,
+  workflowFacts,
 }: {
   children: ReactNode;
   activeStep: ActiveStep;
@@ -62,6 +43,7 @@ export function AppShell({
   fixtureMode?: boolean;
   interpretationStatus?: string | null;
   hasGraph?: boolean;
+  workflowFacts?: WorkflowFacts;
 }) {
   const [panelOpen, setPanelOpen] = useState(true);
   const projectQuery = trpc.projects.byId.useQuery(
@@ -83,11 +65,13 @@ export function AppShell({
         ? "Không đọc được project"
         : "Đang tải project…"
       : "Chưa chọn project");
-  const steps = getWorkflowSteps(
-    activeStep,
-    interpretationStatus ?? null,
-    hasGraph ?? false
-  );
+  const progressFacts: WorkflowFacts = {
+    ...workflowFacts,
+    interpretationStatus:
+      workflowFacts?.interpretationStatus ?? interpretationStatus,
+    decompositionReady: workflowFacts?.decompositionReady ?? hasGraph,
+  };
+  const steps = buildWorkflowSteps(activeStep, progressFacts);
   const understandingHref = projectId
     ? `/projects/${projectId}/understanding${fixtureMode ? "?fixture=1" : ""}`
     : "/projects/new";
@@ -190,15 +174,15 @@ export function AppShell({
 
                 <div className="p-4 border-t border-border">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API STATUS</p>
-                  {interpretationStatus ? (
+                  {progressFacts.interpretationStatus ? (
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-sm text-foreground">Interpretation</span>
-                      <StatusPill status={interpretationStatus} />
+                      <StatusPill status={progressFacts.interpretationStatus} />
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground mt-3">Chưa có interpretation record.</p>
                   )}
-                  {hasGraph ? (
+                  {progressFacts.decompositionReady ? (
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-sm text-foreground">Decomposition</span>
                       <StatusPill status="AVAILABLE" label="AVAILABLE" />

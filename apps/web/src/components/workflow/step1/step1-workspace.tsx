@@ -472,7 +472,7 @@ export function UnderstandingWorkspace({
       projectId={projectId}
       projectTitle={project?.title}
       fixtureMode={fixtureMode}
-      interpretationStatus={record?.status ?? null}
+      workflowFacts={{ interpretationStatus: record?.status ?? null }}
     >
       <div className="space-y-8">
         <PageHeading
