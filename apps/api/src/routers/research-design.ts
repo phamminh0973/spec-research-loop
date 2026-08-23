@@ -64,6 +64,7 @@ export const researchDesignRouter = router({
       try {
         const proposal = await generateGapProposal({
           projectId: input.projectId,
+          researchQuestionNodeIds: input.researchQuestionNodeIds,
           client: ctx.llm,
           model: ctx.llmConfig.defaultModel,
         });
@@ -77,6 +78,9 @@ export const researchDesignRouter = router({
               "Select at least one source into the corpus before proposing a gap " +
               "(AI design §6: gap generation only receives selected corpus evidence).",
           });
+        }
+        if (message.includes("not found in the decomposition")) {
+          throw new TRPCError({ code: "BAD_REQUEST", message });
         }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",

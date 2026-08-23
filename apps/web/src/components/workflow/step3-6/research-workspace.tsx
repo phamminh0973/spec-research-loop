@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, CheckCircle2, FileCheck2, FlaskConical, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { BookOpen, CheckCircle2, FlaskConical, Search, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "../shared/app-shell";
-import { SectionCard, SectionHeader, StatusPill } from "../shared/section-card";
+import { SectionCard, SectionHeader } from "../shared/section-card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CardContent } from "@/components/ui/card";
@@ -21,20 +20,26 @@ const fixtureSources = [
 ];
 
 export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
-  const [query, setQuery] = useState("prompt optimization evidence hallucination");
-  const [claimText, setClaimText] = useState("The proposed method reduces unsupported claims.");
   const [selectedGap, setSelectedGap] = useState(0);
   const [fixtureSelected, setFixtureSelected] = useState(fixtureSources);
+  const [autoFindQuery, setAutoFindQuery] = useState<string | null>(null);
+  const [autoFindPapers, setAutoFindPapers] = useState<any[]>([]);
 
+  const project = trpc.projects.byId.useQuery({ id: projectId }, { enabled: !fixtureMode, retry: false });
+  const graph = trpc.decomposition.byProject.useQuery({ projectId }, { enabled: !fixtureMode, retry: false });
   const sources = trpc.literature.list.useQuery(
     { projectId, selectedOnly: false, limit: 50 },
     { enabled: !fixtureMode, retry: false },
   );
-  const search = trpc.literature.search.useMutation({
-    onSuccess: () => sources.refetch(),
-  });
   const select = trpc.literature.select.useMutation({
     onSuccess: () => sources.refetch(),
+  });
+  const autoFind = trpc.literature.searchWithAnalysis.useMutation({
+    onSuccess: (data) => {
+      setAutoFindQuery(data.query);
+      setAutoFindPapers(data.papers);
+      sources.refetch();
+    },
   });
   const gap = trpc.researchDesign.generateGapProposal.useMutation();
   const claims = trpc.researchDesign.generateClaimDesign.useMutation();
@@ -74,9 +79,55 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
     estimates: [{ label: "Inference budget", formula: "candidates × rounds × samples", result: "Estimated from declared inputs", inputs: [{ name: "Candidates", value: "10", basis: "assumed" }] }],
   }] : (planList.data?.items ?? []);
 
-  function runSearch() {
+  // Merge the persisted corpus reference list with the per-paper LLM
+  // analysis, joined on externalId. Analyzed papers that are not yet in
+  // the corpus list (e.g. before refetch completes) are appended so they
+  // remain visible.
+  const mergedRows = useMemo(() => {
+    const analysisById = new Map(autoFindPapers.map((p) => [p.externalId as string, p]));
+    const rows = sourceItems.map((s: any) => {
+      // Prefer the analysis persisted on the source; fall back to the
+      // in-memory result of the latest auto-find run.
+      const a = s.analysis ?? (s.externalId ? analysisById.get(s.externalId) : undefined);
+      return {
+        key: s.id as string,
+        sourceId: s.id as string,
+        title: s.title as string,
+        authors: (s.authors ?? []) as string[],
+        selected: Boolean(s.selected),
+        methodology: a?.methodology as string | undefined,
+        additionalResearchNeeded: a?.additionalResearchNeeded as string | undefined,
+      };
+    });
+    const knownExternalIds = new Set(sourceItems.map((s: any) => s.externalId).filter(Boolean));
+    for (const p of autoFindPapers) {
+      if (!knownExternalIds.has(p.externalId)) {
+        rows.push({
+          key: p.externalId,
+          sourceId: "",
+          title: p.title,
+          authors: p.authors ?? [],
+          selected: false,
+          methodology: p.methodology,
+          additionalResearchNeeded: p.additionalResearchNeeded,
+        });
+      }
+    }
+    return rows;
+  }, [sourceItems, autoFindPapers]);
+
+  // Research-question nodes from the project's decomposition (Step 2).
+  const researchQuestionNodes = useMemo(
+    () => (graph.data?.nodes ?? []).filter((n) => n.type === "RESEARCH_QUESTION"),
+    [graph.data?.nodes],
+  );
+
+  function runAutoFind() {
     if (fixtureMode) return;
-    search.mutate({ projectId, query, maxResults: 10 });
+    const questionTexts = researchQuestionNodes.map((n) => `${n.title}. ${n.content}`).join(" ");
+    const researchIdea = `${project.data?.title ?? ""} ${questionTexts}`.trim();
+    if (!researchIdea) return;
+    autoFind.mutate({ projectId, researchIdea, maxResults: 5 });
   }
 
   function toggleFixture(id: string) {
@@ -85,7 +136,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
 
   function generateGap() {
     if (fixtureMode) return;
-    gap.mutate({ projectId, researchQuestionNodeIds: [] });
+    gap.mutate({ projectId, researchQuestionNodeIds: researchQuestionNodes.map((n) => n.id) });
   }
 
   function generateClaims() {
@@ -98,7 +149,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
     plans.mutate({ projectId, claimIds: (claimList.data?.items ?? []).map((c) => c.id), tier: "PROPOSED" });
   }
 
-  const error = search.error || gap.error || claims.error || plans.error;
+  const error = autoFind.error || gap.error || claims.error || plans.error;
   const counts = useMemo(() => ({
     corpus: selectedItems.length,
     claims: selectedClaims.length,
@@ -131,20 +182,46 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
         <SectionCard>
           <SectionHeader icon={Search} title="Step 3 — Literature corpus" tone="blue" />
           <CardContent className="space-y-4">
-            <div className="flex gap-2"><Input value={query} onChange={(e) => setQuery(e.target.value)} /><Button onClick={runSearch} disabled={search.isPending || fixtureMode}><Search className="mr-2 size-4" />Search arXiv</Button></div>
-            <p className="text-xs text-muted-foreground">Metadata phải đến từ academic API/manual import; LLM chỉ đề xuất query/analysis, không tự bịa DOI hay metadata.</p>
-            <div className="grid gap-3">
-              {sourceItems.map((source) => (
-                <div key={source.id} className="rounded-lg border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div><h3 className="font-semibold">{source.title}</h3><p className="mt-1 text-sm text-muted-foreground">{source.abstract}</p></div>
-                    <Button size="sm" variant={source.selected ? "default" : "outline"} onClick={() => fixtureMode ? toggleFixture(source.id) : select.mutate({ projectId, sourceId: source.id, selected: !source.selected })}>
-                      {source.selected ? <><CheckCircle2 className="mr-1 size-4" />Selected</> : "Select"}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {sourceItems.length === 0 && <p className="text-sm text-muted-foreground">Chưa có source. Search hoặc dùng manual import API.</p>}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Automated literature finding</Label>
+              <p className="text-xs text-muted-foreground">LLM tự chọn query arXiv từ project title và research questions, lọc bỏ paper không liên quan và thử query mới tới khi đủ số paper yêu cầu.</p>
+              <Button onClick={runAutoFind} disabled={autoFind.isPending || fixtureMode} className="mt-2"><Sparkles className="mr-2 size-4" />Auto find literature</Button>
+              {autoFindQuery && <p className="text-xs text-muted-foreground mt-2">Query used: <code>{autoFindQuery}</code></p>}
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Danh sách nguồn trong corpus; paper từ Auto find literature kèm phân tích của LLM (methodology, shortcomings). Chọn nguồn để đưa vào corpus hoạt động.</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b">
+                      <th className="py-2 pr-4">Paper</th>
+                      <th className="py-2 pr-4">Methodology</th>
+                      <th className="py-2 pr-4">Shortcomings / Additional research needed</th>
+                      <th className="py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mergedRows.map((row) => (
+                      <tr key={row.key} className="border-b last:border-0 align-top">
+                        <td className="py-2 pr-4 align-top">
+                          <div className="font-semibold">{row.title}</div>
+                          <div className="text-xs text-muted-foreground">{(row.authors ?? []).join(", ")}</div>
+                        </td>
+                        <td className="py-2 pr-4 align-top">{row.methodology ? row.methodology.slice(0, 300) + (row.methodology.length > 300 ? "…" : "") : "—"}</td>
+                        <td className="py-2 pr-4 align-top">{row.additionalResearchNeeded ? row.additionalResearchNeeded.slice(0, 300) + (row.additionalResearchNeeded.length > 300 ? "…" : "") : "—"}</td>
+                        <td className="py-2 align-top">
+                          {row.sourceId ? (
+                            <Button size="sm" variant={row.selected ? "default" : "outline"} onClick={() => fixtureMode ? toggleFixture(row.key) : select.mutate({ projectId, sourceId: row.sourceId, selected: !row.selected })}>
+                              {row.selected ? <><CheckCircle2 className="mr-1 size-4" />Selected</> : "Select"}
+                            </Button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {mergedRows.length === 0 && <p className="text-sm text-muted-foreground">Chưa có source. Dùng Auto find literature hoặc manual import API.</p>}
             </div>
           </CardContent>
         </SectionCard>
@@ -152,13 +229,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
         <SectionCard>
           <SectionHeader icon={ShieldCheck} title="Step 4–5 — Evidence & research gap" tone="green" />
           <CardContent className="space-y-5">
-            <div className="rounded-lg border p-4">
-              <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Claim–Evidence boundary</h3><Badge variant="secondary">Needs provenance</Badge></div>
-              <p className="mt-2 text-sm text-muted-foreground">Evidence card chỉ mô tả bằng chứng cần có. Nó không tự chứng minh claim. Evidence span phải có provenance và qua integrity check.</p>
-              <Textarea className="mt-3" value={claimText} onChange={(e) => setClaimText(e.target.value)} rows={3} />
-              <div className="mt-3 flex flex-wrap gap-2"><Link href={`/projects/${projectId}/decomposition${fixtureMode ? "?fixture=1" : ""}`} className={buttonVariants({ variant: "outline" })}><FileCheck2 className="mr-2 size-4" />Review claims in Step 2</Link><StatusPill status={selectedItems.length ? "AVAILABLE" : "MISSING"} /></div>
-            </div>
-            <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">Gap candidates</h3><p className="text-sm text-muted-foreground">{fixtureMode ? "Fixture candidate" : "Corpus-bounded proposal from selected sources."}</p></div><Button onClick={generateGap} disabled={gap.isPending || fixtureMode || selectedItems.length === 0}><Sparkles className="mr-2 size-4" />Generate gap</Button></div>
+            <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">Gap candidates</h3><p className="text-sm text-muted-foreground">{fixtureMode ? "Fixture candidate" : "Proposal grounded in selected sources and the project's decomposition research questions."}</p></div><Button onClick={generateGap} disabled={gap.isPending || fixtureMode || selectedItems.length === 0}><Sparkles className="mr-2 size-4" />Generate gap</Button></div>
             {gapCandidates.map((candidate, index) => (
               <button type="button" key={index} onClick={() => setSelectedGap(index)} className={`w-full rounded-lg border p-4 text-left ${selectedGap === index ? "border-primary bg-primary/5" : ""}`}>
                 <div className="flex items-center justify-between"><span className="font-semibold">Candidate {index + 1}</span><Badge variant="secondary">Corpus-bounded</Badge></div>

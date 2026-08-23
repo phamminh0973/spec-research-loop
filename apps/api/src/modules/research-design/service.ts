@@ -35,6 +35,7 @@ import {
   getOrCreate,
   parseOrThrow,
   sourcesByProject,
+  specGraphsByProject,
 } from "../../store/project-store.js";
 
 /** Build corpus-bounded context for gap proposal. */
@@ -52,9 +53,49 @@ export function selectedCorpusContext(projectId: string): {
   };
 }
 
-/** AIT-06: propose corpus-bounded gap candidates. */
+/**
+ * Extract the decomposition research-question context for gap proposal
+ * (AIT-06). When `researchQuestionNodeIds` is provided, only those nodes are
+ * used and each must exist in the project's graph as a RESEARCH_QUESTION
+ * node; otherwise every RESEARCH_QUESTION node in the project's graph feeds
+ * the prompt. Projects without a graph contribute no question context.
+ */
+export function researchQuestionContext(
+  projectId: string,
+  researchQuestionNodeIds: string[],
+): { id: string; title: string; content: string; status: string }[] {
+  const graph = specGraphsByProject.get(projectId);
+  const questionNodes = new Map(
+    (graph?.nodes ?? [])
+      .filter((n) => n.type === "RESEARCH_QUESTION")
+      .map((n) => [n.id, n]),
+  );
+
+  if (researchQuestionNodeIds.length === 0) {
+    return [...questionNodes.values()].map((n) => ({
+      id: n.id,
+      title: n.title,
+      content: n.content,
+      status: n.status,
+    }));
+  }
+
+  return researchQuestionNodeIds.map((id) => {
+    const node = questionNodes.get(id);
+    if (!node) {
+      throw new Error(
+        `Research question node ${id} not found in the decomposition of project ${projectId}.`,
+      );
+    }
+    return { id: node.id, title: node.title, content: node.content, status: node.status };
+  });
+}
+
+/** AIT-06: propose corpus-bounded gap candidates grounded in the selected corpus and the project's decomposition. */
 export async function generateGapProposal(params: {
   projectId: string;
+  /** Research-question node ids from the Step-2 graph; empty = all of them. */
+  researchQuestionNodeIds?: string[];
   client: any;
   model: string;
 }): Promise<GapProposalOutput> {
@@ -63,10 +104,22 @@ export async function generateGapProposal(params: {
   if (corpus.sourceIds.length === 0) {
     throw new Error("Select at least one source into the corpus before proposing a gap.");
   }
+  const questions = researchQuestionContext(projectId, params.researchQuestionNodeIds ?? []);
 
   const corpusText = corpus.titles
     .map((t, i) => `Source ${corpus.sourceIds[i]}: ${t}\n${corpus.abstracts[i]}`)
     .join("\n\n");
+
+  const untrusted = [{ label: "Selected corpus", text: corpusText }];
+  if (questions.length > 0) {
+    const questionsText = questions
+      .map((q) => `Research question ${q.id} [${q.status}]: ${q.title}\n${q.content}`)
+      .join("\n\n");
+    untrusted.push({
+      label: "Research questions from the confirmed idea decomposition",
+      text: questionsText,
+    });
+  }
 
   const allowedIds = new Set(corpus.sourceIds);
   const proposal = await structuredCall<GapProposalOutput>({
@@ -74,8 +127,8 @@ export async function generateGapProposal(params: {
     model,
     systemPrompt: GAP_PROPOSAL_SYSTEM_PROMPT,
     userPrompt:
-      "Propose 1–3 corpus-bounded research gap candidates from the selected corpus below. Only reference the source IDs provided. Every candidate must include a novelty_risk warning.",
-    untrusted: [{ label: "Selected corpus", text: corpusText }],
+      "Propose 1–3 research gap candidates grounded in BOTH inputs below: the selected literature corpus AND the project's decomposition research questions (when provided). Only reference the source IDs provided. Every candidate must include a novelty_risk warning.",
+    untrusted,
     outputSchema: GapProposalOutputSchema,
     schemaName: "gap_proposal_output",
     allowedIds,
