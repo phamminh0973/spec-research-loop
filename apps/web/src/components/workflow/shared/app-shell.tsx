@@ -14,10 +14,12 @@ import {
 import type { ReactNode } from "react";
 
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
+import { LOCAL_PROJECT } from "./local-fixtures";
 import { StepBreadcrumb, type WorkflowStep } from "./step-breadcrumb";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc";
 
 type ActiveStep = 1 | 2 | 3 | 4;
 
@@ -61,6 +63,25 @@ export function AppShell({
   interpretationStatus?: string | null;
   hasGraph?: boolean;
 }) {
+  const projectQuery = trpc.projects.byId.useQuery(
+    { id: projectId ?? "" },
+    {
+      enabled: Boolean(projectId && !projectTitle && !fixtureMode),
+      retry: false,
+    }
+  );
+  const resolvedProjectTitle =
+    projectTitle ??
+    (fixtureMode && projectId === LOCAL_PROJECT.id
+      ? LOCAL_PROJECT.title
+      : projectQuery.data?.title);
+  const projectLabel =
+    resolvedProjectTitle ??
+    (projectId
+      ? projectQuery.error
+        ? "Không đọc được project"
+        : "Đang tải project…"
+      : "Chưa chọn project");
   const steps = getWorkflowSteps(
     activeStep,
     interpretationStatus ?? null,
@@ -132,7 +153,7 @@ export function AppShell({
           <div className="p-4 border-t border-border">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT</p>
             <p className="text-base font-medium text-foreground mt-1">
-              {projectTitle ?? "Chưa chọn project"}
+              {projectLabel}
             </p>
             {projectId ? (
               <code className="text-xs text-muted-foreground mt-1 block font-mono">{projectId}</code>
