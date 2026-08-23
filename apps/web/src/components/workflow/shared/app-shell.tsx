@@ -18,7 +18,7 @@ import { LocalDevelopmentBadge, StatusPill } from "./section-card";
 import { LOCAL_PROJECT } from "./local-fixtures";
 import { StepBreadcrumb } from "./step-breadcrumb";
 import {
-  buildWorkflowSteps,
+  buildWorkflowProgress,
   type ActiveStep,
   type WorkflowFacts,
 } from "./workflow-progress";
@@ -69,9 +69,13 @@ export function AppShell({
     ...workflowFacts,
     interpretationStatus:
       workflowFacts?.interpretationStatus ?? interpretationStatus,
+    decompositionGenerated:
+      workflowFacts?.decompositionGenerated ?? hasGraph,
     decompositionReady: workflowFacts?.decompositionReady ?? hasGraph,
   };
-  const steps = buildWorkflowSteps(activeStep, progressFacts);
+  const progress = buildWorkflowProgress(activeStep, progressFacts, {
+    newProject: !projectId,
+  });
   const understandingHref = projectId
     ? `/projects/${projectId}/understanding${fixtureMode ? "?fixture=1" : ""}`
     : "/projects/new";
@@ -169,7 +173,7 @@ export function AppShell({
                 </div>
 
                 <div className="p-4 border-t border-border">
-                  <StepBreadcrumb steps={steps} />
+                  <StepBreadcrumb steps={progress.steps} title={progress.title} />
                 </div>
 
                 <div className="p-4 border-t border-border">

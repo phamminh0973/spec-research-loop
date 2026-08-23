@@ -323,6 +323,7 @@ export function Step2Workspace({
       hasGraph={Boolean(graph)}
       workflowFacts={{
         interpretationStatus: "USER_CONFIRMED",
+        decompositionGenerated: Boolean(graph),
         decompositionReady: Boolean(graph && readiness?.ready),
       }}
     >

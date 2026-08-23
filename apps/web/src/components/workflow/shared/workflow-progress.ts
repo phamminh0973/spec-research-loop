@@ -8,6 +8,7 @@ export type WorkflowStepState =
 
 export type WorkflowFacts = {
   interpretationStatus?: string | null;
+  decompositionGenerated?: boolean;
   decompositionReady?: boolean;
   selectedSourceCount?: number;
   evidenceCount?: number;
@@ -22,85 +23,133 @@ export type WorkflowFacts = {
 };
 
 export type WorkflowStep = {
-  id: number;
+  id: string;
   label: string;
-  route: ActiveStep;
   state: WorkflowStepState;
 };
 
-const WORKFLOW_STEP_DEFINITIONS = [
-  { id: 1, label: "Ý tưởng & xác nhận", route: 1 as const },
-  { id: 2, label: "Phân rã có cấu trúc", route: 2 as const },
-  { id: 3, label: "Tìm literature", route: 3 as const },
-  { id: 4, label: "Thu thập evidence", route: 3 as const },
-  { id: 5, label: "Đề xuất research gap", route: 3 as const },
-  { id: 6, label: "Contribution & claims", route: 3 as const },
-  { id: 7, label: "Kế hoạch thí nghiệm", route: 3 as const },
-  { id: 8, label: "Ước lượng khả thi", route: 3 as const },
-  { id: 9, label: "Research specification", route: 4 as const },
-  { id: 10, label: "Judge & finalize", route: 4 as const },
-] as const;
+export type WorkflowProgress = {
+  title: string;
+  steps: WorkflowStep[];
+};
+
+type StepDefinition = Omit<WorkflowStep, "state">;
 
 function hasItems(value: number | undefined) {
   return value !== undefined && value > 0;
 }
 
-function getDirectCompletion(facts: WorkflowFacts): boolean[] {
-  return [
-    facts.interpretationStatus === "USER_CONFIRMED",
-    facts.decompositionReady === true,
-    hasItems(facts.selectedSourceCount),
-    hasItems(facts.evidenceCount),
-    hasItems(facts.gapCount),
-    hasItems(facts.claimCount),
-    hasItems(facts.experimentPlanCount),
-    hasItems(facts.feasibilityEstimateCount),
-    (facts.specificationSectionCount ?? 0) >= 14,
-    hasItems(facts.judgeFindingCount) &&
-      facts.hasRevisionDecision === true &&
-      facts.finalized === true,
-  ];
+function buildSequentialProgress(
+  title: string,
+  definitions: StepDefinition[],
+  gates: boolean[],
+): WorkflowProgress {
+  const firstIncomplete = gates.findIndex((gate) => !gate);
+
+  return {
+    title,
+    steps: definitions.map((definition, index) => ({
+      ...definition,
+      state:
+        firstIncomplete === -1 || index < firstIncomplete
+          ? "complete"
+          : index === firstIncomplete
+            ? "current"
+            : "pending",
+    })),
+  };
 }
 
-function getRouteRange(activeStep: ActiveStep) {
-  if (activeStep === 1) return [0, 0] as const;
-  if (activeStep === 2) return [1, 1] as const;
-  if (activeStep === 3) return [2, 7] as const;
-  return [8, 9] as const;
-}
+const NEW_PROJECT_STEPS: StepDefinition[] = [
+  { id: "project-input", label: "Nhập ý tưởng" },
+  { id: "project-create", label: "Tạo project" },
+  { id: "project-understanding", label: "Mở Step 1" },
+];
 
-export function buildWorkflowSteps(
+const UNDERSTANDING_STEPS: StepDefinition[] = [
+  { id: "interpretation-generate", label: "Generate proposal" },
+  { id: "interpretation-review", label: "Review & edit" },
+  { id: "interpretation-confirm", label: "Confirm" },
+];
+
+const DECOMPOSITION_STEPS: StepDefinition[] = [
+  { id: "decomposition-generate", label: "Generate typed cards" },
+  { id: "decomposition-review", label: "Review cards" },
+  { id: "decomposition-handoff", label: "Sẵn sàng chuyển bước" },
+];
+
+const RESEARCH_STEPS: StepDefinition[] = [
+  { id: "research-literature", label: "Literature" },
+  { id: "research-evidence-gap", label: "Evidence & gap" },
+  { id: "research-claims", label: "Claims" },
+  { id: "research-feasibility", label: "Experiment & feasibility" },
+];
+
+const FINAL_REVIEW_STEPS: StepDefinition[] = [
+  { id: "final-specification", label: "Specification" },
+  { id: "final-judges", label: "Independent judges" },
+  { id: "final-revision", label: "Revision decision" },
+  { id: "finalize-export", label: "Finalize & export" },
+];
+
+export function buildWorkflowProgress(
   activeStep: ActiveStep,
-  facts: WorkflowFacts
-): WorkflowStep[] {
-  const directCompletion = getDirectCompletion(facts);
-  const completed: boolean[] = [];
-  directCompletion.forEach((isComplete, index) => {
-    completed[index] = isComplete && (index === 0 || completed[index - 1] === true);
-  });
-  const firstIncompleteOverall = completed.findIndex((isComplete) => !isComplete);
-  const [routeStart, routeEnd] = getRouteRange(activeStep);
-  const firstIncompleteInRoute = completed.findIndex(
-    (isComplete, index) =>
-      index >= routeStart && index <= routeEnd && !isComplete
-  );
-  const currentIndex =
-    firstIncompleteOverall === -1
-      ? WORKFLOW_STEP_DEFINITIONS.length - 1
-      : firstIncompleteOverall < routeStart
-        ? firstIncompleteOverall
-        : firstIncompleteInRoute >= 0
-          ? firstIncompleteInRoute
-          : firstIncompleteOverall;
+  facts: WorkflowFacts,
+  options: { newProject?: boolean } = {},
+): WorkflowProgress {
+  if (activeStep === 1 && options.newProject) {
+    return buildSequentialProgress(
+      "Tiến độ màn hình tạo project",
+      NEW_PROJECT_STEPS,
+      [false, false, false],
+    );
+  }
 
-  return WORKFLOW_STEP_DEFINITIONS.map((definition, index) => ({
-    ...definition,
-    state: completed[index]
-      ? "complete"
-      : index === currentIndex
-        ? "current"
-        : index > 0 && completed[index - 1]
-          ? "pending"
-          : "blocked",
-  }));
+  if (activeStep === 1) {
+    const hasProposal = Boolean(facts.interpretationStatus);
+    const confirmed = facts.interpretationStatus === "USER_CONFIRMED";
+
+    return buildSequentialProgress(
+      "Tiến độ màn hình Step 1",
+      UNDERSTANDING_STEPS,
+      [hasProposal, confirmed, confirmed],
+    );
+  }
+
+  if (activeStep === 2) {
+    const generated =
+      facts.decompositionGenerated ?? facts.decompositionReady === true;
+    const ready = facts.decompositionReady === true;
+
+    return buildSequentialProgress(
+      "Tiến độ màn hình Step 2",
+      DECOMPOSITION_STEPS,
+      [generated, ready, ready],
+    );
+  }
+
+  if (activeStep === 3) {
+    return buildSequentialProgress(
+      "Tiến độ màn hình Steps 3–8",
+      RESEARCH_STEPS,
+      [
+        hasItems(facts.selectedSourceCount),
+        hasItems(facts.evidenceCount) && hasItems(facts.gapCount),
+        hasItems(facts.claimCount),
+        hasItems(facts.experimentPlanCount) &&
+          hasItems(facts.feasibilityEstimateCount),
+      ],
+    );
+  }
+
+  return buildSequentialProgress(
+    "Tiến độ màn hình Steps 9–10",
+    FINAL_REVIEW_STEPS,
+    [
+      (facts.specificationSectionCount ?? 0) >= 14,
+      hasItems(facts.judgeFindingCount),
+      facts.hasRevisionDecision === true,
+      facts.finalized === true,
+    ],
+  );
 }

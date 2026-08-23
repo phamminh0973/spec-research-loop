@@ -1,80 +1,97 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWorkflowSteps, type WorkflowFacts } from "./workflow-progress";
+import {
+  buildWorkflowProgress,
+  type WorkflowFacts,
+} from "./workflow-progress";
 
-function states(facts: WorkflowFacts, activeStep: 1 | 2 | 3 | 4) {
-  return buildWorkflowSteps(activeStep, facts).map((step) => step.state);
+function states(
+  activeStep: 1 | 2 | 3 | 4,
+  facts: WorkflowFacts = {},
+  options?: { newProject?: boolean },
+) {
+  return buildWorkflowProgress(activeStep, facts, options).steps.map(
+    (step) => step.state,
+  );
 }
 
 describe("workflow progress", () => {
-  it("starts at interpretation and blocks later stages", () => {
-    expect(states({}, 1)).toEqual([
+  it("shows only the current grouped screen instead of ten global stages", () => {
+    expect(buildWorkflowProgress(3, {}).steps).toHaveLength(4);
+    expect(buildWorkflowProgress(4, {}).steps).toHaveLength(4);
+    expect(buildWorkflowProgress(2, {}).steps).toHaveLength(3);
+  });
+
+  it("tracks Step 1 proposal review and confirmation", () => {
+    expect(states(1, {})).toEqual(["current", "pending", "pending"]);
+    expect(
+      states(1, { interpretationStatus: "PROPOSED" }),
+    ).toEqual(["complete", "current", "pending"]);
+    expect(
+      states(1, { interpretationStatus: "USER_CONFIRMED" }),
+    ).toEqual(["complete", "complete", "complete"]);
+  });
+
+  it("tracks Step 2 generation, review and handoff", () => {
+    expect(states(2, {})).toEqual(["current", "pending", "pending"]);
+    expect(
+      states(2, {
+        decompositionGenerated: true,
+        decompositionReady: false,
+      }),
+    ).toEqual(["complete", "current", "pending"]);
+    expect(
+      states(2, {
+        decompositionGenerated: true,
+        decompositionReady: true,
+      }),
+    ).toEqual(["complete", "complete", "complete"]);
+  });
+
+  it("maps the four research substeps to their actual data gates", () => {
+    expect(
+      states(3, {
+        selectedSourceCount: 2,
+        evidenceCount: 1,
+        gapCount: 1,
+      }),
+    ).toEqual(["complete", "complete", "current", "pending"]);
+    expect(
+      states(3, {
+        selectedSourceCount: 2,
+        evidenceCount: 1,
+        gapCount: 1,
+        claimCount: 1,
+        experimentPlanCount: 1,
+        feasibilityEstimateCount: 1,
+      }),
+    ).toEqual(["complete", "complete", "complete", "complete"]);
+  });
+
+  it("keeps final review progress tied to specification, judges, decision and export", () => {
+    expect(
+      states(4, {
+        specificationSectionCount: 14,
+        judgeFindingCount: 3,
+        hasRevisionDecision: true,
+        finalized: false,
+      }),
+    ).toEqual(["complete", "complete", "complete", "current"]);
+    expect(
+      states(4, {
+        specificationSectionCount: 14,
+        judgeFindingCount: 3,
+        hasRevisionDecision: true,
+        finalized: true,
+      }),
+    ).toEqual(["complete", "complete", "complete", "complete"]);
+  });
+
+  it("uses a separate creation progress on the new-project screen", () => {
+    expect(states(1, {}, { newProject: true })).toEqual([
       "current",
-      "blocked",
-      "blocked",
-      "blocked",
-      "blocked",
-      "blocked",
-      "blocked",
-      "blocked",
-      "blocked",
-      "blocked",
+      "pending",
+      "pending",
     ]);
-  });
-
-  it("moves to the next stage only after the interpretation gate", () => {
-    const progress = buildWorkflowSteps(
-      1,
-      { interpretationStatus: "USER_CONFIRMED" }
-    );
-
-    expect(progress[0]).toMatchObject({
-      id: 1,
-      state: "complete",
-    });
-    expect(progress[1]).toMatchObject({
-      id: 2,
-      state: "current",
-    });
-    expect(progress.filter((step) => step.state === "current")).toHaveLength(1);
-  });
-
-  it("does not mark later facts complete when an earlier gate is missing", () => {
-    const progress = buildWorkflowSteps(3, {
-      interpretationStatus: "USER_CONFIRMED",
-      decompositionReady: true,
-      selectedSourceCount: 2,
-      gapCount: 1,
-      claimCount: 1,
-      experimentPlanCount: 1,
-      feasibilityEstimateCount: 1,
-    });
-
-    expect(progress[2]?.state).toBe("complete");
-    expect(progress[3]?.state).toBe("current");
-    expect(progress[4]?.state).toBe("blocked");
-    expect(progress[8]?.state).toBe("blocked");
-  });
-
-  it("uses the final route only after the earlier workflow is complete", () => {
-    const progress = buildWorkflowSteps(4, {
-      interpretationStatus: "USER_CONFIRMED",
-      decompositionReady: true,
-      selectedSourceCount: 1,
-      evidenceCount: 1,
-      gapCount: 1,
-      claimCount: 1,
-      experimentPlanCount: 1,
-      feasibilityEstimateCount: 1,
-      specificationSectionCount: 14,
-      judgeFindingCount: 3,
-      hasRevisionDecision: true,
-      finalized: false,
-    });
-
-    expect(progress.slice(0, 9).every((step) => step.state === "complete")).toBe(
-      true
-    );
-    expect(progress[9]).toMatchObject({ id: 10, state: "current" });
   });
 });
