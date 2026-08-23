@@ -9,10 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { trpc } from "@/lib/trpc";
+import {
+  buildResearchSpecMarkdown,
+  downloadMarkdown,
+  getResearchSpecFilename,
+  type MarkdownJudge,
+  type MarkdownSection,
+} from "./markdown-export";
 
 type Props = { projectId: string; fixtureMode: boolean };
 
-const sections = [
+const sections: MarkdownSection[] = [
   ["1. Problem statement", "Research ideas are often underspecified, making gap, claim and experiment quality difficult to verify."],
   ["2. Research questions", "Does claim-level evidence feedback reduce unsupported claims under a fixed inference budget?"],
   ["3. Related-work matrix", "Compare prompt optimization, self-refinement and evidence-grounded approaches using source-linked observations."],
@@ -29,7 +37,7 @@ const sections = [
   ["14. Decision history", "User confirmation is required before finalization; revisions create a new version rather than silently overwriting the previous draft."],
 ];
 
-const judges = [
+const judges: MarkdownJudge[] = [
   { name: "Evidence Judge", focus: "citation/evidence support, orphan claims, provenance integrity", score: "MAJOR", finding: "Require provenance-backed evidence before presenting a claim as supported." },
   { name: "Research Judge", focus: "gap quality, contribution scope and overclaiming", score: "MINOR", finding: "Keep novelty language corpus-bounded; do not claim global novelty." },
   { name: "Experiment Judge", focus: "baseline fairness, metrics, ablations and feasibility", score: "MAJOR", finding: "Freeze model, data, token budget and call count; include a held-out set." },
@@ -41,43 +49,87 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
   const [version, setVersion] = useState(1);
   const [finalized, setFinalized] = useState(false);
 
+  const interpretation = trpc.interpretation.latest.useQuery(
+    { projectId },
+    { enabled: !fixtureMode, retry: false },
+  );
+  const graph = trpc.decomposition.byProject.useQuery(
+    { projectId },
+    { enabled: !fixtureMode, retry: false },
+  );
+  const sources = trpc.literature.list.useQuery(
+    { projectId, selectedOnly: true, limit: 50 },
+    { enabled: !fixtureMode, retry: false },
+  );
+  const evidenceSpans = trpc.evidence.listSpans.useQuery(
+    { projectId, limit: 50 },
+    { enabled: !fixtureMode, retry: false },
+  );
+  const evidenceLinks = trpc.evidence.listLinks.useQuery(
+    { projectId },
+    { enabled: !fixtureMode, retry: false },
+  );
+  const gap = trpc.researchDesign.gapProposal.useQuery(
+    { projectId },
+    { enabled: !fixtureMode, retry: false },
+  );
+  const claims = trpc.researchDesign.listClaims.useQuery(
+    { projectId },
+    { enabled: !fixtureMode, retry: false },
+  );
+  const plans = trpc.researchDesign.listPlans.useQuery(
+    { projectId },
+    { enabled: !fixtureMode, retry: false },
+  );
+
   const consensus = useMemo(() => {
     const major = judges.filter((j) => j.score === "MAJOR").length;
     return major >= 2 ? "MAJOR" : "MINOR";
   }, []);
 
+  const workflowFacts = {
+    interpretationStatus: fixtureMode ? "USER_CONFIRMED" : (interpretation.data?.status ?? null),
+    decompositionReady: fixtureMode || Boolean(graph.data),
+    selectedSourceCount: fixtureMode ? 1 : (sources.data?.items.length ?? 0),
+    evidenceCount: fixtureMode
+      ? 1
+      : Math.max(evidenceSpans.data?.items.length ?? 0, evidenceLinks.data?.items.length ?? 0),
+    gapCount: fixtureMode ? 1 : (gap.data?.candidates.length ?? 0),
+    claimCount: fixtureMode ? 1 : (claims.data?.items.length ?? 0),
+    experimentPlanCount: fixtureMode ? 1 : (plans.data?.items.length ?? 0),
+    feasibilityEstimateCount: fixtureMode
+      ? 1
+      : (plans.data?.items.filter((plan) => plan.estimates.length > 0).length ?? 0),
+    specificationSectionCount: fixtureMode ? sections.length : 0,
+    judgeFindingCount: fixtureMode ? judges.length : 0,
+    hasRevisionDecision: Boolean(decision),
+    finalized,
+  };
+
   function exportMarkdown() {
-    const body = [
-      "# SpecLoop Research Specification",
-      "",
-      ...sections.flatMap(([title, content]) => [`## ${title}`, "", content, ""]),
-      "## Judge review",
-      "",
-      ...judges.flatMap((j) => [`### ${j.name}`, `- Focus: ${j.focus}`, `- Severity: ${j.score}`, `- Finding: ${j.finding}`, ""]),
-      "## User revision decision",
-      "",
-      `Decision: ${decision}`,
-      custom ? `Other: ${custom}` : "",
-      `Version: ${version}`,
-      "",
-      finalized ? "Status: FINALIZED" : "Status: DRAFT",
-    ].join("\n");
-    const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `specloop-research-spec-v${version}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const body = buildResearchSpecMarkdown({
+      sections,
+      judges,
+      decision,
+      custom,
+      version,
+      finalized,
+    });
+    downloadMarkdown(body, getResearchSpecFilename(version));
   }
 
   return (
-    <AppShell activeStep={4} projectId={projectId} fixtureMode={fixtureMode}>
+    <AppShell
+      activeStep={4}
+      projectId={projectId}
+      fixtureMode={fixtureMode}
+      workflowFacts={workflowFacts}
+    >
       <div className="space-y-8">
         <div className="flex items-start gap-4">
           <span className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText size={26} /></span>
           <div>
-            <h1 className="text-2xl font-bold">7–10. Specification, Judges & Finalization</h1>
+            <h1 className="text-2xl font-bold">9–10. Specification, Judges & Finalization</h1>
             <p className="mt-1 text-muted-foreground">Tạo bản spec 14 phần, đánh giá độc lập, cho user quyết định revision rồi export bản cuối.</p>
           </div>
         </div>
