@@ -7,17 +7,17 @@ import {
   Folder,
   History,
   Infinity,
-  PanelRight,
+  PanelRightClose,
+  PanelRightOpen,
   Search,
   ShieldCheck,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
 import { LOCAL_PROJECT } from "./local-fixtures";
 import { StepBreadcrumb, type WorkflowStep } from "./step-breadcrumb";
 import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
@@ -63,6 +63,7 @@ export function AppShell({
   interpretationStatus?: string | null;
   hasGraph?: boolean;
 }) {
+  const [panelOpen, setPanelOpen] = useState(true);
   const projectQuery = trpc.projects.byId.useQuery(
     { id: projectId ?? "" },
     {
@@ -136,89 +137,128 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-[1600px]">
-        <main className="flex-1 min-w-0 px-6 py-8">{children}</main>
+      <div className="mx-auto flex max-w-[1600px] lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
+        <main className="min-w-0 flex-1 px-6 py-8 lg:h-full lg:overflow-y-auto">
+          {children}
+        </main>
 
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] shrink-0 border-l border-border lg:block w-95 bg-card" aria-label="Trạng thái project">
-          <div className="flex items-center gap-3 p-4">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true">
-              <PanelRight size={17} />
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT WORKFLOW</p>
-              <h2 className="text-base font-bold text-foreground">Bản đặc tả hiện tại</h2>
+        <aside
+          id="workflow-sidebar"
+          className={cn(
+            "hidden h-full shrink-0 border-l border-border bg-card transition-[width] duration-200 motion-reduce:transition-none lg:flex lg:flex-col",
+            panelOpen ? "w-95" : "w-14"
+          )}
+          aria-label="Trạng thái project"
+        >
+          {panelOpen ? (
+            <>
+              <div className="flex shrink-0 items-center gap-3 border-b border-border p-4">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  onClick={() => setPanelOpen(false)}
+                  aria-label="Thu gọn bảng tiến trình"
+                  aria-controls="workflow-sidebar"
+                  aria-expanded="true"
+                >
+                  <PanelRightClose size={17} />
+                </Button>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT WORKFLOW</p>
+                  <h2 className="text-base font-bold text-foreground">Bản đặc tả hiện tại</h2>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <div className="p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT</p>
+                  <p className="text-base font-medium text-foreground mt-1">
+                    {projectLabel}
+                  </p>
+                  {projectId ? (
+                    <code className="text-xs text-muted-foreground mt-1 block font-mono">{projectId}</code>
+                  ) : (
+                    <span className="text-xs text-muted-foreground mt-1 block">Chưa tạo project</span>
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-border">
+                  <StepBreadcrumb steps={steps} />
+                </div>
+
+                <div className="p-4 border-t border-border">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API STATUS</p>
+                  {interpretationStatus ? (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-sm text-foreground">Interpretation</span>
+                      <StatusPill status={interpretationStatus} />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-3">Chưa có interpretation record.</p>
+                  )}
+                  {hasGraph ? (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-sm text-foreground">Decomposition</span>
+                      <StatusPill status="AVAILABLE" label="AVAILABLE" />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-3">Chưa có graph view.</p>
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-border flex flex-col gap-2">
+                  <Link
+                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 1 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                    href={understandingHref}
+                  >
+                    <FileText size={15} /> Step 1 · Interpretation
+                  </Link>
+                  <Link
+                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 2 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                    href={decompositionHref}
+                  >
+                    <Search size={15} /> Step 2 · Structured decomposition
+                  </Link>
+                  <Link
+                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 3 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                    href={researchHref}
+                  >
+                    <CircleHelp size={15} /> Steps 3–8 · Evidence → feasibility
+                  </Link>
+                  <Link
+                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 4 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                    href={finalReviewHref}
+                  >
+                    <ShieldCheck size={15} /> Steps 9–10 · Spec review & finalize
+                  </Link>
+                </div>
+
+                {fixtureMode ? (
+                  <p className="p-4 text-xs text-amber-700 bg-amber-500/10 border-t border-amber-500/20 dark:text-amber-300">
+                    Fixture mode không ghi production data và không đại diện cho live
+                    LLM, PostgreSQL hay literature results.
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <div className="flex h-full items-start justify-center p-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:bg-accent hover:text-foreground"
+                onClick={() => setPanelOpen(true)}
+                aria-label="Mở bảng tiến trình"
+                aria-controls="workflow-sidebar"
+                aria-expanded="false"
+              >
+                <PanelRightOpen size={17} />
+              </Button>
             </div>
-          </div>
-
-          <div className="p-4 border-t border-border">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT</p>
-            <p className="text-base font-medium text-foreground mt-1">
-              {projectLabel}
-            </p>
-            {projectId ? (
-              <code className="text-xs text-muted-foreground mt-1 block font-mono">{projectId}</code>
-            ) : (
-              <span className="text-xs text-muted-foreground mt-1 block">Chưa tạo project</span>
-            )}
-          </div>
-
-          <div className="p-4 border-t border-border">
-            <StepBreadcrumb steps={steps} />
-          </div>
-
-          <div className="p-4 border-t border-border">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API STATUS</p>
-            {interpretationStatus ? (
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-sm text-foreground">Interpretation</span>
-                <StatusPill status={interpretationStatus} />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground mt-3">Chưa có interpretation record.</p>
-            )}
-            {hasGraph ? (
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-sm text-foreground">Decomposition</span>
-                <StatusPill status="AVAILABLE" label="AVAILABLE" />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground mt-3">Chưa có graph view.</p>
-            )}
-          </div>
-
-          <div className="p-4 border-t border-border flex flex-col gap-2">
-            <Link
-              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 1 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-              href={understandingHref}
-            >
-              <FileText size={15} /> Step 1 · Interpretation
-            </Link>
-            <Link
-              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 2 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-              href={decompositionHref}
-            >
-              <Search size={15} /> Step 2 · Typed cards
-            </Link>
-            <Link
-              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 3 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-              href={researchHref}
-            >
-              <CircleHelp size={15} /> Step 3–6 · Literature / evidence
-            </Link>
-            <Link
-              className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 4 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-              href={finalReviewHref}
-            >
-              <ShieldCheck size={15} /> Step 7–10 · Final review
-            </Link>
-          </div>
-
-          {fixtureMode ? (
-            <p className="p-4 text-xs text-amber-700 bg-amber-500/10 border-t border-amber-500/20 dark:text-amber-300">
-              Fixture mode không ghi production data và không đại diện cho live
-              LLM, PostgreSQL hay literature results.
-            </p>
-          ) : null}
+          )}
         </aside>
       </div>
     </div>
