@@ -84,3 +84,19 @@ must not imply that fixture data is production LLM output.
 - Browser verification confirmed active `aria-current="page"`, visible
   underline state, correct navigation to `/history` and `/help`, no browser
   console errors, and no change to the user's existing project tab.
+
+## Resizable workflow sidebar follow-up (2026-08-24)
+
+- Add a visible vertical resize handle at the boundary between the detail
+  content and the workflow sidebar.
+- Keep the sidebar between 280px and 520px wide, with a 380px default; the
+  detail area uses the remaining viewport width.
+- If the user continues shrinking below the lower threshold, collapse the
+  sidebar to the existing icon rail. Reopening preserves the last usable
+  minimum width.
+- Add native hover descriptions and accessible labels to the close/open icon
+  buttons; expose keyboard resizing on the separator as well.
+- Browser verification confirmed 520px maximum, 280px minimum, automatic
+  collapse to the 56px rail, successful reopen, separator visibility, button
+  tooltip titles, and mouse dragging from 280px to 400px with the main area
+  resizing inversely.

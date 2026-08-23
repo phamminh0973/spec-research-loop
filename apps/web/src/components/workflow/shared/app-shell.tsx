@@ -14,7 +14,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import type { LucideIcon } from "lucide-react";
 
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
@@ -64,6 +71,20 @@ function HeaderNavLink({
   );
 }
 
+const SIDEBAR_DEFAULT_WIDTH = 380;
+const SIDEBAR_MIN_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH = 520;
+const SIDEBAR_COLLAPSE_THRESHOLD = SIDEBAR_MIN_WIDTH - 48;
+
+function clampSidebarWidth(width: number) {
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
+}
+
+function clearResizeStyles() {
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+}
+
 export function AppShell({
   children,
   activeStep,
@@ -86,6 +107,13 @@ export function AppShell({
   showWorkflowSidebar?: boolean;
 }) {
   const [panelOpen, setPanelOpen] = useState(true);
+  const [panelWidth, setPanelWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
   const pathname = usePathname();
   const isNavActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href) === true;
@@ -132,6 +160,141 @@ export function AppShell({
     ? `/projects/${projectId}/final-review${fixtureMode ? "?fixture=1" : ""}`
     : "/projects/new";
 
+  useEffect(() => clearResizeStyles, []);
+
+  const stopResize = () => {
+    resizeStateRef.current = null;
+    setIsResizing(false);
+    clearResizeStyles();
+  };
+
+  const updateResize = (clientX: number) => {
+    const resizeState = resizeStateRef.current;
+    if (!resizeState) {
+      return;
+    }
+
+    const nextWidth = resizeState.startWidth + resizeState.startX - clientX;
+    if (nextWidth <= SIDEBAR_COLLAPSE_THRESHOLD) {
+      setPanelWidth(SIDEBAR_MIN_WIDTH);
+      setPanelOpen(false);
+      stopResize();
+      return;
+    }
+
+    setPanelWidth(clampSidebarWidth(nextWidth));
+  };
+
+  useEffect(() => {
+    if (!isResizing) {
+      return;
+    }
+
+    const handleWindowPointerMove = (event: PointerEvent) => {
+      const resizeState = resizeStateRef.current;
+      if (resizeState?.pointerId === event.pointerId) {
+        updateResize(event.clientX);
+      }
+    };
+    const handleWindowPointerUp = (event: PointerEvent) => {
+      if (resizeStateRef.current?.pointerId === event.pointerId) {
+        stopResize();
+      }
+    };
+    const handleWindowMouseMove = (event: MouseEvent) => {
+      if (resizeStateRef.current) {
+        updateResize(event.clientX);
+      }
+    };
+    const handleWindowMouseUp = () => {
+      if (resizeStateRef.current) {
+        stopResize();
+      }
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    window.addEventListener("blur", handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+      window.removeEventListener("blur", handleWindowMouseUp);
+    };
+  }, [isResizing]);
+
+  const finishResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    stopResize();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizeStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: panelWidth,
+    };
+    setIsResizing(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  const handleResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const resizeState = resizeStateRef.current;
+    if (!resizeState || resizeState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    updateResize(event.clientX);
+  };
+
+  const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 48 : 24;
+    let nextWidth: number | null = null;
+
+    if (event.key === "ArrowLeft") {
+      nextWidth = panelWidth + step;
+    } else if (event.key === "ArrowRight") {
+      nextWidth = panelWidth - step;
+    } else if (event.key === "Home") {
+      nextWidth = SIDEBAR_MIN_WIDTH;
+    } else if (event.key === "End") {
+      nextWidth = SIDEBAR_MAX_WIDTH;
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setPanelOpen(false);
+      return;
+    }
+
+    if (nextWidth === null) {
+      return;
+    }
+
+    event.preventDefault();
+    if (
+      nextWidth <= SIDEBAR_COLLAPSE_THRESHOLD ||
+      (panelWidth <= SIDEBAR_MIN_WIDTH && nextWidth < SIDEBAR_MIN_WIDTH)
+    ) {
+      setPanelWidth(SIDEBAR_MIN_WIDTH);
+      setPanelOpen(false);
+      return;
+    }
+
+    setPanelWidth(clampSidebarWidth(nextWidth));
+  };
+
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background),var(--primary)_2%)]">
       <header className="shrink-0 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -169,14 +332,52 @@ export function AppShell({
         </main>
 
         {showWorkflowSidebar ? (
-          <aside
-            id="workflow-sidebar"
-            className={cn(
-              "hidden h-full shrink-0 border-l border-border bg-card transition-[width] duration-200 motion-reduce:transition-none lg:flex lg:flex-col",
-              panelOpen ? "w-95" : "w-14"
-            )}
-            aria-label="Trạng thái project"
-          >
+          <>
+            {panelOpen ? (
+              <div
+                role="separator"
+                aria-label="Điều chỉnh độ rộng bảng tiến trình"
+                aria-orientation="vertical"
+                aria-valuemin={SIDEBAR_MIN_WIDTH}
+                aria-valuemax={SIDEBAR_MAX_WIDTH}
+                aria-valuenow={Math.round(panelWidth)}
+                aria-valuetext={`${Math.round(panelWidth)} pixel`}
+                tabIndex={0}
+                title="Kéo để thay đổi độ rộng bảng tiến trình"
+                className={cn(
+                  "group relative hidden w-2 shrink-0 cursor-col-resize touch-none select-none lg:block",
+                  isResizing ? "bg-primary/15" : "hover:bg-primary/10"
+                )}
+                onPointerDown={handleResizeStart}
+                onPointerMove={handleResizeMove}
+                onPointerUp={finishResize}
+                onPointerCancel={finishResize}
+                onKeyDown={handleResizeKeyDown}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors",
+                    "group-hover:bg-primary/60 group-focus-visible:bg-primary",
+                    isResizing && "bg-primary"
+                  )}
+                />
+              </div>
+            ) : null}
+
+            <aside
+              id="workflow-sidebar"
+              style={panelOpen ? { width: `${panelWidth}px` } : undefined}
+              className={cn(
+                "hidden h-full shrink-0 border-l border-border bg-card lg:flex lg:flex-col motion-reduce:transition-none",
+                panelOpen
+                  ? isResizing
+                    ? "transition-none"
+                    : "transition-[width] duration-200"
+                  : "w-14"
+              )}
+              aria-label="Trạng thái project"
+            >
             {panelOpen ? (
               <>
               <div className="flex shrink-0 items-center gap-3 border-b border-border p-4">
@@ -187,6 +388,7 @@ export function AppShell({
                   className="size-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-foreground"
                   onClick={() => setPanelOpen(false)}
                   aria-label="Thu gọn bảng tiến trình"
+                  title="Thu gọn bảng tiến trình"
                   aria-controls="workflow-sidebar"
                   aria-expanded="true"
                 >
@@ -279,6 +481,7 @@ export function AppShell({
                   className="text-muted-foreground hover:bg-accent hover:text-foreground"
                   onClick={() => setPanelOpen(true)}
                   aria-label="Mở bảng tiến trình"
+                  title="Mở bảng tiến trình"
                   aria-controls="workflow-sidebar"
                   aria-expanded="false"
                 >
@@ -286,7 +489,8 @@ export function AppShell({
                 </Button>
               </div>
             )}
-          </aside>
+            </aside>
+          </>
         ) : null}
       </div>
     </div>
