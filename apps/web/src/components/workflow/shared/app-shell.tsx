@@ -5,6 +5,7 @@ import {
   CircleHelp,
   FileText,
   Folder,
+  Home,
   History,
   Infinity,
   PanelRightClose,
@@ -12,7 +13,9 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
 import { LOCAL_PROJECT } from "./local-fixtures";
@@ -26,6 +29,41 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
+function HeaderNavLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+}) {
+  return (
+    <Link
+      className={cn(
+        "relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "text-primary hover:bg-primary/5"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      )}
+      href={href}
+      aria-current={active ? "page" : undefined}
+    >
+      <Icon size={16} aria-hidden="true" />
+      {label}
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute inset-x-2 -bottom-[9px] h-0.5 rounded-full",
+          active ? "bg-primary" : "bg-transparent"
+        )}
+      />
+    </Link>
+  );
+}
+
 export function AppShell({
   children,
   activeStep,
@@ -35,6 +73,7 @@ export function AppShell({
   interpretationStatus,
   hasGraph,
   workflowFacts,
+  showWorkflowSidebar = true,
 }: {
   children: ReactNode;
   activeStep: ActiveStep;
@@ -44,8 +83,12 @@ export function AppShell({
   interpretationStatus?: string | null;
   hasGraph?: boolean;
   workflowFacts?: WorkflowFacts;
+  showWorkflowSidebar?: boolean;
 }) {
   const [panelOpen, setPanelOpen] = useState(true);
+  const pathname = usePathname();
+  const isNavActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname?.startsWith(href) === true;
   const projectQuery = trpc.projects.byId.useQuery(
     { id: projectId ?? "" },
     {
@@ -95,7 +138,7 @@ export function AppShell({
         <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-8 px-6">
           <Link
             className="flex items-center gap-2.5"
-            href="/projects/new"
+            href="/"
             aria-label="SpecResearch Loop"
           >
             <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground" aria-hidden="true">
@@ -105,15 +148,10 @@ export function AppShell({
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="Điều hướng chính">
-            <Link className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-primary" href="/projects/new">
-              <Folder size={16} /> Dự án
-            </Link>
-            <span className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground" aria-disabled="true">
-              <History size={16} /> Lịch sử phiên bản
-            </span>
-            <span className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground" aria-disabled="true">
-              <CircleHelp size={16} /> Trợ giúp
-            </span>
+            <HeaderNavLink href="/" label="Trang chủ" icon={Home} active={isNavActive("/")} />
+            <HeaderNavLink href="/projects/new" label="Dự án" icon={Folder} active={isNavActive("/projects")} />
+            <HeaderNavLink href="/history" label="Lịch sử phiên bản" icon={History} active={isNavActive("/history")} />
+            <HeaderNavLink href="/help" label="Trợ giúp" icon={CircleHelp} active={isNavActive("/help")} />
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
@@ -130,16 +168,17 @@ export function AppShell({
           {children}
         </main>
 
-        <aside
-          id="workflow-sidebar"
-          className={cn(
-            "hidden h-full shrink-0 border-l border-border bg-card transition-[width] duration-200 motion-reduce:transition-none lg:flex lg:flex-col",
-            panelOpen ? "w-95" : "w-14"
-          )}
-          aria-label="Trạng thái project"
-        >
-          {panelOpen ? (
-            <>
+        {showWorkflowSidebar ? (
+          <aside
+            id="workflow-sidebar"
+            className={cn(
+              "hidden h-full shrink-0 border-l border-border bg-card transition-[width] duration-200 motion-reduce:transition-none lg:flex lg:flex-col",
+              panelOpen ? "w-95" : "w-14"
+            )}
+            aria-label="Trạng thái project"
+          >
+            {panelOpen ? (
+              <>
               <div className="flex shrink-0 items-center gap-3 border-b border-border p-4">
                 <Button
                   type="button"
@@ -230,24 +269,25 @@ export function AppShell({
                   </p>
                 ) : null}
               </div>
-            </>
-          ) : (
-            <div className="flex h-full items-start justify-center p-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:bg-accent hover:text-foreground"
-                onClick={() => setPanelOpen(true)}
-                aria-label="Mở bảng tiến trình"
-                aria-controls="workflow-sidebar"
-                aria-expanded="false"
-              >
-                <PanelRightOpen size={17} />
-              </Button>
-            </div>
-          )}
-        </aside>
+              </>
+            ) : (
+              <div className="flex h-full items-start justify-center p-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:bg-accent hover:text-foreground"
+                  onClick={() => setPanelOpen(true)}
+                  aria-label="Mở bảng tiến trình"
+                  aria-controls="workflow-sidebar"
+                  aria-expanded="false"
+                >
+                  <PanelRightOpen size={17} />
+                </Button>
+              </div>
+            )}
+          </aside>
+        ) : null}
       </div>
     </div>
   );

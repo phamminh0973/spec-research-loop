@@ -68,3 +68,19 @@ must not imply that fixture data is production LLM output.
   returned an observed `NOT_FOUND` because the current API store is in-memory.
   The fixture route was used for UI verification without inventing production
   data.
+
+## Header navigation follow-up (2026-08-24)
+
+- Use semantic `Link` elements for header navigation because each item changes
+  the route; reserve buttons for local UI actions such as the workflow sidebar
+  toggle.
+- Add `Trang chủ`, `Dự án`, `Lịch sử phiên bản`, and `Trợ giúp` as real routes
+  with pathname-based active state and a blue underline matching the UI
+  reference.
+- Keep `/history` and `/help` navigable, but label both pages `Tính năng đang
+  phát triển` until their underlying functionality is implemented.
+- Add a minimal `/` home entry point so `Trang chủ` has a distinct destination;
+  keep the workflow sidebar hidden on global navigation pages.
+- Browser verification confirmed active `aria-current="page"`, visible
+  underline state, correct navigation to `/history` and `/help`, no browser
+  console errors, and no change to the user's existing project tab.
