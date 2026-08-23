@@ -495,9 +495,9 @@ export function UnderstandingWorkspace({
 
         {error ? (
           <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive" role="alert">
-            <AlertDescription>
+            <AlertDescription className="flex flex-col gap-1">
               <strong>API operation unavailable</strong>
-              {errorMessage(error)}
+              <span>{errorMessage(error)}</span>
             </AlertDescription>
           </Alert>
         ) : null}
