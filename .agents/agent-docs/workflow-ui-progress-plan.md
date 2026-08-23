@@ -91,12 +91,14 @@ must not imply that fixture data is production LLM output.
   content and the workflow sidebar.
 - Keep the sidebar between 280px and 520px wide, with a 380px default; the
   detail area uses the remaining viewport width.
-- If the user continues shrinking below the lower threshold, collapse the
-  sidebar to the existing icon rail. Reopening preserves the last usable
-  minimum width.
+- While the pointer is held below the minimum width, preview the existing icon
+  rail without committing the close; dragging back above the minimum restores
+  the panel from 280px and continues resizing. Commit the collapse only when
+  the pointer is released below the minimum.
+- Reopening from the icon rail resets the sidebar to the medium 380px width.
 - Add native hover descriptions and accessible labels to the close/open icon
   buttons; expose keyboard resizing on the separator as well.
-- Browser verification confirmed 520px maximum, 280px minimum, automatic
-  collapse to the 56px rail, successful reopen, separator visibility, button
-  tooltip titles, and mouse dragging from 280px to 400px with the main area
-  resizing inversely.
+- Browser verification confirmed 520px maximum, 280px minimum, held-drag
+  collapse preview, recovery from the preview at 400px, commit-on-release to
+  the 56px rail, reopen at 380px, separator visibility, button tooltip titles,
+  and inverse main-area resizing.

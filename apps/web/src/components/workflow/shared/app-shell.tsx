@@ -74,7 +74,6 @@ function HeaderNavLink({
 const SIDEBAR_DEFAULT_WIDTH = 380;
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 520;
-const SIDEBAR_COLLAPSE_THRESHOLD = SIDEBAR_MIN_WIDTH - 48;
 
 function clampSidebarWidth(width: number) {
   return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
@@ -109,11 +108,13 @@ export function AppShell({
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelWidth, setPanelWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
+  const [collapsePreview, setCollapsePreviewState] = useState(false);
   const resizeStateRef = useRef<{
     pointerId: number;
     startX: number;
     startWidth: number;
   } | null>(null);
+  const collapsePreviewRef = useRef(false);
   const pathname = usePathname();
   const isNavActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href) === true;
@@ -162,7 +163,16 @@ export function AppShell({
 
   useEffect(() => clearResizeStyles, []);
 
-  const stopResize = () => {
+  const setCollapsePreview = (value: boolean) => {
+    collapsePreviewRef.current = value;
+    setCollapsePreviewState(value);
+  };
+
+  const stopResize = (commitCollapse = false) => {
+    if (commitCollapse && collapsePreviewRef.current) {
+      setPanelOpen(false);
+    }
+    setCollapsePreview(false);
     resizeStateRef.current = null;
     setIsResizing(false);
     clearResizeStyles();
@@ -175,13 +185,13 @@ export function AppShell({
     }
 
     const nextWidth = resizeState.startWidth + resizeState.startX - clientX;
-    if (nextWidth <= SIDEBAR_COLLAPSE_THRESHOLD) {
+    if (nextWidth < SIDEBAR_MIN_WIDTH) {
       setPanelWidth(SIDEBAR_MIN_WIDTH);
-      setPanelOpen(false);
-      stopResize();
+      setCollapsePreview(true);
       return;
     }
 
+    setCollapsePreview(false);
     setPanelWidth(clampSidebarWidth(nextWidth));
   };
 
@@ -198,7 +208,7 @@ export function AppShell({
     };
     const handleWindowPointerUp = (event: PointerEvent) => {
       if (resizeStateRef.current?.pointerId === event.pointerId) {
-        stopResize();
+        stopResize(true);
       }
     };
     const handleWindowMouseMove = (event: MouseEvent) => {
@@ -208,7 +218,7 @@ export function AppShell({
     };
     const handleWindowMouseUp = () => {
       if (resizeStateRef.current) {
-        stopResize();
+        stopResize(true);
       }
     };
 
@@ -228,7 +238,7 @@ export function AppShell({
   }, [isResizing]);
 
   const finishResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    stopResize();
+    stopResize(true);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -240,6 +250,7 @@ export function AppShell({
     }
 
     event.preventDefault();
+    setCollapsePreview(false);
     event.currentTarget.setPointerCapture(event.pointerId);
     resizeStateRef.current = {
       pointerId: event.pointerId,
@@ -274,6 +285,7 @@ export function AppShell({
       nextWidth = SIDEBAR_MAX_WIDTH;
     } else if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      setCollapsePreview(false);
       setPanelOpen(false);
       return;
     }
@@ -283,11 +295,9 @@ export function AppShell({
     }
 
     event.preventDefault();
-    if (
-      nextWidth <= SIDEBAR_COLLAPSE_THRESHOLD ||
-      (panelWidth <= SIDEBAR_MIN_WIDTH && nextWidth < SIDEBAR_MIN_WIDTH)
-    ) {
+    if (nextWidth < SIDEBAR_MIN_WIDTH) {
       setPanelWidth(SIDEBAR_MIN_WIDTH);
+      setCollapsePreview(false);
       setPanelOpen(false);
       return;
     }
@@ -341,12 +351,21 @@ export function AppShell({
                 aria-valuemin={SIDEBAR_MIN_WIDTH}
                 aria-valuemax={SIDEBAR_MAX_WIDTH}
                 aria-valuenow={Math.round(panelWidth)}
-                aria-valuetext={`${Math.round(panelWidth)} pixel`}
+                aria-valuetext={
+                  collapsePreview
+                    ? "Sắp đóng bảng tiến trình"
+                    : `${Math.round(panelWidth)} pixel`
+                }
                 tabIndex={0}
-                title="Kéo để thay đổi độ rộng bảng tiến trình"
+                title={
+                  collapsePreview
+                    ? "Buông chuột để đóng bảng; kéo ngược để giữ bảng mở"
+                    : "Kéo để thay đổi độ rộng bảng tiến trình"
+                }
                 className={cn(
                   "group relative hidden w-2 shrink-0 cursor-col-resize touch-none select-none lg:block",
-                  isResizing ? "bg-primary/15" : "hover:bg-primary/10"
+                  isResizing ? "bg-primary/15" : "hover:bg-primary/10",
+                  collapsePreview && "bg-primary/25"
                 )}
                 onPointerDown={handleResizeStart}
                 onPointerMove={handleResizeMove}
@@ -359,7 +378,8 @@ export function AppShell({
                   className={cn(
                     "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors",
                     "group-hover:bg-primary/60 group-focus-visible:bg-primary",
-                    isResizing && "bg-primary"
+                    isResizing && "bg-primary",
+                    collapsePreview && "bg-primary"
                   )}
                 />
               </div>
@@ -367,10 +387,14 @@ export function AppShell({
 
             <aside
               id="workflow-sidebar"
-              style={panelOpen ? { width: `${panelWidth}px` } : undefined}
+              style={
+                panelOpen && !collapsePreview
+                  ? { width: `${panelWidth}px` }
+                  : undefined
+              }
               className={cn(
                 "hidden h-full shrink-0 border-l border-border bg-card lg:flex lg:flex-col motion-reduce:transition-none",
-                panelOpen
+                panelOpen && !collapsePreview
                   ? isResizing
                     ? "transition-none"
                     : "transition-[width] duration-200"
@@ -378,7 +402,7 @@ export function AppShell({
               )}
               aria-label="Trạng thái project"
             >
-            {panelOpen ? (
+            {panelOpen && !collapsePreview ? (
               <>
               <div className="flex shrink-0 items-center gap-3 border-b border-border p-4">
                 <Button
@@ -479,11 +503,15 @@ export function AppShell({
                   variant="ghost"
                   size="icon"
                   className="text-muted-foreground hover:bg-accent hover:text-foreground"
-                  onClick={() => setPanelOpen(true)}
+                  onClick={() => {
+                    setPanelWidth(SIDEBAR_DEFAULT_WIDTH);
+                    setCollapsePreview(false);
+                    setPanelOpen(true);
+                  }}
                   aria-label="Mở bảng tiến trình"
                   title="Mở bảng tiến trình"
                   aria-controls="workflow-sidebar"
-                  aria-expanded="false"
+                  aria-expanded={panelOpen && !collapsePreview}
                 >
                   <PanelRightOpen size={17} />
                 </Button>
