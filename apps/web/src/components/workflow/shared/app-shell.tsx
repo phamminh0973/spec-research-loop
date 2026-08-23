@@ -90,8 +90,8 @@ export function AppShell({
     : "/projects/new";
 
   return (
-    <div className="min-h-screen bg-[color-mix(in_oklch,var(--background),var(--primary)_2%)]">
-      <header className="border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-40">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[color-mix(in_oklch,var(--background),var(--primary)_2%)]">
+      <header className="shrink-0 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-8 px-6">
           <Link
             className="flex items-center gap-2.5"
@@ -125,8 +125,8 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-[1600px] lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
-        <main className="min-w-0 flex-1 px-6 py-8 lg:h-full lg:overflow-y-auto">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 overflow-hidden">
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-8">
           {children}
         </main>
 

@@ -20,6 +20,10 @@ describe("workflow progress", () => {
     expect(buildWorkflowProgress(3, {}).steps).toHaveLength(4);
     expect(buildWorkflowProgress(4, {}).steps).toHaveLength(4);
     expect(buildWorkflowProgress(2, {}).steps).toHaveLength(3);
+    expect(buildWorkflowProgress(1, {}).title).toBe("Step 1 · Interpretation");
+    expect(buildWorkflowProgress(3, {}).title).toBe(
+      "Steps 3–8 · Evidence → feasibility",
+    );
   });
 
   it("tracks Step 1 proposal review and confirmation", () => {

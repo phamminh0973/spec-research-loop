@@ -54,3 +54,17 @@ must not imply that fixture data is production LLM output.
 - Browser smoke on the local fixture verified 3 items for Step 1, 3 for Step
   2, 4 for Steps 3–8, and 4 for Steps 9–10. Sidebar collapse/reopen also
   passed. The dev server remains running for manual testing.
+
+## Follow-up UI correction (2026-08-24)
+
+- Changed the compact horizontal bar to a vertical list so every substep label
+  remains readable in the sidebar.
+- Replaced progress wording with the grouped screen name only, for example
+  `Step 1 · Interpretation` and `Steps 9–10 · Spec review & finalize`.
+- Locked the shell to the viewport and made the main content and sidebar the
+  only scroll containers; the document body no longer scrolls with the header.
+- Re-ran the local API on port 4000 for the smoke test. `Failed to fetch` was
+  caused by that service not running; the supplied live project id then
+  returned an observed `NOT_FOUND` because the current API store is in-memory.
+  The fixture route was used for UI verification without inventing production
+  data.

@@ -99,7 +99,7 @@ export function buildWorkflowProgress(
 ): WorkflowProgress {
   if (activeStep === 1 && options.newProject) {
     return buildSequentialProgress(
-      "Tiến độ màn hình tạo project",
+      "Step 1 · Interpretation",
       NEW_PROJECT_STEPS,
       [false, false, false],
     );
@@ -110,7 +110,7 @@ export function buildWorkflowProgress(
     const confirmed = facts.interpretationStatus === "USER_CONFIRMED";
 
     return buildSequentialProgress(
-      "Tiến độ màn hình Step 1",
+      "Step 1 · Interpretation",
       UNDERSTANDING_STEPS,
       [hasProposal, confirmed, confirmed],
     );
@@ -122,7 +122,7 @@ export function buildWorkflowProgress(
     const ready = facts.decompositionReady === true;
 
     return buildSequentialProgress(
-      "Tiến độ màn hình Step 2",
+      "Step 2 · Structured decomposition",
       DECOMPOSITION_STEPS,
       [generated, ready, ready],
     );
@@ -130,7 +130,7 @@ export function buildWorkflowProgress(
 
   if (activeStep === 3) {
     return buildSequentialProgress(
-      "Tiến độ màn hình Steps 3–8",
+      "Steps 3–8 · Evidence → feasibility",
       RESEARCH_STEPS,
       [
         hasItems(facts.selectedSourceCount),
@@ -143,7 +143,7 @@ export function buildWorkflowProgress(
   }
 
   return buildSequentialProgress(
-    "Tiến độ màn hình Steps 9–10",
+    "Steps 9–10 · Spec review & finalize",
     FINAL_REVIEW_STEPS,
     [
       (facts.specificationSectionCount ?? 0) >= 14,

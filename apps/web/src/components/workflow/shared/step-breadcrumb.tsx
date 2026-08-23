@@ -14,46 +14,30 @@ function stateLabel(state: WorkflowStepState) {
 
 export function StepBreadcrumb({
   steps,
-  title = "Tiến độ màn hình hiện tại",
+  title,
 }: {
   steps: WorkflowStep[];
-  title?: string;
+  title: string;
 }) {
-  const completedCount = steps.filter((step) => step.state === "complete").length;
-
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </p>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {completedCount}/{steps.length}
-        </span>
-      </div>
+      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
 
       <ol
-        className="flex w-full items-start"
-        aria-label={`${title}: ${completedCount}/${steps.length} tiểu bước đã hoàn tất`}
+        className="flex flex-col items-start"
+        aria-label={title}
       >
         {steps.map((step, index) => {
           const isDone = step.state === "complete";
           const isCurrent = step.state === "current";
           const isLast = index === steps.length - 1;
-          const connectorActive = isDone;
 
           return (
-            <li
-              key={step.id}
-              className={cn(
-                "flex min-w-0 flex-1 items-center",
-                !isLast && "pr-2",
-              )}
-            >
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+            <li key={step.id} className="flex items-start">
+              <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    "flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
+                    "flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors",
                     isDone && "border-emerald-500 bg-emerald-500 text-white",
                     isCurrent && "border-primary bg-primary/10 text-primary",
                     step.state === "pending" &&
@@ -66,29 +50,28 @@ export function StepBreadcrumb({
                 >
                   {isDone ? <Check className="size-4" /> : index + 1}
                 </div>
-                <span
-                  className={cn(
-                    "min-w-0 truncate text-[11px] leading-4",
-                    isDone && "font-medium text-foreground",
-                    isCurrent && "font-semibold text-primary",
-                    step.state === "pending" && "text-muted-foreground",
-                    step.state === "blocked" && "text-muted-foreground/70",
-                  )}
-                  title={step.label}
-                >
-                  {step.label}
-                </span>
+                {!isLast ? (
+                  <div
+                    className={cn(
+                      "h-5 w-px",
+                      isDone ? "bg-emerald-500" : "bg-border",
+                    )}
+                    aria-hidden="true"
+                  />
+                ) : null}
               </div>
-
-              {!isLast ? (
-                <div
-                  className={cn(
-                    "mx-1 h-0.5 min-w-3 flex-1 rounded-full",
-                    connectorActive ? "bg-emerald-500" : "bg-border",
-                  )}
-                  aria-hidden="true"
-                />
-              ) : null}
+              <span
+                className={cn(
+                  "min-w-0 pb-5 pl-3 pt-2 text-sm",
+                  isDone && "font-medium text-foreground",
+                  isCurrent && "font-semibold text-primary",
+                  step.state === "pending" && "text-muted-foreground",
+                  step.state === "blocked" && "text-muted-foreground/70",
+                )}
+                title={step.label}
+              >
+                {step.label}
+              </span>
             </li>
           );
         })}
