@@ -3,10 +3,9 @@
 import { useState } from "react";
 import type { SpecGraphView, SpecRelationType } from "@specloop/schemas";
 
-import { Alert } from "@/components/ui/alert";
-import { ShieldAlert } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "../shared/app-shell";
+import { ApiErrorMessage } from "../shared/api-error-message";
 import { cloneLocalGraph } from "./step2-fixtures";
 import {
   buildNodeReviewRows,
@@ -318,21 +317,7 @@ export function Step2Workspace({
           onGenerate={handleGenerate}
         />
 
-        {operationError ? (
-          <Alert
-            variant="destructive"
-            className="bg-destructive/10 border-destructive/20 text-destructive"
-            role="alert"
-          >
-            <div className="flex items-start gap-2">
-              <ShieldAlert size={17} className="mt-0.5 shrink-0" />
-              <span>
-                <strong>API-backed Step 2 chưa khả dụng</strong>{" "}
-                {errorMessage(operationError)}
-              </span>
-            </div>
-          </Alert>
-        ) : null}
+        <ApiErrorMessage error={errorMessage(operationError)} title="API-backed Step 2 chưa khả dụng" showIcon />
 
         <section aria-labelledby="step2-cards-heading">
           <h2

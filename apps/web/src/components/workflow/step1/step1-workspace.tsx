@@ -23,6 +23,7 @@ import type {
 
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "../shared/app-shell";
+import { ApiErrorMessage } from "../shared/api-error-message";
 import {
   LocalDevelopmentBadge,
   SectionCard,
@@ -184,11 +185,7 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                   <ArrowRight className="mr-2 size-4" />
                   {fixtureMode ? "Mở local Step 1" : "Tạo project & phân tích"}
                 </Button>
-                {createProject.error ? (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertDescription>{errorMessage(createProject.error)}</AlertDescription>
-                  </Alert>
-                ) : null}
+                <ApiErrorMessage error={errorMessage(createProject.error)} className="mt-4" />
               </form>
             </CardContent>
           </SectionCard>
@@ -491,14 +488,7 @@ export function UnderstandingWorkspace({
           </Alert>
         ) : null}
 
-        {error ? (
-          <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive" role="alert">
-            <AlertDescription className="flex flex-col gap-1">
-              <strong>API operation unavailable</strong>
-              <span>{errorMessage(error)}</span>
-            </AlertDescription>
-          </Alert>
-        ) : null}
+        <ApiErrorMessage error={errorMessage(error)} title="API operation unavailable" />
 
         <div className="grid gap-6 lg:grid-cols-2">
           <SectionCard>

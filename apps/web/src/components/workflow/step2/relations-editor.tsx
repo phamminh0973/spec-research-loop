@@ -6,8 +6,8 @@ import { Link2, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
-import { Alert } from "@/components/ui/alert";
 import { SectionCard, SectionHeader } from "../shared/section-card";
+import { ApiErrorMessage } from "../shared/api-error-message";
 import type { RelationReviewRow } from "./step2-model";
 
 export type RelationDraft = {
@@ -64,11 +64,7 @@ export function RelationsEditor({
     <SectionCard>
       <SectionHeader icon={Link2} title="Relations" tone="blue" />
       <CardContent className="space-y-4">
-        {error ? (
-          <Alert variant="destructive" role="alert">
-            {error}
-          </Alert>
-        ) : null}
+        <ApiErrorMessage error={error} />
         <div className="grid gap-4 md:grid-cols-3">
           <label className="text-foreground flex flex-col gap-2 text-sm font-medium">
             <span>Source card</span>
