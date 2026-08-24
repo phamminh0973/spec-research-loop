@@ -5,6 +5,7 @@ import { BookOpen, CheckCircle2, FlaskConical, Search, ShieldCheck, Sparkles } f
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "../shared/app-shell";
+import { ApiErrorMessage } from "../shared/api-error-message";
 import { SectionCard, SectionHeader } from "../shared/section-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -175,7 +176,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
         </div>
 
         {fixtureMode && <Alert className="bg-amber-50 border-amber-200 text-amber-900"><AlertDescription><strong>Local fixture:</strong> dữ liệu bên dưới là dữ liệu minh hoạ, không phải paper/evidence thực tế.</AlertDescription></Alert>}
-        {error && <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>}
+        <ApiErrorMessage error={error} />
 
         <div className="grid gap-4 md:grid-cols-4">
           {[["Corpus", counts.corpus], ["Gap candidates", counts.gaps], ["Claims", counts.claims], ["Experiment plans", counts.plans]].map(([label, value]) => (
