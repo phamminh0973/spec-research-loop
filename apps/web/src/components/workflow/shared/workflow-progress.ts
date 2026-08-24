@@ -11,7 +11,6 @@ export type WorkflowFacts = {
   decompositionGenerated?: boolean;
   decompositionReady?: boolean;
   selectedSourceCount?: number;
-  evidenceCount?: number;
   gapCount?: number;
   claimCount?: number;
   experimentPlanCount?: number;
@@ -134,7 +133,7 @@ export function buildWorkflowProgress(
       RESEARCH_STEPS,
       [
         hasItems(facts.selectedSourceCount),
-        hasItems(facts.evidenceCount) && hasItems(facts.gapCount),
+        hasItems(facts.gapCount),
         hasItems(facts.claimCount),
         hasItems(facts.experimentPlanCount) &&
           hasItems(facts.feasibilityEstimateCount),
