@@ -244,13 +244,13 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
                 <p className="mt-2 text-xs text-amber-700">{candidate.noveltyRisk}</p>
               </button>
             ))}
-            <div className="flex justify-end"><Button onClick={generateClaims} disabled={claims.isPending || fixtureMode || !gapCandidates.length}><Sparkles className="mr-2 size-4" />Generate contribution & claims</Button></div>
           </CardContent>
         </SectionCard>
 
         <SectionCard>
           <SectionHeader icon={FlaskConical} title="Steps 6–8 — Claims → experiment → feasibility" tone="purple" />
           <CardContent className="space-y-5">
+            <div className="flex justify-end"><Button onClick={generateClaims} disabled={claims.isPending || fixtureMode || !gapCandidates.length}><Sparkles className="mr-2 size-4" />Generate contribution & claims</Button></div>
             {selectedClaims.map((claim, index) => (
               <div key={claim.id} className="rounded-lg border p-4">
                 <div className="flex items-center gap-2"><Badge>Claim {index + 1}</Badge><span className="text-sm font-semibold">{claim.metric}</span></div>
