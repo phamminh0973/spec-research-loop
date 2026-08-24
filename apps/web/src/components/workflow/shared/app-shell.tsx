@@ -27,6 +27,7 @@ import type { LucideIcon } from "lucide-react";
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
 import { LOCAL_PROJECT } from "./local-fixtures";
 import { StepBreadcrumb } from "./step-breadcrumb";
+import { calculateStep2Readiness } from "../step2/step2-model";
 import {
   buildWorkflowProgress,
   type ActiveStep,
@@ -88,22 +89,12 @@ export function AppShell({
   children,
   activeStep,
   projectId,
-  projectTitle,
   fixtureMode,
-  interpretationStatus,
-  hasGraph,
-  workflowFacts,
-  showWorkflowSidebar = true,
 }: {
   children: ReactNode;
   activeStep: ActiveStep;
   projectId?: string;
-  projectTitle?: string;
   fixtureMode?: boolean;
-  interpretationStatus?: string | null;
-  hasGraph?: boolean;
-  workflowFacts?: WorkflowFacts;
-  showWorkflowSidebar?: boolean;
 }) {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelWidth, setPanelWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
@@ -118,18 +109,52 @@ export function AppShell({
   const pathname = usePathname();
   const isNavActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href) === true;
+  const factsEnabled = Boolean(projectId) && !fixtureMode;
+  const needsResearchFacts = factsEnabled && (activeStep === 3 || activeStep === 4);
   const projectQuery = trpc.projects.byId.useQuery(
     { id: projectId ?? "" },
     {
-      enabled: Boolean(projectId && !projectTitle && !fixtureMode),
+      enabled: factsEnabled,
       retry: false,
     }
   );
-  const resolvedProjectTitle =
-    projectTitle ??
-    (fixtureMode && projectId === LOCAL_PROJECT.id
+  const interpretationQuery = trpc.interpretation.latest.useQuery(
+    { projectId: projectId ?? "" },
+    { enabled: factsEnabled, retry: false }
+  );
+  const graphQuery = trpc.decomposition.byProject.useQuery(
+    { projectId: projectId ?? "" },
+    { enabled: factsEnabled, retry: false }
+  );
+  const selectedSourceQuery = trpc.literature.selectedCount.useQuery(
+    { projectId: projectId ?? "" },
+    { enabled: needsResearchFacts, retry: false }
+  );
+  const evidenceSpanQuery = trpc.evidence.listSpans.useQuery(
+    { projectId: projectId ?? "", limit: 50 },
+    { enabled: needsResearchFacts, retry: false }
+  );
+  const evidenceLinkQuery = trpc.evidence.listLinks.useQuery(
+    { projectId: projectId ?? "" },
+    { enabled: needsResearchFacts, retry: false }
+  );
+  const gapQuery = trpc.researchDesign.gapProposal.useQuery(
+    { projectId: projectId ?? "" },
+    { enabled: needsResearchFacts, retry: false }
+  );
+  const claimQuery = trpc.researchDesign.listClaims.useQuery(
+    { projectId: projectId ?? "" },
+    { enabled: needsResearchFacts, retry: false }
+  );
+  const planQuery = trpc.researchDesign.listPlans.useQuery(
+    { projectId: projectId ?? "" },
+    { enabled: needsResearchFacts, retry: false }
+  );
+  const resolvedProjectTitle = fixtureMode
+    ? projectId === LOCAL_PROJECT.id
       ? LOCAL_PROJECT.title
-      : projectQuery.data?.title);
+      : undefined
+    : projectQuery.data?.title;
   const projectLabel =
     resolvedProjectTitle ??
     (projectId
@@ -137,14 +162,36 @@ export function AppShell({
         ? "Không đọc được project"
         : "Đang tải project…"
       : "Chưa chọn project");
-  const progressFacts: WorkflowFacts = {
-    ...workflowFacts,
-    interpretationStatus:
-      workflowFacts?.interpretationStatus ?? interpretationStatus,
-    decompositionGenerated:
-      workflowFacts?.decompositionGenerated ?? hasGraph,
-    decompositionReady: workflowFacts?.decompositionReady ?? hasGraph,
-  };
+  const graph = graphQuery.data ?? null;
+  const readiness = graph ? calculateStep2Readiness(graph) : null;
+  const progressFacts: WorkflowFacts = fixtureMode
+    ? {
+        interpretationStatus: "USER_CONFIRMED",
+        decompositionGenerated: true,
+        decompositionReady: true,
+        selectedSourceCount: 1,
+        evidenceCount: 1,
+        gapCount: 1,
+        claimCount: 1,
+        experimentPlanCount: 1,
+        feasibilityEstimateCount: 1,
+      }
+    : {
+        interpretationStatus: interpretationQuery.data?.status ?? null,
+        decompositionGenerated: Boolean(graph),
+        decompositionReady: readiness?.ready === true,
+        selectedSourceCount: selectedSourceQuery.data?.count,
+        evidenceCount: Math.max(
+          evidenceSpanQuery.data?.items.length ?? 0,
+          evidenceLinkQuery.data?.items.length ?? 0
+        ),
+        gapCount: gapQuery.data?.candidates.length ?? 0,
+        claimCount: claimQuery.data?.items.length ?? 0,
+        experimentPlanCount: planQuery.data?.items.length ?? 0,
+        feasibilityEstimateCount:
+          planQuery.data?.items.filter((plan) => plan.estimates.length > 0)
+            .length ?? 0,
+      };
   const progress = buildWorkflowProgress(activeStep, progressFacts, {
     newProject: !projectId,
   });
@@ -341,7 +388,7 @@ export function AppShell({
           {children}
         </main>
 
-        {showWorkflowSidebar ? (
+        {projectId ? (
           <>
             {panelOpen ? (
               <div

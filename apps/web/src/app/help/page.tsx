@@ -4,7 +4,7 @@ import { AppShell } from "@/components/workflow/shared/app-shell";
 
 export default function HelpPage() {
   return (
-    <AppShell activeStep={1} showWorkflowSidebar={false}>
+    <AppShell activeStep={1}>
       <div className="mx-auto flex min-h-full max-w-3xl items-start justify-center pt-12">
         <section className="w-full rounded-2xl border border-border bg-card p-8 shadow-sm">
           <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">

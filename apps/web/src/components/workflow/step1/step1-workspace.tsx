@@ -470,9 +470,7 @@ export function UnderstandingWorkspace({
     <AppShell
       activeStep={1}
       projectId={projectId}
-      projectTitle={project?.title}
       fixtureMode={fixtureMode}
-      workflowFacts={{ interpretationStatus: record?.status ?? null }}
     >
       <div className="space-y-8">
         <PageHeading

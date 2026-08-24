@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { trpc } from "@/lib/trpc";
 import {
   buildResearchSpecMarkdown,
   downloadMarkdown,
@@ -49,62 +48,10 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
   const [version, setVersion] = useState(1);
   const [finalized, setFinalized] = useState(false);
 
-  const interpretation = trpc.interpretation.latest.useQuery(
-    { projectId },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const graph = trpc.decomposition.byProject.useQuery(
-    { projectId },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const sources = trpc.literature.list.useQuery(
-    { projectId, selectedOnly: true, limit: 50 },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const evidenceSpans = trpc.evidence.listSpans.useQuery(
-    { projectId, limit: 50 },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const evidenceLinks = trpc.evidence.listLinks.useQuery(
-    { projectId },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const gap = trpc.researchDesign.gapProposal.useQuery(
-    { projectId },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const claims = trpc.researchDesign.listClaims.useQuery(
-    { projectId },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const plans = trpc.researchDesign.listPlans.useQuery(
-    { projectId },
-    { enabled: !fixtureMode, retry: false },
-  );
-
   const consensus = useMemo(() => {
     const major = judges.filter((j) => j.score === "MAJOR").length;
     return major >= 2 ? "MAJOR" : "MINOR";
   }, []);
-
-  const workflowFacts = {
-    interpretationStatus: fixtureMode ? "USER_CONFIRMED" : (interpretation.data?.status ?? null),
-    decompositionReady: fixtureMode || Boolean(graph.data),
-    selectedSourceCount: fixtureMode ? 1 : (sources.data?.items.length ?? 0),
-    evidenceCount: fixtureMode
-      ? 1
-      : Math.max(evidenceSpans.data?.items.length ?? 0, evidenceLinks.data?.items.length ?? 0),
-    gapCount: fixtureMode ? 1 : (gap.data?.candidates.length ?? 0),
-    claimCount: fixtureMode ? 1 : (claims.data?.items.length ?? 0),
-    experimentPlanCount: fixtureMode ? 1 : (plans.data?.items.length ?? 0),
-    feasibilityEstimateCount: fixtureMode
-      ? 1
-      : (plans.data?.items.filter((plan) => plan.estimates.length > 0).length ?? 0),
-    specificationSectionCount: fixtureMode ? sections.length : 0,
-    judgeFindingCount: fixtureMode ? judges.length : 0,
-    hasRevisionDecision: Boolean(decision),
-    finalized,
-  };
 
   function exportMarkdown() {
     const body = buildResearchSpecMarkdown({
@@ -119,12 +66,7 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
   }
 
   return (
-    <AppShell
-      activeStep={4}
-      projectId={projectId}
-      fixtureMode={fixtureMode}
-      workflowFacts={workflowFacts}
-    >
+    <AppShell activeStep={4} projectId={projectId} fixtureMode={fixtureMode}>
       <div className="space-y-8">
         <div className="flex items-start gap-4">
           <span className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText size={26} /></span>

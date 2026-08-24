@@ -26,21 +26,9 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
   const [autoFindPapers, setAutoFindPapers] = useState<any[]>([]);
 
   const project = trpc.projects.byId.useQuery({ id: projectId }, { enabled: !fixtureMode, retry: false });
-  const interpretation = trpc.interpretation.latest.useQuery(
-    { projectId },
-    { enabled: !fixtureMode, retry: false },
-  );
   const graph = trpc.decomposition.byProject.useQuery({ projectId }, { enabled: !fixtureMode, retry: false });
   const sources = trpc.literature.list.useQuery(
     { projectId, selectedOnly: false, limit: 50 },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const evidenceSpans = trpc.evidence.listSpans.useQuery(
-    { projectId, limit: 50 },
-    { enabled: !fixtureMode, retry: false },
-  );
-  const evidenceLinks = trpc.evidence.listLinks.useQuery(
-    { projectId },
     { enabled: !fixtureMode, retry: false },
   );
   const select = trpc.literature.select.useMutation({
@@ -172,26 +160,9 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
     gaps: gapCandidates.length,
     plans: plansView.length,
   }), [selectedItems.length, selectedClaims.length, gapCandidates.length, plansView.length]);
-  const workflowFacts = {
-    interpretationStatus: fixtureMode ? "USER_CONFIRMED" : (interpretation.data?.status ?? null),
-    decompositionReady: fixtureMode || Boolean(graph.data),
-    selectedSourceCount: selectedItems.length,
-    evidenceCount: fixtureMode
-      ? 1
-      : Math.max(evidenceSpans.data?.items.length ?? 0, evidenceLinks.data?.items.length ?? 0),
-    gapCount: gapCandidates.length,
-    claimCount: selectedClaims.length,
-    experimentPlanCount: plansView.length,
-    feasibilityEstimateCount: plansView.filter((plan) => plan.estimates.length > 0).length,
-  };
 
   return (
-    <AppShell
-      activeStep={3}
-      projectId={projectId}
-      fixtureMode={fixtureMode}
-      workflowFacts={workflowFacts}
-    >
+    <AppShell activeStep={3} projectId={projectId} fixtureMode={fixtureMode}>
       <div className="space-y-8">
         <div>
           <div className="flex items-center gap-3">
