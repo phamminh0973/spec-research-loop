@@ -131,14 +131,6 @@ export function AppShell({
     { projectId: projectId ?? "" },
     { enabled: needsResearchFacts, retry: false }
   );
-  const evidenceSpanQuery = trpc.evidence.listSpans.useQuery(
-    { projectId: projectId ?? "", limit: 50 },
-    { enabled: needsResearchFacts, retry: false }
-  );
-  const evidenceLinkQuery = trpc.evidence.listLinks.useQuery(
-    { projectId: projectId ?? "" },
-    { enabled: needsResearchFacts, retry: false }
-  );
   const gapQuery = trpc.researchDesign.gapProposal.useQuery(
     { projectId: projectId ?? "" },
     { enabled: needsResearchFacts, retry: false }
@@ -171,7 +163,6 @@ export function AppShell({
         decompositionGenerated: true,
         decompositionReady: true,
         selectedSourceCount: 1,
-        evidenceCount: 1,
         gapCount: 1,
         claimCount: 1,
         experimentPlanCount: 1,
@@ -182,10 +173,6 @@ export function AppShell({
         decompositionGenerated: Boolean(graph),
         decompositionReady: readiness?.ready === true,
         selectedSourceCount: selectedSourceQuery.data?.count,
-        evidenceCount: Math.max(
-          evidenceSpanQuery.data?.items.length ?? 0,
-          evidenceLinkQuery.data?.items.length ?? 0
-        ),
         gapCount: gapQuery.data?.candidates.length ?? 0,
         claimCount: claimQuery.data?.items.length ?? 0,
         experimentPlanCount: planQuery.data?.items.length ?? 0,

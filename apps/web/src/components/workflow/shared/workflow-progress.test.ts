@@ -56,14 +56,12 @@ describe("workflow progress", () => {
     expect(
       states(3, {
         selectedSourceCount: 2,
-        evidenceCount: 1,
         gapCount: 1,
       }),
     ).toEqual(["complete", "complete", "current", "pending"]);
     expect(
       states(3, {
         selectedSourceCount: 2,
-        evidenceCount: 1,
         gapCount: 1,
         claimCount: 1,
         experimentPlanCount: 1,
