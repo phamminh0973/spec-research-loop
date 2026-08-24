@@ -46,10 +46,6 @@ const initialIdea =
 
 const initialTags = ["Research idea", "Reviewable spec", "Assumptions"];
 
-function errorMessage(error: { message?: string } | null | undefined) {
-  return error?.message ?? "Thao tác chưa hoàn tất.";
-}
-
 function PageHeading({
   icon: Icon,
   title,
@@ -185,7 +181,7 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                   <ArrowRight className="mr-2 size-4" />
                   {fixtureMode ? "Mở local Step 1" : "Tạo project & phân tích"}
                 </Button>
-                <ApiErrorMessage error={errorMessage(createProject.error)} className="mt-4" />
+                <ApiErrorMessage error={createProject.error} className="mt-4" />
               </form>
             </CardContent>
           </SectionCard>
@@ -488,7 +484,7 @@ export function UnderstandingWorkspace({
           </Alert>
         ) : null}
 
-        <ApiErrorMessage error={errorMessage(error)} title="API operation unavailable" />
+        <ApiErrorMessage error={error} title="API operation unavailable" />
 
         <div className="grid gap-6 lg:grid-cols-2">
           <SectionCard>

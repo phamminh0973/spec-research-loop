@@ -41,10 +41,6 @@ const INITIAL_FILTERS: Step2NodeFilters = {
   status: "ALL",
 };
 
-function errorMessage(error: { message?: string } | null | undefined) {
-  return error?.message ?? "Step 2 operation failed.";
-}
-
 export function Step2Workspace({
   projectId,
   fixtureMode,
@@ -113,8 +109,8 @@ export function Step2Workspace({
     graphQuery.error;
   const relationError =
     localRelationError ??
-    (createRelation.error ? errorMessage(createRelation.error) : null) ??
-    (deleteRelation.error ? errorMessage(deleteRelation.error) : null);
+    createRelation.error?.message ??
+    deleteRelation.error?.message;
   const rows = graph
     ? filterAndSortNodeReviewRows(buildNodeReviewRows(graph), filters)
     : [];
@@ -317,7 +313,7 @@ export function Step2Workspace({
           onGenerate={handleGenerate}
         />
 
-        <ApiErrorMessage error={errorMessage(operationError)} title="API-backed Step 2 chưa khả dụng" showIcon />
+        <ApiErrorMessage error={operationError} title="API-backed Step 2 chưa khả dụng" showIcon />
 
         <section aria-labelledby="step2-cards-heading">
           <h2
