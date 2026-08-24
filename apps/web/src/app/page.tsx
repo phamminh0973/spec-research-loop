@@ -22,7 +22,7 @@ export default function HomePage() {
             vực Dự án.
           </p>
           <Link
-            href="/projects/new"
+            href="/projects"
             className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Mở Dự án
