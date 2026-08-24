@@ -14,14 +14,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type {
+  PanelImperativeHandle,
+  PanelSize,
+} from "react-resizable-panels";
 import type { LucideIcon } from "lucide-react";
 
 import { LocalDevelopmentBadge, StatusPill } from "./section-card";
@@ -35,6 +32,11 @@ import {
 } from "./workflow-progress";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { trpc } from "@/lib/trpc";
 
 function HeaderNavLink({
@@ -75,14 +77,20 @@ function HeaderNavLink({
 const SIDEBAR_DEFAULT_WIDTH = 380;
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 520;
+const SIDEBAR_COLLAPSED_WIDTH = 56;
 
-function clampSidebarWidth(width: number) {
-  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width));
-}
+function useIsLargeViewport() {
+  const [isLargeViewport, setIsLargeViewport] = useState(false);
 
-function clearResizeStyles() {
-  document.body.style.cursor = "";
-  document.body.style.userSelect = "";
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsLargeViewport(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  return isLargeViewport;
 }
 
 export function AppShell({
@@ -96,16 +104,9 @@ export function AppShell({
   projectId?: string;
   fixtureMode?: boolean;
 }) {
-  const [panelOpen, setPanelOpen] = useState(true);
-  const [panelWidth, setPanelWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
-  const [collapsePreview, setCollapsePreviewState] = useState(false);
-  const resizeStateRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startWidth: number;
-  } | null>(null);
-  const collapsePreviewRef = useRef(false);
+  const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isLargeViewport = useIsLargeViewport();
   const pathname = usePathname();
   const isNavActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href) === true;
@@ -208,148 +209,24 @@ export function AppShell({
     ? `/projects/${projectId}/final-review${fixtureMode ? "?fixture=1" : ""}`
     : "/projects/new";
 
-  useEffect(() => clearResizeStyles, []);
-
-  const setCollapsePreview = (value: boolean) => {
-    collapsePreviewRef.current = value;
-    setCollapsePreviewState(value);
+  const handleSidebarResize = (size: PanelSize) => {
+    setSidebarCollapsed(size.inPixels < SIDEBAR_MIN_WIDTH);
   };
 
-  const stopResize = (commitCollapse = false) => {
-    if (commitCollapse && collapsePreviewRef.current) {
-      setPanelOpen(false);
-    }
-    setCollapsePreview(false);
-    resizeStateRef.current = null;
-    setIsResizing(false);
-    clearResizeStyles();
+  const closeSidebar = () => {
+    sidebarPanelRef.current?.collapse();
   };
 
-  const updateResize = (clientX: number) => {
-    const resizeState = resizeStateRef.current;
-    if (!resizeState) {
+  const openSidebar = () => {
+    const panel = sidebarPanelRef.current;
+    if (!panel) {
       return;
     }
 
-    const nextWidth = resizeState.startWidth + resizeState.startX - clientX;
-    if (nextWidth < SIDEBAR_MIN_WIDTH) {
-      setPanelWidth(SIDEBAR_MIN_WIDTH);
-      setCollapsePreview(true);
-      return;
+    if (panel.isCollapsed()) {
+      panel.expand();
     }
-
-    setCollapsePreview(false);
-    setPanelWidth(clampSidebarWidth(nextWidth));
-  };
-
-  useEffect(() => {
-    if (!isResizing) {
-      return;
-    }
-
-    const handleWindowPointerMove = (event: PointerEvent) => {
-      const resizeState = resizeStateRef.current;
-      if (resizeState?.pointerId === event.pointerId) {
-        updateResize(event.clientX);
-      }
-    };
-    const handleWindowPointerUp = (event: PointerEvent) => {
-      if (resizeStateRef.current?.pointerId === event.pointerId) {
-        stopResize(true);
-      }
-    };
-    const handleWindowMouseMove = (event: MouseEvent) => {
-      if (resizeStateRef.current) {
-        updateResize(event.clientX);
-      }
-    };
-    const handleWindowMouseUp = () => {
-      if (resizeStateRef.current) {
-        stopResize(true);
-      }
-    };
-
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerUp);
-    window.addEventListener("mousemove", handleWindowMouseMove);
-    window.addEventListener("mouseup", handleWindowMouseUp);
-    window.addEventListener("blur", handleWindowMouseUp);
-
-    return () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerUp);
-      window.removeEventListener("mousemove", handleWindowMouseMove);
-      window.removeEventListener("mouseup", handleWindowMouseUp);
-      window.removeEventListener("blur", handleWindowMouseUp);
-    };
-  }, [isResizing]);
-
-  const finishResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    stopResize(true);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
-  const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) {
-      return;
-    }
-
-    event.preventDefault();
-    setCollapsePreview(false);
-    event.currentTarget.setPointerCapture(event.pointerId);
-    resizeStateRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startWidth: panelWidth,
-    };
-    setIsResizing(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  };
-
-  const handleResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const resizeState = resizeStateRef.current;
-    if (!resizeState || resizeState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    updateResize(event.clientX);
-  };
-
-  const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const step = event.shiftKey ? 48 : 24;
-    let nextWidth: number | null = null;
-
-    if (event.key === "ArrowLeft") {
-      nextWidth = panelWidth + step;
-    } else if (event.key === "ArrowRight") {
-      nextWidth = panelWidth - step;
-    } else if (event.key === "Home") {
-      nextWidth = SIDEBAR_MIN_WIDTH;
-    } else if (event.key === "End") {
-      nextWidth = SIDEBAR_MAX_WIDTH;
-    } else if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      setCollapsePreview(false);
-      setPanelOpen(false);
-      return;
-    }
-
-    if (nextWidth === null) {
-      return;
-    }
-
-    event.preventDefault();
-    if (nextWidth < SIDEBAR_MIN_WIDTH) {
-      setPanelWidth(SIDEBAR_MIN_WIDTH);
-      setCollapsePreview(false);
-      setPanelOpen(false);
-      return;
-    }
-
-    setPanelWidth(clampSidebarWidth(nextWidth));
+    panel.resize(SIDEBAR_DEFAULT_WIDTH);
   };
 
   return (
@@ -383,191 +260,159 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 overflow-hidden">
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-8">
-          {children}
-        </main>
+      <ResizablePanelGroup className="mx-auto w-full max-w-[1600px] flex-1 overflow-hidden">
+        <ResizablePanel id="workflow-main" className="min-h-0 min-w-0">
+          <main className="h-full overflow-y-auto px-6 py-8">
+            {children}
+          </main>
+        </ResizablePanel>
 
-        {projectId ? (
+        {projectId && isLargeViewport ? (
           <>
-            {panelOpen ? (
-              <div
-                role="separator"
-                aria-label="Điều chỉnh độ rộng bảng tiến trình"
-                aria-orientation="vertical"
-                aria-valuemin={SIDEBAR_MIN_WIDTH}
-                aria-valuemax={SIDEBAR_MAX_WIDTH}
-                aria-valuenow={Math.round(panelWidth)}
-                aria-valuetext={
-                  collapsePreview
-                    ? "Sắp đóng bảng tiến trình"
-                    : `${Math.round(panelWidth)} pixel`
-                }
-                tabIndex={0}
-                title={
-                  collapsePreview
-                    ? "Buông chuột để đóng bảng; kéo ngược để giữ bảng mở"
-                    : "Kéo để thay đổi độ rộng bảng tiến trình"
-                }
-                className={cn(
-                  "group relative hidden w-2 shrink-0 cursor-col-resize touch-none select-none lg:block",
-                  isResizing ? "bg-primary/15" : "hover:bg-primary/10",
-                  collapsePreview && "bg-primary/25"
-                )}
-                onPointerDown={handleResizeStart}
-                onPointerMove={handleResizeMove}
-                onPointerUp={finishResize}
-                onPointerCancel={finishResize}
-                onKeyDown={handleResizeKeyDown}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border transition-colors",
-                    "group-hover:bg-primary/60 group-focus-visible:bg-primary",
-                    isResizing && "bg-primary",
-                    collapsePreview && "bg-primary"
-                  )}
-                />
-              </div>
-            ) : null}
-
-            <aside
-              id="workflow-sidebar"
-              style={
-                panelOpen && !collapsePreview
-                  ? { width: `${panelWidth}px` }
-                  : undefined
-              }
+            <ResizableHandle
               className={cn(
-                "hidden h-full shrink-0 border-l border-border bg-card lg:flex lg:flex-col motion-reduce:transition-none",
-                panelOpen && !collapsePreview
-                  ? isResizing
-                    ? "transition-none"
-                    : "transition-[width] duration-200"
-                  : "w-14"
+                "group w-2 bg-transparent",
+                "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border after:transition-colors",
+                "hover:bg-primary/10 data-[separator=active]:bg-primary/15",
+                "hover:after:bg-primary/60 focus-visible:after:bg-primary data-[separator=hover]:after:bg-primary/60 data-[separator=active]:after:bg-primary"
               )}
-              aria-label="Trạng thái project"
+              aria-label="Điều chỉnh độ rộng bảng tiến trình"
+              title="Kéo để thay đổi độ rộng bảng tiến trình"
+            />
+
+            <ResizablePanel
+              id="workflow-sidebar-panel"
+              collapsible
+              collapsedSize={SIDEBAR_COLLAPSED_WIDTH}
+              defaultSize={SIDEBAR_DEFAULT_WIDTH}
+              minSize={SIDEBAR_MIN_WIDTH}
+              maxSize={SIDEBAR_MAX_WIDTH}
+              groupResizeBehavior="preserve-pixel-size"
+              panelRef={sidebarPanelRef}
+              onResize={handleSidebarResize}
+              className="min-h-0"
             >
-            {panelOpen && !collapsePreview ? (
-              <>
-              <div className="flex shrink-0 items-center gap-3 border-b border-border p-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-foreground"
-                  onClick={() => setPanelOpen(false)}
-                  aria-label="Thu gọn bảng tiến trình"
-                  title="Thu gọn bảng tiến trình"
-                  aria-controls="workflow-sidebar"
-                  aria-expanded="true"
-                >
-                  <PanelRightClose size={17} />
-                </Button>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT WORKFLOW</p>
-                  <h2 className="text-base font-bold text-foreground">Bản đặc tả hiện tại</h2>
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                <div className="p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT</p>
-                  <p className="text-base font-medium text-foreground mt-1">
-                    {projectLabel}
-                  </p>
-                  {projectId ? (
-                    <code className="text-xs text-muted-foreground mt-1 block font-mono">{projectId}</code>
-                  ) : (
-                    <span className="text-xs text-muted-foreground mt-1 block">Chưa tạo project</span>
-                  )}
-                </div>
-
-                <div className="p-4 border-t border-border">
-                  <StepBreadcrumb steps={progress.steps} title={progress.title} />
-                </div>
-
-                <div className="p-4 border-t border-border">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API STATUS</p>
-                  {progressFacts.interpretationStatus ? (
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-sm text-foreground">Interpretation</span>
-                      <StatusPill status={progressFacts.interpretationStatus} />
+              <aside
+                id="workflow-sidebar"
+                aria-label="Trạng thái project"
+                className="flex h-full min-h-0 flex-col overflow-hidden bg-card"
+              >
+                {sidebarCollapsed ? (
+                  <div className="flex h-full items-start justify-center p-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:bg-accent hover:text-foreground"
+                      onClick={openSidebar}
+                      aria-label="Mở bảng tiến trình"
+                      title="Mở bảng tiến trình"
+                      aria-controls="workflow-sidebar"
+                      aria-expanded={false}
+                    >
+                      <PanelRightOpen size={17} />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex shrink-0 items-center gap-3 border-b border-border p-4">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        onClick={closeSidebar}
+                        aria-label="Thu gọn bảng tiến trình"
+                        title="Thu gọn bảng tiến trình"
+                        aria-controls="workflow-sidebar"
+                        aria-expanded="true"
+                      >
+                        <PanelRightClose size={17} />
+                      </Button>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT WORKFLOW</p>
+                        <h2 className="text-base font-bold text-foreground">Bản đặc tả hiện tại</h2>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground mt-3">Chưa có interpretation record.</p>
-                  )}
-                  {progressFacts.decompositionReady ? (
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-sm text-foreground">Decomposition</span>
-                      <StatusPill status="AVAILABLE" label="AVAILABLE" />
+
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                      <div className="p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT</p>
+                        <p className="text-base font-medium text-foreground mt-1">
+                          {projectLabel}
+                        </p>
+                        {projectId ? (
+                          <code className="text-xs text-muted-foreground mt-1 block font-mono">{projectId}</code>
+                        ) : (
+                          <span className="text-xs text-muted-foreground mt-1 block">Chưa tạo project</span>
+                        )}
+                      </div>
+
+                      <div className="p-4 border-t border-border">
+                        <StepBreadcrumb steps={progress.steps} title={progress.title} />
+                      </div>
+
+                      <div className="p-4 border-t border-border">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API STATUS</p>
+                        {progressFacts.interpretationStatus ? (
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-sm text-foreground">Interpretation</span>
+                            <StatusPill status={progressFacts.interpretationStatus} />
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground mt-3">Chưa có interpretation record.</p>
+                        )}
+                        {progressFacts.decompositionReady ? (
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-sm text-foreground">Decomposition</span>
+                            <StatusPill status="AVAILABLE" label="AVAILABLE" />
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground mt-3">Chưa có graph view.</p>
+                        )}
+                      </div>
+
+                      <div className="p-4 border-t border-border flex flex-col gap-2">
+                        <Link
+                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 1 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          href={understandingHref}
+                        >
+                          <FileText size={15} /> Step 1 · Interpretation
+                        </Link>
+                        <Link
+                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 2 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          href={decompositionHref}
+                        >
+                          <Search size={15} /> Step 2 · Structured decomposition
+                        </Link>
+                        <Link
+                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 3 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          href={researchHref}
+                        >
+                          <CircleHelp size={15} /> Steps 3–8 · Evidence → feasibility
+                        </Link>
+                        <Link
+                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 4 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          href={finalReviewHref}
+                        >
+                          <ShieldCheck size={15} /> Steps 9–10 · Spec review & finalize
+                        </Link>
+                      </div>
+
+                      {fixtureMode ? (
+                        <p className="p-4 text-xs text-amber-700 bg-amber-500/10 border-t border-amber-500/20 dark:text-amber-300">
+                          Fixture mode không ghi production data và không đại diện cho live
+                          LLM, PostgreSQL hay literature results.
+                        </p>
+                      ) : null}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground mt-3">Chưa có graph view.</p>
-                  )}
-                </div>
-
-                <div className="p-4 border-t border-border flex flex-col gap-2">
-                  <Link
-                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 1 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-                    href={understandingHref}
-                  >
-                    <FileText size={15} /> Step 1 · Interpretation
-                  </Link>
-                  <Link
-                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 2 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-                    href={decompositionHref}
-                  >
-                    <Search size={15} /> Step 2 · Structured decomposition
-                  </Link>
-                  <Link
-                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 3 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-                    href={researchHref}
-                  >
-                    <CircleHelp size={15} /> Steps 3–8 · Evidence → feasibility
-                  </Link>
-                  <Link
-                    className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 4 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
-                    href={finalReviewHref}
-                  >
-                    <ShieldCheck size={15} /> Steps 9–10 · Spec review & finalize
-                  </Link>
-                </div>
-
-                {fixtureMode ? (
-                  <p className="p-4 text-xs text-amber-700 bg-amber-500/10 border-t border-amber-500/20 dark:text-amber-300">
-                    Fixture mode không ghi production data và không đại diện cho live
-                    LLM, PostgreSQL hay literature results.
-                  </p>
-                ) : null}
-              </div>
-              </>
-            ) : (
-              <div className="flex h-full items-start justify-center p-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:bg-accent hover:text-foreground"
-                  onClick={() => {
-                    setPanelWidth(SIDEBAR_DEFAULT_WIDTH);
-                    setCollapsePreview(false);
-                    setPanelOpen(true);
-                  }}
-                  aria-label="Mở bảng tiến trình"
-                  title="Mở bảng tiến trình"
-                  aria-controls="workflow-sidebar"
-                  aria-expanded={panelOpen && !collapsePreview}
-                >
-                  <PanelRightOpen size={17} />
-                </Button>
-              </div>
-            )}
-            </aside>
+                  </>
+                )}
+              </aside>
+            </ResizablePanel>
           </>
         ) : null}
-      </div>
+      </ResizablePanelGroup>
     </div>
   );
 }
