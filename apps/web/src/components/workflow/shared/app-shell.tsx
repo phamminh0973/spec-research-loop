@@ -233,7 +233,7 @@ export function AppShell({
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="Điều hướng chính">
             <HeaderNavLink href="/" label="Trang chủ" icon={Home} active={isNavActive("/")} />
-            <HeaderNavLink href="/projects/new" label="Dự án" icon={Folder} active={isNavActive("/projects")} />
+            <HeaderNavLink href="/projects" label="Dự án" icon={Folder} active={isNavActive("/projects")} />
             <HeaderNavLink href="/history" label="Lịch sử phiên bản" icon={History} active={isNavActive("/history")} />
             <HeaderNavLink href="/help" label="Trợ giúp" icon={CircleHelp} active={isNavActive("/help")} />
           </nav>
