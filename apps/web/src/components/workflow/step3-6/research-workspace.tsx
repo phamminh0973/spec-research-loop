@@ -26,6 +26,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
   const [autoFindQuery, setAutoFindQuery] = useState<string | null>(null);
   const [autoFindPapers, setAutoFindPapers] = useState<any[]>([]);
 
+  const utils = trpc.useUtils();
   const project = trpc.projects.byId.useQuery({ id: projectId }, { enabled: !fixtureMode, retry: false });
   const graph = trpc.decomposition.byProject.useQuery({ projectId }, { enabled: !fixtureMode, retry: false });
   const sources = trpc.literature.list.useQuery(
@@ -42,9 +43,21 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
       sources.refetch();
     },
   });
-  const gap = trpc.researchDesign.generateGapProposal.useMutation();
-  const claims = trpc.researchDesign.generateClaimDesign.useMutation();
-  const plans = trpc.researchDesign.generateExperimentPlan.useMutation();
+  const gap = trpc.researchDesign.generateGapProposal.useMutation({
+    onSuccess: () => {
+      utils.researchDesign.gapProposal.invalidate({ projectId });
+    },
+  });
+  const claims = trpc.researchDesign.generateClaimDesign.useMutation({
+    onSuccess: () => {
+      utils.researchDesign.listClaims.invalidate({ projectId });
+    },
+  });
+  const plans = trpc.researchDesign.generateExperimentPlan.useMutation({
+    onSuccess: () => {
+      utils.researchDesign.listPlans.invalidate({ projectId });
+    },
+  });
   const claimList = trpc.researchDesign.listClaims.useQuery({ projectId }, { enabled: !fixtureMode, retry: false });
   const planList = trpc.researchDesign.listPlans.useQuery({ projectId }, { enabled: !fixtureMode, retry: false });
   const gapProposal = trpc.researchDesign.gapProposal.useQuery(
@@ -258,7 +271,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
                 <p className="mt-1 text-xs text-muted-foreground">Baseline: {claim.baseline} · Falsification: {claim.falsificationCondition}</p>
               </div>
             ))}
-            <Button onClick={generatePlan} disabled={plans.isPending || fixtureMode || !selectedClaims.length}><FlaskConical className="mr-2 size-4" />Generate experiment plan</Button>
+            <div className="flex justify-end"><Button onClick={generatePlan} disabled={plans.isPending || fixtureMode || !selectedClaims.length}><FlaskConical className="mr-2 size-4" />Generate experiment plan</Button></div>
             {plansView.map((plan, index) => (
               <div key={index} className="rounded-lg border p-4 space-y-3">
                 <div className="flex items-center justify-between"><h3 className="font-semibold">Plan {index + 1}</h3><Badge>{plan.tier}</Badge></div>
