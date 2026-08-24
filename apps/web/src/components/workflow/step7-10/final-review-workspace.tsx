@@ -9,10 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  buildResearchSpecMarkdown,
+  downloadMarkdown,
+  getResearchSpecFilename,
+  type MarkdownJudge,
+  type MarkdownSection,
+} from "./markdown-export";
 
 type Props = { projectId: string; fixtureMode: boolean };
 
-const sections = [
+const sections: MarkdownSection[] = [
   ["1. Problem statement", "Research ideas are often underspecified, making gap, claim and experiment quality difficult to verify."],
   ["2. Research questions", "Does claim-level evidence feedback reduce unsupported claims under a fixed inference budget?"],
   ["3. Related-work matrix", "Compare prompt optimization, self-refinement and evidence-grounded approaches using source-linked observations."],
@@ -29,7 +36,7 @@ const sections = [
   ["14. Decision history", "User confirmation is required before finalization; revisions create a new version rather than silently overwriting the previous draft."],
 ];
 
-const judges = [
+const judges: MarkdownJudge[] = [
   { name: "Evidence Judge", focus: "citation/evidence support, orphan claims, provenance integrity", score: "MAJOR", finding: "Require provenance-backed evidence before presenting a claim as supported." },
   { name: "Research Judge", focus: "gap quality, contribution scope and overclaiming", score: "MINOR", finding: "Keep novelty language corpus-bounded; do not claim global novelty." },
   { name: "Experiment Judge", focus: "baseline fairness, metrics, ablations and feasibility", score: "MAJOR", finding: "Freeze model, data, token budget and call count; include a held-out set." },
@@ -47,28 +54,15 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
   }, []);
 
   function exportMarkdown() {
-    const body = [
-      "# SpecLoop Research Specification",
-      "",
-      ...sections.flatMap(([title, content]) => [`## ${title}`, "", content, ""]),
-      "## Judge review",
-      "",
-      ...judges.flatMap((j) => [`### ${j.name}`, `- Focus: ${j.focus}`, `- Severity: ${j.score}`, `- Finding: ${j.finding}`, ""]),
-      "## User revision decision",
-      "",
-      `Decision: ${decision}`,
-      custom ? `Other: ${custom}` : "",
-      `Version: ${version}`,
-      "",
-      finalized ? "Status: FINALIZED" : "Status: DRAFT",
-    ].join("\n");
-    const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `specloop-research-spec-v${version}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const body = buildResearchSpecMarkdown({
+      sections,
+      judges,
+      decision,
+      custom,
+      version,
+      finalized,
+    });
+    downloadMarkdown(body, getResearchSpecFilename(version));
   }
 
   return (
@@ -77,7 +71,7 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
         <div className="flex items-start gap-4">
           <span className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText size={26} /></span>
           <div>
-            <h1 className="text-2xl font-bold">7–10. Specification, Judges & Finalization</h1>
+            <h1 className="text-2xl font-bold">9–10. Specification, Judges & Finalization</h1>
             <p className="mt-1 text-muted-foreground">Tạo bản spec 14 phần, đánh giá độc lập, cho user quyết định revision rồi export bản cuối.</p>
           </div>
         </div>

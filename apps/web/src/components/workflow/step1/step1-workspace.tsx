@@ -470,9 +470,7 @@ export function UnderstandingWorkspace({
     <AppShell
       activeStep={1}
       projectId={projectId}
-      projectTitle={project?.title}
       fixtureMode={fixtureMode}
-      interpretationStatus={record?.status ?? null}
     >
       <div className="space-y-8">
         <PageHeading
@@ -495,9 +493,9 @@ export function UnderstandingWorkspace({
 
         {error ? (
           <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive" role="alert">
-            <AlertDescription>
+            <AlertDescription className="flex flex-col gap-1">
               <strong>API operation unavailable</strong>
-              {errorMessage(error)}
+              <span>{errorMessage(error)}</span>
             </AlertDescription>
           </Alert>
         ) : null}

@@ -7,11 +7,11 @@ import { Alert } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "../shared/app-shell";
-import { LOCAL_PROJECT } from "../shared/local-fixtures";
 import { cloneLocalGraph } from "./step2-fixtures";
 import {
   buildNodeReviewRows,
   buildRelationReviewRows,
+  calculateStep2Readiness,
   filterAndSortNodeReviewRows,
   type NodeReviewRow,
   type RelationReviewRow,
@@ -65,10 +65,6 @@ export function Step2Workspace({
   );
 
   const utils = trpc.useUtils();
-  const projectQuery = trpc.projects.byId.useQuery(
-    { id: projectId },
-    { enabled: !fixtureMode, retry: false }
-  );
   const graphQuery = trpc.decomposition.byProject.useQuery(
     { projectId },
     { enabled: !fixtureMode, retry: false }
@@ -103,7 +99,6 @@ export function Step2Workspace({
   });
 
   const graph = fixtureMode ? localGraph : (graphQuery.data ?? null);
-  const project = fixtureMode ? LOCAL_PROJECT : projectQuery.data;
   const pending =
     generate.isPending ||
     updateNode.isPending ||
@@ -312,14 +307,7 @@ export function Step2Workspace({
   }
 
   return (
-    <AppShell
-      activeStep={2}
-      projectId={projectId}
-      projectTitle={project?.title}
-      fixtureMode={fixtureMode}
-      interpretationStatus="USER_CONFIRMED"
-      hasGraph={Boolean(graph)}
-    >
+    <AppShell activeStep={2} projectId={projectId} fixtureMode={fixtureMode}>
       <div className="space-y-8">
         <Step2Overview
           graph={graph}

@@ -46,6 +46,10 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
   const plans = trpc.researchDesign.generateExperimentPlan.useMutation();
   const claimList = trpc.researchDesign.listClaims.useQuery({ projectId }, { enabled: !fixtureMode, retry: false });
   const planList = trpc.researchDesign.listPlans.useQuery({ projectId }, { enabled: !fixtureMode, retry: false });
+  const gapProposal = trpc.researchDesign.gapProposal.useQuery(
+    { projectId },
+    { enabled: !fixtureMode, retry: false },
+  );
 
   const sourceItems = fixtureMode ? fixtureSelected : (sources.data?.items ?? []);
   const selectedItems = sourceItems.filter((s) => s.selected);
@@ -58,7 +62,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
     nearestWorkIds: [],
     noveltyRisk: "Corpus-bounded only; absence from this demo corpus is not proof of global novelty.",
     scope: "Scientific paper information extraction.",
-  }] : (gap.data?.candidates ?? []);
+  }] : (gap.data?.candidates ?? gapProposal.data?.candidates ?? []);
 
   const selectedClaims = fixtureMode ? [{
     id: "fixture-claim-1",
@@ -164,7 +168,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
           <div className="flex items-center gap-3">
             <span className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><BookOpen size={26} /></span>
             <div>
-              <h1 className="text-2xl font-bold">3–6. Evidence → Gap → Experiment</h1>
+              <h1 className="text-2xl font-bold">3–8. Evidence → Feasibility</h1>
               <p className="text-muted-foreground mt-1">Tích hợp literature, evidence, research gap, claim và experiment plan trước khi tạo research specification.</p>
             </div>
           </div>
@@ -244,7 +248,7 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
         </SectionCard>
 
         <SectionCard>
-          <SectionHeader icon={FlaskConical} title="Step 6 — Experiment plan & feasibility" tone="purple" />
+          <SectionHeader icon={FlaskConical} title="Steps 6–8 — Claims → experiment → feasibility" tone="purple" />
           <CardContent className="space-y-5">
             {selectedClaims.map((claim, index) => (
               <div key={claim.id} className="rounded-lg border p-4">
