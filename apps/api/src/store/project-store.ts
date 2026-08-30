@@ -1,11 +1,15 @@
 /**
- * In-memory, project-scoped repositories for P0.
+ * Project-scoped repositories for P0.
  *
  * The architecture (docs/03 §6) defines module boundaries (`literature`,
  * `evidence`, `research_design`, …) that communicate through application
- * services in the same backend. P0 ships without PostgreSQL; these maps are
- * the single in-process source of truth and are replaced by `pg` +
- * node-pg-migrate when the persistence epic lands.
+ * services in the same backend. Each store below is a `PersistedMap` (see
+ * `../db/persisted-map.ts`): a synchronous, in-memory `Map`-compatible
+ * cache that also write-throughs to Postgres when `DATABASE_URL` is
+ * configured, and is silently a pure in-memory Map when it is not — which
+ * is exactly the mode every vitest suite runs in. Call sites elsewhere in
+ * the codebase are unaware of any of this; they only ever call
+ * `.get`/`.set`/`.clear`/`.entries`, same as before persistence existed.
  *
  * Each repository is keyed by project id so cross-project leakage is
  * impossible at the data layer. Records are plain objects validated by the
@@ -30,6 +34,7 @@ import type {
 } from "@specloop/schemas";
 import { UuidSchema } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
+import { PersistedMap, PersistedNestedMap } from "../db/persisted-map.js";
 
 /**
  * Validate and coerce a value against a Zod schema, rethrowing as a tRPC
@@ -60,19 +65,61 @@ export function assertUuid(id: string, label = "id"): void {
 // Per-project collections
 // ---------------------------------------------------------------------------
 
-export const sourcesByProject = new Map<string, SourceDocument[]>();
-export const evidenceSpansByProject = new Map<string, EvidenceSpan[]>();
-export const claimEvidenceLinksByProject = new Map<string, ClaimEvidenceLink[]>();
-export const atomicClaimsByProject = new Map<string, AtomicClaim[]>();
-export const contributionsByProject = new Map<string, Contribution[]>();
-export const experimentPlansByProject = new Map<string, ExperimentPlan[]>();
+export const sourcesByProject = new PersistedMap<SourceDocument[]>({
+  storeKey: "sourcesByProject",
+});
+export const evidenceSpansByProject = new PersistedMap<EvidenceSpan[]>({
+  storeKey: "evidenceSpansByProject",
+});
+export const claimEvidenceLinksByProject = new PersistedMap<ClaimEvidenceLink[]>({
+  storeKey: "claimEvidenceLinksByProject",
+});
+export const atomicClaimsByProject = new PersistedMap<AtomicClaim[]>({
+  storeKey: "atomicClaimsByProject",
+});
+export const contributionsByProject = new PersistedMap<Contribution[]>({
+  storeKey: "contributionsByProject",
+});
+export const experimentPlansByProject = new PersistedMap<ExperimentPlan[]>({
+  storeKey: "experimentPlansByProject",
+});
 
 /**
  * Most recent gap proposal per project. Kept separate from the persisted
  * claims because a gap proposal is *proposed* data until the user selects
  * one (AI design §17 human confirmation point).
  */
-export const gapProposalsByProject = new Map<string, GapProposalOutput>();
+export const gapProposalsByProject = new PersistedMap<GapProposalOutput>({
+  storeKey: "gapProposalsByProject",
+});
+
+/**
+ * Most recent Judge panel result per project (Bước 9 / AIT-09). Kept as a
+ * single latest value per project, mirroring `gapProposalsByProject` — the
+ * user reviews and decides revisions (Bước 10) against this run before a
+ * new one supersedes it.
+ */
+export const judgePanelsByProject = new PersistedMap<JudgePanelResult>({
+  storeKey: "judgePanelsByProject",
+});
+
+/**
+ * Assembled research-spec versions per project (Bước 8, AIT-10). Every
+ * generate call appends a new version rather than overwriting — Bước 10's
+ * revision loop needs the full history to diff against.
+ */
+export const researchSpecsByProject = new PersistedMap<ResearchSpec[]>({
+  storeKey: "researchSpecsByProject",
+});
+
+/**
+ * Bước 10 finding-resolution decisions per project (see `revision` module).
+ * Append-only — every decision on a Judge finding is kept for the decision
+ * log (Section 14 of the research spec), never overwritten.
+ */
+export const findingResolutionsByProject = new PersistedMap<FindingResolution[]>({
+  storeKey: "findingResolutionsByProject",
+});
 
 /**
  * Most recent Judge panel result per project (Bước 9 / AIT-09). Kept as a
@@ -101,25 +148,47 @@ export const findingResolutionsByProject = new Map<string, FindingResolution[]>(
  * spec-structure module's `InMemorySpecGraphStore`; each value is a validated
  * `SpecGraphView` and is replaced atomically on regeneration.
  */
-export const specGraphsByProject = new Map<string, SpecGraphView>();
+export const specGraphsByProject = new PersistedMap<SpecGraphView>({
+  storeKey: "specGraphsByProject",
+});
 
 /**
  * Per-project interpretation versions (Bước 1 / AIT-01). Outer key is project
  * id; inner map is keyed by interpretation id so a project can retain
- * superseded versions alongside the active proposal.
+ * superseded versions alongside the active proposal. Uses
+ * `PersistedNestedMap` since the value itself is a `Map`, which
+ * `PersistedMap` cannot represent as a single JSONB row.
  */
-export const interpretationsByProject = new Map<
-  string,
-  Map<string, InterpretationRecord>
->();
+export const interpretationsByProject = new PersistedNestedMap<InterpretationRecord>({
+  storeKey: "interpretationsByProject",
+});
 
 /** Per-project decision trail for the Step 1 confirm/revise/regenerate lifecycle. */
-export const interpretationDecisionsByProject = new Map<
-  string,
-  InterpretationDecision[]
->();
+export const interpretationDecisionsByProject = new PersistedMap<InterpretationDecision[]>({
+  storeKey: "interpretationDecisionsByProject",
+});
 
-/** Test-only escape hatch: drop every in-memory collection. */
+/**
+ * Every `PersistedMap`/`PersistedNestedMap` above, for `db/hydrate.ts` to
+ * hydrate at startup without needing to know each store's value type.
+ */
+export const ALL_PERSISTED_STORES: { hydrate(): Promise<void> }[] = [
+  sourcesByProject,
+  evidenceSpansByProject,
+  claimEvidenceLinksByProject,
+  atomicClaimsByProject,
+  contributionsByProject,
+  experimentPlansByProject,
+  gapProposalsByProject,
+  judgePanelsByProject,
+  researchSpecsByProject,
+  findingResolutionsByProject,
+  specGraphsByProject,
+  interpretationsByProject,
+  interpretationDecisionsByProject,
+];
+
+/** Test-only escape hatch: drop every in-memory cache. Never touches Postgres — see the module doc comment above. */
 export function resetProjectStore(): void {
   sourcesByProject.clear();
   evidenceSpansByProject.clear();
@@ -136,12 +205,35 @@ export function resetProjectStore(): void {
   interpretationDecisionsByProject.clear();
 }
 
-/** Return (or create) the list backing a project-scoped collection. */
-export function getOrCreate<K, V>(map: Map<K, V[]>, key: K): V[] {
-  let list = map.get(key);
-  if (!list) {
-    list = [];
-    map.set(key, list);
-  }
+/**
+ * Append items to a project-scoped list and write the *new* array back via
+ * `.set()`. Prefer this over reading a list and calling `.push()` on it
+ * for any store that may be backed by `PersistedMap` (see
+ * `db/persisted-map.ts`): a `.push()` on the array returned by `.get()`
+ * mutates it in place and never calls `.set()`, so a write-through
+ * persistence layer would never see the change.
+ */
+export function appendToProjectList<K, V>(
+  map: { get(key: K): V[] | undefined; set(key: K, value: V[]): unknown },
+  key: K,
+  ...items: V[]
+): V[] {
+  const updated = [...(map.get(key) ?? []), ...items];
+  map.set(key, updated);
+  return updated;
+}
+
+/**
+ * Re-persist a project-scoped list after mutating its elements in place
+ * (e.g. filling in `source.analysis` on existing `SourceDocument`s). The
+ * in-memory array is already correct by reference; this just forces a
+ * `.set()` so a write-through persistence layer picks up the change too.
+ */
+export function touchProjectList<K, V>(
+  map: { get(key: K): V[] | undefined; set(key: K, value: V[]): unknown },
+  key: K,
+): V[] {
+  const list = map.get(key) ?? [];
+  map.set(key, list);
   return list;
 }

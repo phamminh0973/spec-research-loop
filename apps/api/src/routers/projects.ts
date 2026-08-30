@@ -21,6 +21,7 @@ import {
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { PersistedMap } from "../db/persisted-map.js";
 import { protectedProcedure, publicProcedure, router } from "../trpc/trpc.js";
 
 export interface ProjectRecord {
@@ -33,7 +34,12 @@ export interface ProjectRecord {
   updatedAt: string;
 }
 
-const projects = new Map<string, ProjectRecord>();
+const projects = new PersistedMap<ProjectRecord>({ storeKey: "projectsById" });
+
+/** For `db/hydrate.ts` — hydrates the same way every other store does. */
+export async function hydrateProjectsStore(): Promise<void> {
+  await projects.hydrate();
+}
 
 /**
  * Look up a project's raw idea/constraints for other modules (e.g. the

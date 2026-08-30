@@ -1,4 +1,5 @@
-# PLANNED scaffold. Application Dockerfiles are not present yet.
+# db, api, web are exercised locally (see README); worker was removed
+# below because apps/worker does not exist yet — see the note there.
 services:
   db:
     image: postgres:16-alpine
@@ -35,19 +36,12 @@ services:
       db:
         condition: service_healthy
 
-  worker:
-    build:
-      context: ./apps/worker
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-spec_research}:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/${POSTGRES_DB:-spec_research_loop}
-      STORAGE_PATH: /app/storage
-    volumes:
-      - ./storage:/app/storage
-    depends_on:
-      db:
-        condition: service_healthy
+  # A `worker` service (for background jobs — e.g. batched PDF ingestion)
+  # was scaffolded here but `apps/worker` was never implemented, so
+  # `docker compose up` failed outright trying to build a nonexistent
+  # context. Removed rather than stubbed: a stub service that does
+  # nothing would be more misleading than an honest gap. Add it back
+  # (with a real `apps/worker` app) when that work starts.
 
   web:
     build:

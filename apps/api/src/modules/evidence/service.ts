@@ -19,7 +19,8 @@ import { structuredCall } from "../../llm/structured-call.js";
 import {
   claimEvidenceLinksByProject,
   evidenceSpansByProject,
-  getOrCreate,
+  appendToProjectList,
+  touchProjectList,
   parseOrThrow,
   sourcesByProject,
 } from "../../store/project-store.js";
@@ -90,7 +91,7 @@ export function createSpan(params: {
     },
     "EvidenceSpan",
   );
-  getOrCreate(evidenceSpansByProject, projectId).push(span);
+  appendToProjectList(evidenceSpansByProject, projectId, span);
   return span;
 }
 
@@ -135,7 +136,7 @@ export function createLink(params: {
     "ClaimEvidenceLink",
   );
   link.integrityStatus = computeIntegrity(link, span);
-  getOrCreate(claimEvidenceLinksByProject, projectId).push(link);
+  appendToProjectList(claimEvidenceLinksByProject, projectId, link);
   return link;
 }
 
@@ -161,6 +162,10 @@ export function runIntegrityChecks(projectId: string): { results: { linkId: stri
     link.updatedAt = new Date().toISOString();
     return { linkId: link.id, integrityStatus: link.integrityStatus };
   });
+  // Every `link` above was mutated in place; force a `.set()` so a
+  // write-through persistence layer (see db/persisted-map.ts) sees the
+  // recomputed integrity statuses too.
+  touchProjectList(claimEvidenceLinksByProject, projectId);
   return { results };
 }
 
@@ -211,5 +216,8 @@ export async function runReview(params: {
     unsupportedAspects: review.unsupportedAspects,
   };
   link.updatedAt = new Date().toISOString();
+  // `link` is mutated in place above; force a `.set()` so a write-through
+  // persistence layer (see db/persisted-map.ts) sees the updated review.
+  touchProjectList(claimEvidenceLinksByProject, projectId);
   return parseOrThrow(ClaimEvidenceLinkSchema, link, "ClaimEvidenceLink");
 }

@@ -32,7 +32,7 @@ import {
   contributionsByProject,
   experimentPlansByProject,
   gapProposalsByProject,
-  getOrCreate,
+  appendToProjectList,
   parseOrThrow,
   sourcesByProject,
   specGraphsByProject,
@@ -205,7 +205,7 @@ export async function generateClaimDesign(params: {
       "AtomicClaim",
     ),
   );
-  getOrCreate(atomicClaimsByProject, projectId).push(...persistedClaims);
+  appendToProjectList(atomicClaimsByProject, projectId, ...persistedClaims);
 
   const persistedContributions: Contribution[] = design.contributions.map((c) => {
     const id = crypto.randomUUID();
@@ -228,7 +228,7 @@ export async function generateClaimDesign(params: {
       "Contribution",
     );
   });
-  getOrCreate(contributionsByProject, projectId).push(...persistedContributions);
+  appendToProjectList(contributionsByProject, projectId, ...persistedContributions);
 
   // Return design with persisted IDs substituted.
   return {
@@ -296,6 +296,6 @@ export async function generateExperimentPlan(params: {
     },
     "ExperimentPlan",
   );
-  getOrCreate(experimentPlansByProject, projectId).push(plan);
+  appendToProjectList(experimentPlansByProject, projectId, plan);
   return plan;
 }
