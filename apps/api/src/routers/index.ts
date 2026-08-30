@@ -10,6 +10,7 @@ import { router } from "../trpc/trpc.js";
 import { decompositionRouter } from "./decomposition.js";
 import { evidenceRouter } from "./evidence.js";
 import { healthRouter } from "./health.js";
+import { judgeRouter } from "./judge.js";
 import { literatureRouter } from "./literature.js";
 import { interpretationRouter } from "./interpretation.js";
 import { projectsRouter } from "./projects.js";
@@ -23,6 +24,7 @@ export const appRouter = router({
   evidence: evidenceRouter,
   researchDesign: researchDesignRouter,
   interpretation: interpretationRouter,
+  judge: judgeRouter,
 });
 
 export type AppRouter = typeof appRouter;

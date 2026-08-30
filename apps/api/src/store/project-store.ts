@@ -22,6 +22,7 @@ import type {
   GapProposalOutput,
   InterpretationDecision,
   InterpretationRecord,
+  JudgePanelResult,
   SourceDocument,
   SpecGraphView,
 } from "@specloop/schemas";
@@ -72,6 +73,14 @@ export const experimentPlansByProject = new Map<string, ExperimentPlan[]>();
 export const gapProposalsByProject = new Map<string, GapProposalOutput>();
 
 /**
+ * Most recent Judge panel result per project (Bước 9 / AIT-09). Kept as a
+ * single latest value per project, mirroring `gapProposalsByProject` — the
+ * user reviews and decides revisions (Bước 10) against this run before a
+ * new one supersedes it.
+ */
+export const judgePanelsByProject = new Map<string, JudgePanelResult>();
+
+/**
  * Per-project decomposition graph (Bước 2 / AIT-02). Backs the
  * spec-structure module's `InMemorySpecGraphStore`; each value is a validated
  * `SpecGraphView` and is replaced atomically on regeneration.
@@ -103,6 +112,7 @@ export function resetProjectStore(): void {
   contributionsByProject.clear();
   experimentPlansByProject.clear();
   gapProposalsByProject.clear();
+  judgePanelsByProject.clear();
   specGraphsByProject.clear();
   interpretationsByProject.clear();
   interpretationDecisionsByProject.clear();
