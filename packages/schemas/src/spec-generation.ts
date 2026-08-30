@@ -60,6 +60,9 @@ export const SpecSectionSchema = z.object({
 });
 export type SpecSection = z.infer<typeof SpecSectionSchema>;
 
+export const ResearchSpecStatusSchema = z.enum(["DRAFT", "FINALIZED"]);
+export type ResearchSpecStatus = z.infer<typeof ResearchSpecStatusSchema>;
+
 export const ResearchSpecSchema = z
   .object({
     id: UuidSchema,
@@ -67,6 +70,9 @@ export const ResearchSpecSchema = z
     /** Monotonically increasing per project; Bước 10 creates a new version on each user revision. */
     version: z.number().int().positive(),
     sections: z.array(SpecSectionSchema).length(SPEC_SECTION_ORDER.length),
+    /** DRAFT until the user explicitly finalizes it (Bước 10) — the app assigns this, never the model. */
+    status: ResearchSpecStatusSchema.default("DRAFT"),
+    finalizedAt: IsoTimestampSchema.nullable().default(null),
     createdAt: IsoTimestampSchema,
   })
   .superRefine((spec, context) => {
