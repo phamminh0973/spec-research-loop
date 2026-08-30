@@ -18,6 +18,7 @@
  *   - `evidence`         spans, provenance, claim links, verifier
  *   - `research-design`  gap, contribution, claim, experiment, feasibility
  *   - `judge`            five independent Judges, findings, panel consensus
+ *   - `spec-generation`  deterministic 14-section research spec assembly
  */
 
 export * from "./common";
@@ -30,3 +31,4 @@ export * from "./literature";
 export * from "./evidence";
 export * from "./research-design";
 export * from "./judge";
+export * from "./spec-generation";
