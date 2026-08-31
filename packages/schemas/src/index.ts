@@ -17,6 +17,10 @@
  *   - `literature`       academic search, normalize, deduplicate, select
  *   - `evidence`         spans, provenance, claim links, verifier
  *   - `research-design`  gap, contribution, claim, experiment, feasibility
+ *   - `judge`            five independent Judges, findings, panel consensus
+ *   - `spec-generation`  deterministic 14-section research spec assembly
+ *   - `revision`         Bước 10: finding resolutions, Judge re-run, version diff, finalize
+ *   - `pdf`              uploaded source PDFs: extracted pages, quote-located evidence spans
  */
 
 export * from "./common";
@@ -28,3 +32,7 @@ export * from "./decomposition";
 export * from "./literature";
 export * from "./evidence";
 export * from "./research-design";
+export * from "./judge";
+export * from "./spec-generation";
+export * from "./revision";
+export * from "./pdf";

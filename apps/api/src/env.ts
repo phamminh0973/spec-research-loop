@@ -43,6 +43,20 @@ export const env = createEnv({
     LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     /** Bounded retry count for transient failures (AI design §13). */
     LLM_MAX_RETRIES: z.coerce.number().int().positive().default(2),
+
+    // ------------------------------------------------------------------
+    // Persistence (apps/api/src/db) — optional. When unset, every store
+    // in `src/store/project-store.ts` runs purely in-memory, which is
+    // exactly the mode all vitest suites run in. When set, the same
+    // stores also persist to Postgres and hydrate from it at startup.
+    // ------------------------------------------------------------------
+    DATABASE_URL: z.string().url().optional(),
+
+    // ------------------------------------------------------------------
+    // PDF ingestion (apps/api/src/pdf) — where uploaded source PDFs are
+    // written to disk. See modules/pdf-ingestion.
+    // ------------------------------------------------------------------
+    STORAGE_PATH: z.string().min(1).default("./storage"),
   },
   runtimeEnv: process.env,
   // Treat `VAR=` (empty string) as unset so Zod defaults/optionals apply

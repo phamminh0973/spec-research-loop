@@ -10,10 +10,14 @@ import { router } from "../trpc/trpc.js";
 import { decompositionRouter } from "./decomposition.js";
 import { evidenceRouter } from "./evidence.js";
 import { healthRouter } from "./health.js";
+import { judgeRouter } from "./judge.js";
 import { literatureRouter } from "./literature.js";
 import { interpretationRouter } from "./interpretation.js";
+import { pdfIngestionRouter } from "./pdf-ingestion.js";
 import { projectsRouter } from "./projects.js";
 import { researchDesignRouter } from "./research-design.js";
+import { revisionRouter } from "./revision.js";
+import { specGenerationRouter } from "./spec-generation.js";
 
 export const appRouter = router({
   health: healthRouter,
@@ -23,6 +27,10 @@ export const appRouter = router({
   evidence: evidenceRouter,
   researchDesign: researchDesignRouter,
   interpretation: interpretationRouter,
+  judge: judgeRouter,
+  specGeneration: specGenerationRouter,
+  revision: revisionRouter,
+  pdfIngestion: pdfIngestionRouter,
 });
 
 export type AppRouter = typeof appRouter;
