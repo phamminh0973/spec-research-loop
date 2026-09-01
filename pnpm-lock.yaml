@@ -102,6 +102,9 @@ importers:
       '@trpc/server':
         specifier: ^11.18.0
         version: 11.18.0(typescript@7.0.2)
+      build-md:
+        specifier: ^0.4.6
+        version: 0.4.6
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
