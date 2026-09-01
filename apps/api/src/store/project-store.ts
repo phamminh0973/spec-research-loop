@@ -122,28 +122,6 @@ export const findingResolutionsByProject = new PersistedMap<FindingResolution[]>
 });
 
 /**
- * Most recent Judge panel result per project (Bước 9 / AIT-09). Kept as a
- * single latest value per project, mirroring `gapProposalsByProject` — the
- * user reviews and decides revisions (Bước 10) against this run before a
- * new one supersedes it.
- */
-export const judgePanelsByProject = new Map<string, JudgePanelResult>();
-
-/**
- * Assembled research-spec versions per project (Bước 8, AIT-10). Every
- * generate call appends a new version rather than overwriting — Bước 10's
- * revision loop needs the full history to diff against.
- */
-export const researchSpecsByProject = new Map<string, ResearchSpec[]>();
-
-/**
- * Bước 10 finding-resolution decisions per project (see `revision` module).
- * Append-only — every decision on a Judge finding is kept for the decision
- * log (Section 14 of the research spec), never overwritten.
- */
-export const findingResolutionsByProject = new Map<string, FindingResolution[]>();
-
-/**
  * Per-project decomposition graph (Bước 2 / AIT-02). Backs the
  * spec-structure module's `InMemorySpecGraphStore`; each value is a validated
  * `SpecGraphView` and is replaced atomically on regeneration.
