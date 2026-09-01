@@ -23,6 +23,7 @@ import type {
   InterpretationDecision,
   InterpretationRecord,
   JudgePanelResult,
+  ResearchSpec,
   SourceDocument,
   SpecGraphView,
 } from "@specloop/schemas";
@@ -81,6 +82,13 @@ export const gapProposalsByProject = new Map<string, GapProposalOutput>();
 export const judgePanelsByProject = new Map<string, JudgePanelResult>();
 
 /**
+ * Assembled research-spec versions per project (Bước 8, AIT-10). Every
+ * generate call appends a new version rather than overwriting — Bước 10's
+ * revision loop needs the full history to diff against.
+ */
+export const researchSpecsByProject = new Map<string, ResearchSpec[]>();
+
+/**
  * Per-project decomposition graph (Bước 2 / AIT-02). Backs the
  * spec-structure module's `InMemorySpecGraphStore`; each value is a validated
  * `SpecGraphView` and is replaced atomically on regeneration.
@@ -113,6 +121,7 @@ export function resetProjectStore(): void {
   experimentPlansByProject.clear();
   gapProposalsByProject.clear();
   judgePanelsByProject.clear();
+  researchSpecsByProject.clear();
   specGraphsByProject.clear();
   interpretationsByProject.clear();
   interpretationDecisionsByProject.clear();
