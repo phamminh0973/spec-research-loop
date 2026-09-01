@@ -60,14 +60,27 @@ export const SpecSectionSchema = z.object({
 });
 export type SpecSection = z.infer<typeof SpecSectionSchema>;
 
-export const ResearchSpecSchema = z.object({
-  id: UuidSchema,
-  projectId: UuidSchema,
-  /** Monotonically increasing per project; Bước 10 creates a new version on each user revision. */
-  version: z.number().int().positive(),
-  sections: z.array(SpecSectionSchema).length(SPEC_SECTION_ORDER.length),
-  createdAt: IsoTimestampSchema,
-});
+export const ResearchSpecSchema = z
+  .object({
+    id: UuidSchema,
+    projectId: UuidSchema,
+    /** Monotonically increasing per project; Bước 10 creates a new version on each user revision. */
+    version: z.number().int().positive(),
+    sections: z.array(SpecSectionSchema).length(SPEC_SECTION_ORDER.length),
+    createdAt: IsoTimestampSchema,
+  })
+  .superRefine((spec, context) => {
+    const ids = spec.sections.map((s) => s.id);
+    const expected = [...SPEC_SECTION_ORDER];
+    if (ids.join("|") !== expected.join("|")) {
+      context.addIssue({
+        code: "custom",
+        path: ["sections"],
+        message:
+          "sections must contain exactly the 14 SpecSectionIds in SPEC_SECTION_ORDER order",
+      });
+    }
+  });
 export type ResearchSpec = z.infer<typeof ResearchSpecSchema>;
 
 export const GenerateResearchSpecInputSchema = z.object({
