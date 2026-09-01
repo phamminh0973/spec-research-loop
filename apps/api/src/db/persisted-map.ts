@@ -95,13 +95,15 @@ export class PersistedMap<V> {
     const pool = this.getPool();
     if (!pool) return; // persistence disabled — stay purely in-memory
     const data = this.serialize(value);
+    const updatedAt = new Date().toISOString();
     pool
       .query(
         `INSERT INTO store_entities (store_key, project_id, entity_key, data, updated_at)
-         VALUES ($1, $2, 'value', $3, now())
+         VALUES ($1, $2, 'value', $3::jsonb, $4::timestamptz)
          ON CONFLICT (store_key, project_id, entity_key)
-         DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
-        [this.storeKey, key, JSON.stringify(data)],
+         DO UPDATE SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at
+         WHERE store_entities.updated_at <= EXCLUDED.updated_at`,
+        [this.storeKey, key, JSON.stringify(data), updatedAt],
       )
       .catch((err: unknown) =>
         this.onError(err, `write-through failed for ${this.storeKey}/${key}`),
