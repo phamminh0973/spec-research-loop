@@ -1,8 +1,9 @@
 # SpecLoop API service image.
 #
-# This is a PLANNED Dockerfile. It is not yet exercised by `docker compose up`
-# because the application code has not been verified end-to-end. See
-# docs/03-architecture-and-technical-design.md §18 for the deployment plan.
+# Builds and runs `apps/api` for `docker compose up`. Persistence is
+# opt-in via `DATABASE_URL` (see apps/api/src/db) — docker-compose.yml
+# sets it to point at the `db` service automatically. Not yet verified
+# with a real `docker compose up` run end-to-end in this environment.
 
 FROM node:20-alpine AS base
 WORKDIR /app

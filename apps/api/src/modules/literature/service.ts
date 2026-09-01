@@ -25,7 +25,8 @@ import { structuredCall } from "../../llm/structured-call.js";
 import { arxivSearchTool, executeArxivSearch } from "../../llm/tools/arxiv-search.js";
 import { executeLlmTool } from "../../llm/tools/index.js";
 import {
-  getOrCreate,
+  appendToProjectList,
+  touchProjectList,
   parseOrThrow,
   sourcesByProject,
 } from "../../store/project-store.js";
@@ -360,7 +361,7 @@ export async function searchWithAnalysis(params: {
     );
   }
   if (newSources.length > 0) {
-    getOrCreate(sourcesByProject, projectId).push(...newSources);
+    appendToProjectList(sourcesByProject, projectId, ...newSources);
   }
 
   // ---------------------------------------------------------------------------
@@ -449,7 +450,7 @@ export async function searchWithAnalysis(params: {
     ]),
   );
   const nowIso = new Date().toISOString();
-  for (const source of getOrCreate(sourcesByProject, projectId)) {
+  for (const source of sourcesByProject.get(projectId) ?? []) {
     const nextAnalysis = analysisByExternalId.get(source.externalId);
     if (nextAnalysis && source.analysis === null) {
       source.analysis = parseOrThrow(
@@ -460,6 +461,10 @@ export async function searchWithAnalysis(params: {
       source.updatedAt = nowIso;
     }
   }
+  // The elements above were mutated in place; force a `.set()` so a
+  // write-through persistence layer (see db/persisted-map.ts) sees the
+  // updated analysis too, not just the in-memory array.
+  touchProjectList(sourcesByProject, projectId);
 
   // Every query attempted during search + filtering, joined for audit.
   return { query: attemptedQueries.join(" | "), papers: analyzed.papers };
@@ -491,7 +496,7 @@ export async function search(params: {
   const now = new Date().toISOString();
   const newSources = kept.map((p) => toSourceDocument(projectId, p, now));
   if (newSources.length > 0) {
-    getOrCreate(sourcesByProject, projectId).push(...newSources);
+    appendToProjectList(sourcesByProject, projectId, ...newSources);
   }
 
   return { papers: kept, duplicatesDropped: dropped };
@@ -539,7 +544,7 @@ export function importManual(params: {
     },
     "SourceDocument",
   );
-  getOrCreate(sourcesByProject, projectId).push(record);
+  appendToProjectList(sourcesByProject, projectId, record);
   return record;
 }
 

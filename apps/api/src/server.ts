@@ -12,6 +12,7 @@
 
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
 import Fastify from "fastify";
+import { bootstrapPersistence, closePool } from "./db/hydrate.js";
 import { env } from "./env.js";
 import { appRouter, type AppRouter } from "./routers/index.js";
 import { createContext } from "./trpc/context.js";
@@ -21,6 +22,8 @@ const HOST = env.API_HOST;
 const WEB_ORIGIN = env.WEB_ORIGIN;
 
 async function main() {
+  await bootstrapPersistence();
+
   const app = Fastify({
     logger: {
       level: env.LOG_LEVEL,
@@ -60,6 +63,14 @@ async function main() {
     app.log.error(err);
     process.exit(1);
   }
+
+  const shutdown = async () => {
+    await app.close();
+    await closePool();
+    process.exit(0);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 void main();

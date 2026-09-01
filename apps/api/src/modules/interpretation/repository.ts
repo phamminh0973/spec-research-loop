@@ -226,11 +226,19 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
         })
       );
     }
+    // `records` is the same inner Map instance returned by `projectRecords`;
+    // mutating it via its own `.set()` never calls the *outer*
+    // `interpretationsByProject.set()`, so a write-through persistence
+    // layer (see db/persisted-map.ts) would miss this change without an
+    // explicit re-set here.
+    interpretationsByProject.set(projectId, records);
   }
 
   private persist(record: InterpretationRecord): InterpretationRecord {
     const parsed = InterpretationRecordSchema.parse(record);
-    this.projectRecords(parsed.projectId).set(parsed.interpretationId, parsed);
+    const records = this.projectRecords(parsed.projectId);
+    records.set(parsed.interpretationId, parsed);
+    interpretationsByProject.set(parsed.projectId, records); // see note in supersedeActive
     return this.cloneRecord(parsed);
   }
 
