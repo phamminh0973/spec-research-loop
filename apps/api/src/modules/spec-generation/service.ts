@@ -112,11 +112,12 @@ export function buildResearchQuestionsSection(questionNodes: SpecNode[]): SpecSe
 export function buildRelatedWorkMatrixSection(sources: SourceDocument[]): SpecSection {
   const selected = sources.filter((s) => s.selected);
   const isPlaceholder = selected.length === 0;
+  const escapeCell = (value: string): string =>
+    value.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br />").trim();
+
   const rows = selected.map((s) => {
     const analysis = s.analysis;
-    return (
-      `| ${s.title} | ${analysis?.achievedOutcome ?? "—"} | ${analysis?.methodology ?? "—"} | ${analysis?.additionalResearchNeeded ?? "—"} |`
-    );
+    return `| ${escapeCell(s.title)} | ${escapeCell(analysis?.achievedOutcome ?? "—")} | ${escapeCell(analysis?.methodology ?? "—")} | ${escapeCell(analysis?.additionalResearchNeeded ?? "—")} |`;
   });
   const content = isPlaceholder
     ? `${PLACEHOLDER_PREFIX} — chưa có nguồn nào được chọn vào corpus.`
