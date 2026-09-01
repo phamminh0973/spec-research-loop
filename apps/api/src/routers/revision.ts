@@ -32,12 +32,15 @@ import {
 } from "../modules/revision/service.js";
 
 function toTrpcError(err: unknown): TRPCError {
+  if (err instanceof TRPCError) return err;
   if (err instanceof RevisionError) {
-    return new TRPCError({ code: "PRECONDITION_FAILED", message: err.message });
+    return new TRPCError({ code: "PRECONDITION_FAILED", message: err.message, cause: err });
   }
+  const message = err instanceof Error ? err.message : String(err);
   return new TRPCError({
     code: "INTERNAL_SERVER_ERROR",
-    message: `Revision step failed: ${(err as Error).message}`,
+    message: `Revision step failed: ${message}`,
+    cause: err,
   });
 }
 
