@@ -42,9 +42,9 @@ export const FindingResolutionSchema = z.object({
   projectId: UuidSchema,
   findingId: UuidSchema,
   judge: JudgeNameSchema,
-  targetSection: z.string(),
+  targetSection: z.string().trim().min(1).max(200),
   resolution: FindingResolutionKindSchema,
-  note: z.string(),
+  note: z.string().trim().min(1).max(2_000),
   createdAt: IsoTimestampSchema,
 });
 export type FindingResolution = z.infer<typeof FindingResolutionSchema>;
