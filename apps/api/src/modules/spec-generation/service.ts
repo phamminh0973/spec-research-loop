@@ -149,7 +149,7 @@ export function buildResearchGapSection(
           .map(
             (c, i) =>
               `${i + 1}. ${c.limitation} (importance: ${c.importance})\n   novelty risk: ${c.noveltyRisk}`,
-          )
+          ) +
         `\n\nWarning: ${gapProposal.warning}`,
     );
   }
