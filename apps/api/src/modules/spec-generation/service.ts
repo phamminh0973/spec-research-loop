@@ -145,9 +145,8 @@ export function buildResearchGapSection(
         gapProposal.candidates
           .map(
             (c, i) =>
-              `${i}. ${c.limitation} (importance: ${c.importance})\n   novelty risk: ${c.noveltyRisk}`,
+              `${i + 1}. ${c.limitation} (importance: ${c.importance})\n   novelty risk: ${c.noveltyRisk}`,
           )
-          .join("\n") +
         `\n\nWarning: ${gapProposal.warning}`,
     );
   }
