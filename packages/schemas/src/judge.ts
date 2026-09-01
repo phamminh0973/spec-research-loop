@@ -97,7 +97,7 @@ export const ConsensusSchema = z.object({
   overallSeverity: FindingSeveritySchema.nullable(),
   /** Sections flagged by two or more Judges independently — a cross-judge agreement signal. */
   agreedSections: z.array(z.string()).default([]),
-  /** True when every Judge reported zero findings. */
+  /** True when there are no CRITICAL or MAJOR findings (MINOR findings are advisory). */
   readyToFinalize: z.boolean(),
 });
 export type Consensus = z.infer<typeof ConsensusSchema>;
