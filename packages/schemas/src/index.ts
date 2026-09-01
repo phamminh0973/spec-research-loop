@@ -17,6 +17,7 @@
  *   - `literature`       academic search, normalize, deduplicate, select
  *   - `evidence`         spans, provenance, claim links, verifier
  *   - `research-design`  gap, contribution, claim, experiment, feasibility
+ *   - `judge`            five independent Judges, findings, panel consensus
  */
 
 export * from "./common";
@@ -28,3 +29,4 @@ export * from "./decomposition";
 export * from "./literature";
 export * from "./evidence";
 export * from "./research-design";
+export * from "./judge";
