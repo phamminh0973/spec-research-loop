@@ -19,6 +19,7 @@
  *   - `research-design`  gap, contribution, claim, experiment, feasibility
  *   - `judge`            five independent Judges, findings, panel consensus
  *   - `spec-generation`  deterministic 14-section research spec assembly
+ *   - `revision`         Bước 10: finding resolutions, Judge re-run, version diff, finalize
  */
 
 export * from "./common";
@@ -32,3 +33,4 @@ export * from "./evidence";
 export * from "./research-design";
 export * from "./judge";
 export * from "./spec-generation";
+export * from "./revision";

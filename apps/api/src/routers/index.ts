@@ -15,6 +15,7 @@ import { literatureRouter } from "./literature.js";
 import { interpretationRouter } from "./interpretation.js";
 import { projectsRouter } from "./projects.js";
 import { researchDesignRouter } from "./research-design.js";
+import { revisionRouter } from "./revision.js";
 import { specGenerationRouter } from "./spec-generation.js";
 
 export const appRouter = router({
@@ -27,6 +28,7 @@ export const appRouter = router({
   interpretation: interpretationRouter,
   judge: judgeRouter,
   specGeneration: specGenerationRouter,
+  revision: revisionRouter,
 });
 
 export type AppRouter = typeof appRouter;

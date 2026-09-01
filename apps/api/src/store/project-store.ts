@@ -19,6 +19,7 @@ import type {
   Contribution,
   EvidenceSpan,
   ExperimentPlan,
+  FindingResolution,
   GapProposalOutput,
   InterpretationDecision,
   InterpretationRecord,
@@ -89,6 +90,13 @@ export const judgePanelsByProject = new Map<string, JudgePanelResult>();
 export const researchSpecsByProject = new Map<string, ResearchSpec[]>();
 
 /**
+ * Bước 10 finding-resolution decisions per project (see `revision` module).
+ * Append-only — every decision on a Judge finding is kept for the decision
+ * log (Section 14 of the research spec), never overwritten.
+ */
+export const findingResolutionsByProject = new Map<string, FindingResolution[]>();
+
+/**
  * Per-project decomposition graph (Bước 2 / AIT-02). Backs the
  * spec-structure module's `InMemorySpecGraphStore`; each value is a validated
  * `SpecGraphView` and is replaced atomically on regeneration.
@@ -122,6 +130,7 @@ export function resetProjectStore(): void {
   gapProposalsByProject.clear();
   judgePanelsByProject.clear();
   researchSpecsByProject.clear();
+  findingResolutionsByProject.clear();
   specGraphsByProject.clear();
   interpretationsByProject.clear();
   interpretationDecisionsByProject.clear();

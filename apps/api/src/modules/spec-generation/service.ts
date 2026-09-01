@@ -22,6 +22,7 @@ import {
   type Contribution,
   type EvidenceSpan,
   type ExperimentPlan,
+  type FindingResolution,
   type GapProposalOutput,
   type InterpretationDecision,
   type InterpretationRecord,
@@ -38,6 +39,7 @@ import {
   contributionsByProject,
   evidenceSpansByProject,
   experimentPlansByProject,
+  findingResolutionsByProject,
   gapProposalsByProject,
   interpretationDecisionsByProject,
   parseOrThrow,
@@ -335,10 +337,11 @@ export function buildOpenIssuesSection(openQuestionNodes: SpecNode[]): SpecSecti
   );
 }
 
-/** 14. Decision history — Step-1 confirm/edit/regenerate/other decisions + node status changes. */
+/** 14. Decision history — Step-1 confirm/edit/regenerate/other decisions + node status changes + Bước 10 finding resolutions. */
 export function buildDecisionHistorySection(
   decisions: InterpretationDecision[],
   statusHistory: NodeStatusHistory[],
+  findingResolutions: FindingResolution[] = [],
 ): SpecSection {
   const parts: string[] = [];
   if (decisions.length > 0) {
@@ -359,6 +362,18 @@ export function buildDecisionHistorySection(
           statusHistory.map(
             (h) =>
               `[${h.occurredAt}] ${h.nodeId} ${h.fromStatus ?? "(new)"} → ${h.toStatus} (${h.actor}: ${h.reason})`,
+          ),
+          "",
+        ),
+    );
+  }
+  if (findingResolutions.length > 0) {
+    parts.push(
+      "Bước 10 finding resolutions:\n" +
+        bulletList(
+          findingResolutions.map(
+            (r) =>
+              `[${r.createdAt}] ${r.judge} / "${r.targetSection}" → ${r.resolution}: ${r.note}`,
           ),
           "",
         ),
@@ -393,6 +408,7 @@ export function assembleSections(data: {
   plans: ExperimentPlan[];
   decisions: InterpretationDecision[];
   statusHistory: NodeStatusHistory[];
+  findingResolutions?: FindingResolution[];
 }): SpecSection[] {
   const sections: Record<(typeof SPEC_SECTION_ORDER)[number], SpecSection> = {
     PROBLEM_STATEMENT: buildProblemStatementSection(
@@ -416,7 +432,11 @@ export function assembleSections(data: {
       data.gapProposal,
     ),
     OPEN_ISSUES: buildOpenIssuesSection(nodesByType(data.graphNodes, "OPEN_QUESTION")),
-    DECISION_HISTORY: buildDecisionHistorySection(data.decisions, data.statusHistory),
+    DECISION_HISTORY: buildDecisionHistorySection(
+      data.decisions,
+      data.statusHistory,
+      data.findingResolutions ?? [],
+    ),
   };
   return SPEC_SECTION_ORDER.map((id) => sections[id]);
 }
@@ -463,6 +483,7 @@ export async function generateResearchSpec(params: {
     plans: experimentPlansByProject.get(projectId) ?? [],
     decisions: interpretationDecisionsByProject.get(projectId) ?? [],
     statusHistory: graph.statusHistory,
+    findingResolutions: findingResolutionsByProject.get(projectId) ?? [],
   });
 
   const existing = researchSpecsByProject.get(projectId) ?? [];
@@ -473,6 +494,8 @@ export async function generateResearchSpec(params: {
       projectId,
       version: existing.length + 1,
       sections,
+      status: "DRAFT",
+      finalizedAt: null,
       createdAt: new Date().toISOString(),
     },
     "ResearchSpec",
