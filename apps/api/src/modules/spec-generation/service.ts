@@ -32,6 +32,7 @@ import {
   type SpecNode,
   type SpecSection,
 } from "@specloop/schemas";
+import { MarkdownDocument } from "build-md";
 import { interpretationRepository } from "../interpretation/index.js";
 import {
   atomicClaimsByProject,
@@ -59,10 +60,6 @@ function section(
   return { id, title, content, isPlaceholder };
 }
 
-function bulletList(lines: string[], emptyText: string): string {
-  return lines.length === 0 ? emptyText : lines.map((l) => `- ${l}`).join("\n");
-}
-
 function nodesByType(nodes: SpecNode[], type: SpecNode["type"]): SpecNode[] {
   return nodes.filter((n) => n.type === type);
 }
@@ -76,59 +73,67 @@ export function buildProblemStatementSection(
   interpretation: InterpretationRecord | null,
   problemNodes: SpecNode[],
 ): SpecSection {
-  const parts: string[] = [];
-  if (interpretation) {
-    parts.push(interpretation.output.simpleInterpretation);
-  }
-  if (problemNodes.length > 0) {
-    parts.push(
-      "Problem nodes (Bước 2):\n" +
-        bulletList(problemNodes.map((n) => `[${n.status}] ${n.title}: ${n.content}`), ""),
+  const isPlaceholder = !interpretation && problemNodes.length === 0;
+  if (isPlaceholder) {
+    return section(
+      "PROBLEM_STATEMENT",
+      "1. Problem statement",
+      `${PLACEHOLDER_PREFIX} — chưa có interpretation đã xác nhận hoặc PROBLEM node.`,
+      true,
     );
   }
-  const isPlaceholder = parts.length === 0;
-  return section(
-    "PROBLEM_STATEMENT",
-    "1. Problem statement",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có interpretation đã xác nhận hoặc PROBLEM node.`
-      : parts.join("\n\n"),
-    isPlaceholder,
-  );
+  const doc = new MarkdownDocument()
+    .paragraph(interpretation?.output.simpleInterpretation)
+    .$if(problemNodes.length > 0, (d) =>
+      d
+        .paragraph("Problem nodes (Bước 2):")
+        .list(problemNodes.map((n) => `[${n.status}] ${n.title}: ${n.content}`)),
+    );
+  return section("PROBLEM_STATEMENT", "1. Problem statement", doc.toString().trim(), false);
 }
 
 /** 2. Research questions — RESEARCH_QUESTION nodes. */
 export function buildResearchQuestionsSection(questionNodes: SpecNode[]): SpecSection {
   const isPlaceholder = questionNodes.length === 0;
-  return section(
-    "RESEARCH_QUESTIONS",
-    "2. Research questions",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có RESEARCH_QUESTION node nào.`
-      : bulletList(questionNodes.map((n) => `[${n.status}] ${n.content}`), ""),
-    isPlaceholder,
+  if (isPlaceholder) {
+    return section(
+      "RESEARCH_QUESTIONS",
+      "2. Research questions",
+      `${PLACEHOLDER_PREFIX} — chưa có RESEARCH_QUESTION node nào.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().list(
+    questionNodes.map((n) => `[${n.status}] ${n.content}`),
   );
+  return section("RESEARCH_QUESTIONS", "2. Research questions", doc.toString().trim(), false);
 }
 
 /** 3. Related-work matrix — selected sources with LLM-proposed analysis (user-reviewed). */
 export function buildRelatedWorkMatrixSection(sources: SourceDocument[]): SpecSection {
   const selected = sources.filter((s) => s.selected);
   const isPlaceholder = selected.length === 0;
-  const escapeCell = (value: string): string =>
-    value.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br />").trim();
-
-  const rows = selected.map((s) => {
-    const analysis = s.analysis;
-    return `| ${escapeCell(s.title)} | ${escapeCell(analysis?.achievedOutcome ?? "—")} | ${escapeCell(analysis?.methodology ?? "—")} | ${escapeCell(analysis?.additionalResearchNeeded ?? "—")} |`;
-  });
-  const content = isPlaceholder
-    ? `${PLACEHOLDER_PREFIX} — chưa có nguồn nào được chọn vào corpus.`
-    : [
-        "| Nghiên cứu | Đã làm gì | Phương pháp | Điểm cần nghiên cứu thêm |",
-        "| --- | --- | --- | --- |",
-        ...rows,
-      ].join("\n");
-  return section("RELATED_WORK_MATRIX", "3. Related-work matrix", content, isPlaceholder);
+  if (isPlaceholder) {
+    return section(
+      "RELATED_WORK_MATRIX",
+      "3. Related-work matrix",
+      `${PLACEHOLDER_PREFIX} — chưa có nguồn nào được chọn vào corpus.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().table(
+    ["Nghiên cứu", "Đã làm gì", "Phương pháp", "Điểm cần nghiên cứu thêm"],
+    selected.map((s) => {
+      const analysis = s.analysis;
+      return [
+        s.title,
+        analysis?.achievedOutcome ?? "—",
+        analysis?.methodology ?? "—",
+        analysis?.additionalResearchNeeded ?? "—",
+      ];
+    }),
+  );
+  return section("RELATED_WORK_MATRIX", "3. Related-work matrix", doc.toString().trim(), false);
 }
 
 /** 4. Research gap — GAP nodes + most recent gap proposal (always carries novelty-risk warning). */
@@ -136,59 +141,65 @@ export function buildResearchGapSection(
   gapNodes: SpecNode[],
   gapProposal: GapProposalOutput | null,
 ): SpecSection {
-  const parts: string[] = [];
-  if (gapNodes.length > 0) {
-    parts.push(
-      "Gap nodes (Bước 2):\n" + bulletList(gapNodes.map((n) => `[${n.status}] ${n.content}`), ""),
+  const isPlaceholder = gapNodes.length === 0 && !gapProposal;
+  if (isPlaceholder) {
+    return section(
+      "RESEARCH_GAP",
+      "4. Research gap",
+      `${PLACEHOLDER_PREFIX} — chưa có GAP node hoặc gap proposal.`,
+      true,
     );
   }
-  if (gapProposal) {
-    parts.push(
-      "Gap candidates (AIT-06):\n" +
-        gapProposal.candidates
-          .map(
-            (c, i) =>
-              `${i + 1}. ${c.limitation} (importance: ${c.importance})\n   novelty risk: ${c.noveltyRisk}`,
-          ) +
-        `\n\nWarning: ${gapProposal.warning}`,
+  const doc = new MarkdownDocument()
+    .$if(gapNodes.length > 0, (d) =>
+      d
+        .paragraph("Gap nodes (Bước 2):")
+        .list(gapNodes.map((n) => `[${n.status}] ${n.content}`)),
+    )
+    .$if(!!gapProposal, (d) =>
+      d
+        .paragraph("Gap candidates (AIT-06):")
+        .list(
+          "ordered",
+          gapProposal!.candidates.map(
+            (c) => `${c.limitation} (importance: ${c.importance})\n   novelty risk: ${c.noveltyRisk}`,
+          ),
+        )
+        .paragraph(`Warning: ${gapProposal!.warning}`),
     );
-  }
-  const isPlaceholder = parts.length === 0;
-  return section(
-    "RESEARCH_GAP",
-    "4. Research gap",
-    isPlaceholder ? `${PLACEHOLDER_PREFIX} — chưa có GAP node hoặc gap proposal.` : parts.join("\n\n"),
-    isPlaceholder,
-  );
+  return section("RESEARCH_GAP", "4. Research gap", doc.toString().trim(), false);
 }
 
 /** 5. Proposed approach — synthesized from contribution text (no new content, only formatting). */
 export function buildProposedApproachSection(contributions: Contribution[]): SpecSection {
   const isPlaceholder = contributions.length === 0;
-  return section(
-    "PROPOSED_APPROACH",
-    "5. Proposed approach",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có contribution nào được tạo.`
-      : contributions.map((c) => c.text).join(" "),
-    isPlaceholder,
-  );
+  if (isPlaceholder) {
+    return section(
+      "PROPOSED_APPROACH",
+      "5. Proposed approach",
+      `${PLACEHOLDER_PREFIX} — chưa có contribution nào được tạo.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().paragraph(contributions.map((c) => c.text).join(" "));
+  return section("PROPOSED_APPROACH", "5. Proposed approach", doc.toString().trim(), false);
 }
 
 /** 6. Expected contributions — contribution records with linked claim counts. */
 export function buildExpectedContributionsSection(contributions: Contribution[]): SpecSection {
   const isPlaceholder = contributions.length === 0;
-  return section(
-    "EXPECTED_CONTRIBUTIONS",
-    "6. Expected contributions",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có contribution nào được tạo.`
-      : bulletList(
-          contributions.map((c) => `${c.text} (${c.claimIds.length} claim liên kết)`),
-          "",
-        ),
-    isPlaceholder,
+  if (isPlaceholder) {
+    return section(
+      "EXPECTED_CONTRIBUTIONS",
+      "6. Expected contributions",
+      `${PLACEHOLDER_PREFIX} — chưa có contribution nào được tạo.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().list(
+    contributions.map((c) => `${c.text} (${c.claimIds.length} claim liên kết)`),
   );
+  return section("EXPECTED_CONTRIBUTIONS", "6. Expected contributions", doc.toString().trim(), false);
 }
 
 /** 7. Claim–evidence matrix — every claim's linked evidence, integrity status and review verdict. */
@@ -207,100 +218,103 @@ export function buildClaimEvidenceMatrixSection(
     );
   }
   const spanById = new Map(spans.map((s) => [s.id, s]));
-  const rows = claims.map((claim) => {
+  const rows: string[][] = [];
+  for (const claim of claims) {
     const claimLinks = links.filter((l) => l.claimNodeId === claim.id);
     if (claimLinks.length === 0) {
-      return `| ${claim.text} | (không có evidence) | — | — |`;
-    }
-    return claimLinks
-      .map((link) => {
+      rows.push([claim.text, "(không có evidence)", "—", "—"]);
+    } else {
+      for (const link of claimLinks) {
         const span = spanById.get(link.evidenceSpanId);
         const evidenceText = span ? span.exactText : "(evidence span not found)";
         const verdict = link.review?.verdict ?? "(chưa review)";
-        return `| ${claim.text} | ${evidenceText} | ${link.integrityStatus} | ${verdict} |`;
-      })
-      .join("\n");
-  });
-  const content = [
-    "| Claim | Evidence | Integrity status | Review verdict |",
-    "| --- | --- | --- | --- |",
-    ...rows,
-  ].join("\n");
-  return section("CLAIM_EVIDENCE_MATRIX", "7. Claim–evidence matrix", content, false);
+        rows.push([claim.text, evidenceText, link.integrityStatus, verdict]);
+      }
+    }
+  }
+  const doc = new MarkdownDocument().table(
+    ["Claim", "Evidence", "Integrity status", "Review verdict"],
+    rows,
+  );
+  return section("CLAIM_EVIDENCE_MATRIX", "7. Claim–evidence matrix", doc.toString().trim(), false);
 }
 
 /** 8. Experimental protocol — protocol steps + controls across all plans. */
 export function buildExperimentalProtocolSection(plans: ExperimentPlan[]): SpecSection {
   const isPlaceholder = plans.length === 0;
-  return section(
-    "EXPERIMENTAL_PROTOCOL",
-    "8. Experimental protocol",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có experiment plan nào được tạo.`
-      : plans
-          .map(
-            (p) =>
-              `Plan [tier ${p.tier}]:\n` +
-              `Protocol:\n${bulletList(p.protocol, "  (none)")}\n` +
-              `Controls:\n${bulletList(p.controls, "  (none)")}`,
-          )
-          .join("\n\n"),
-    isPlaceholder,
+  if (isPlaceholder) {
+    return section(
+      "EXPERIMENTAL_PROTOCOL",
+      "8. Experimental protocol",
+      `${PLACEHOLDER_PREFIX} — chưa có experiment plan nào được tạo.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().$foreach(plans, (d, p) =>
+    d
+      .paragraph(`Plan [tier ${p.tier}]:`)
+      .paragraph("Protocol:")
+      .list(p.protocol.length > 0 ? p.protocol : ["(none)"])
+      .paragraph("Controls:")
+      .list(p.controls.length > 0 ? p.controls : ["(none)"]),
   );
+  return section("EXPERIMENTAL_PROTOCOL", "8. Experimental protocol", doc.toString().trim(), false);
 }
 
 /** 9. Baselines and metrics. */
 export function buildBaselinesAndMetricsSection(plans: ExperimentPlan[]): SpecSection {
   const isPlaceholder = plans.length === 0;
-  return section(
-    "BASELINES_AND_METRICS",
-    "9. Baselines and metrics",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có experiment plan nào được tạo.`
-      : plans
-          .map(
-            (p) =>
-              `Baselines:\n${bulletList(p.baselines, "  (none)")}\n` +
-              `Metrics:\n${bulletList(p.metrics, "  (none)")}`,
-          )
-          .join("\n\n"),
-    isPlaceholder,
+  if (isPlaceholder) {
+    return section(
+      "BASELINES_AND_METRICS",
+      "9. Baselines and metrics",
+      `${PLACEHOLDER_PREFIX} — chưa có experiment plan nào được tạo.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().$foreach(plans, (d, p) =>
+    d
+      .paragraph("Baselines:")
+      .list(p.baselines.length > 0 ? p.baselines : ["(none)"])
+      .paragraph("Metrics:")
+      .list(p.metrics.length > 0 ? p.metrics : ["(none)"]),
   );
+  return section("BASELINES_AND_METRICS", "9. Baselines and metrics", doc.toString().trim(), false);
 }
 
 /** 10. Ablation plan — at least one is required per AI design §8. */
 export function buildAblationPlanSection(plans: ExperimentPlan[]): SpecSection {
   const ablations = plans.flatMap((p) => p.ablations);
   const isPlaceholder = ablations.length === 0;
-  return section(
-    "ABLATION_PLAN",
-    "10. Ablation plan",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có ablation nào được đề xuất.`
-      : bulletList(ablations, ""),
-    isPlaceholder,
-  );
+  if (isPlaceholder) {
+    return section(
+      "ABLATION_PLAN",
+      "10. Ablation plan",
+      `${PLACEHOLDER_PREFIX} — chưa có ablation nào được đề xuất.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().list(ablations);
+  return section("ABLATION_PLAN", "10. Ablation plan", doc.toString().trim(), false);
 }
 
 /** 11. Compute budget — resource estimates, each input labeled assumed/measured. */
 export function buildComputeBudgetSection(plans: ExperimentPlan[]): SpecSection {
   const estimates = plans.flatMap((p) => p.estimates);
   const isPlaceholder = estimates.length === 0;
-  return section(
-    "COMPUTE_BUDGET",
-    "11. Compute budget",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có resource estimate nào.`
-      : estimates
-          .map(
-            (e) =>
-              `${e.label}: ${e.result} (formula: ${e.formula}; inputs: ${e.inputs
-                .map((i) => `${i.name}=${i.value}[${i.basis}]`)
-                .join(", ") || "none"})`,
-          )
-          .join("\n"),
-    isPlaceholder,
-  );
+  if (isPlaceholder) {
+    return section(
+      "COMPUTE_BUDGET",
+      "11. Compute budget",
+      `${PLACEHOLDER_PREFIX} — chưa có resource estimate nào.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().$foreach(estimates, (d, e) => {
+    const inputs = e.inputs.map((i) => `${i.name}=${i.value}[${i.basis}]`).join(", ") || "none";
+    return d.paragraph(`${e.label}: ${e.result} (formula: ${e.formula}; inputs: ${inputs})`);
+  });
+  return section("COMPUTE_BUDGET", "11. Compute budget", doc.toString().trim(), false);
 }
 
 /** 12. Risks and limitations — RISK nodes + every gap candidate's novelty-risk warning. */
@@ -308,33 +322,40 @@ export function buildRisksAndLimitationsSection(
   riskNodes: SpecNode[],
   gapProposal: GapProposalOutput | null,
 ): SpecSection {
-  const parts: string[] = [];
-  if (riskNodes.length > 0) {
-    parts.push(bulletList(riskNodes.map((n) => `[${n.status}] ${n.content}`), ""));
+  const isPlaceholder = riskNodes.length === 0 && !gapProposal;
+  if (isPlaceholder) {
+    return section(
+      "RISKS_AND_LIMITATIONS",
+      "12. Risks and limitations",
+      `${PLACEHOLDER_PREFIX} — chưa có RISK node hoặc gap proposal.`,
+      true,
+    );
   }
-  if (gapProposal) {
-    parts.push(`Novelty-risk warning (BR-04): ${gapProposal.warning}`);
-  }
-  const isPlaceholder = parts.length === 0;
-  return section(
-    "RISKS_AND_LIMITATIONS",
-    "12. Risks and limitations",
-    isPlaceholder ? `${PLACEHOLDER_PREFIX} — chưa có RISK node hoặc gap proposal.` : parts.join("\n\n"),
-    isPlaceholder,
-  );
+  const doc = new MarkdownDocument()
+    .$if(riskNodes.length > 0, (d) =>
+      d.list(riskNodes.map((n) => `[${n.status}] ${n.content}`)),
+    )
+    .$if(!!gapProposal, (d) =>
+      d.paragraph(`Novelty-risk warning (BR-04): ${gapProposal!.warning}`),
+    );
+  return section("RISKS_AND_LIMITATIONS", "12. Risks and limitations", doc.toString().trim(), false);
 }
 
 /** 13. Open issues — OPEN_QUESTION nodes. */
 export function buildOpenIssuesSection(openQuestionNodes: SpecNode[]): SpecSection {
   const isPlaceholder = openQuestionNodes.length === 0;
-  return section(
-    "OPEN_ISSUES",
-    "13. Open issues",
-    isPlaceholder
-      ? `${PLACEHOLDER_PREFIX} — chưa có OPEN_QUESTION node nào.`
-      : bulletList(openQuestionNodes.map((n) => `[${n.status}] ${n.content}`), ""),
-    isPlaceholder,
+  if (isPlaceholder) {
+    return section(
+      "OPEN_ISSUES",
+      "13. Open issues",
+      `${PLACEHOLDER_PREFIX} — chưa có OPEN_QUESTION node nào.`,
+      true,
+    );
+  }
+  const doc = new MarkdownDocument().list(
+    openQuestionNodes.map((n) => `[${n.status}] ${n.content}`),
   );
+  return section("OPEN_ISSUES", "13. Open issues", doc.toString().trim(), false);
 }
 
 /** 14. Decision history — Step-1 confirm/edit/regenerate/other decisions + node status changes + Bước 10 finding resolutions. */
@@ -343,49 +364,33 @@ export function buildDecisionHistorySection(
   statusHistory: NodeStatusHistory[],
   findingResolutions: FindingResolution[] = [],
 ): SpecSection {
-  const parts: string[] = [];
-  if (decisions.length > 0) {
-    parts.push(
-      "Bước 1 decisions:\n" +
-        bulletList(
-          decisions.map(
-            (d) => `[${d.createdAt}] ${d.action}${d.content ? `: ${d.content}` : ""}`,
-          ),
-          "",
-        ),
+  const isPlaceholder =
+    decisions.length === 0 && statusHistory.length === 0 && findingResolutions.length === 0;
+  if (isPlaceholder) {
+    return section(
+      "DECISION_HISTORY",
+      "14. Decision history",
+      `${PLACEHOLDER_PREFIX} — chưa có quyết định nào được ghi nhận.`,
+      true,
     );
   }
-  if (statusHistory.length > 0) {
-    parts.push(
-      "Node status changes:\n" +
-        bulletList(
-          statusHistory.map(
-            (h) =>
-              `[${h.occurredAt}] ${h.nodeId} ${h.fromStatus ?? "(new)"} → ${h.toStatus} (${h.actor}: ${h.reason})`,
-          ),
-          "",
-        ),
+  const doc = new MarkdownDocument()
+    .$if(decisions.length > 0, (d) =>
+      d
+        .paragraph("Bước 1 decisions:")
+        .list(decisions.map((d2) => `[${d2.createdAt}] ${d2.action}${d2.content ? `: ${d2.content}` : ""}`)),
+    )
+    .$if(statusHistory.length > 0, (d) =>
+      d
+        .paragraph("Node status changes:")
+        .list(statusHistory.map((h) => `[${h.occurredAt}] ${h.nodeId} ${h.fromStatus ?? "(new)"} → ${h.toStatus} (${h.actor}: ${h.reason})`)),
+    )
+    .$if(findingResolutions.length > 0, (d) =>
+      d
+        .paragraph("Bước 10 finding resolutions:")
+        .list(findingResolutions.map((r) => `[${r.createdAt}] ${r.judge} / "${r.targetSection}" → ${r.resolution}: ${r.note}`)),
     );
-  }
-  if (findingResolutions.length > 0) {
-    parts.push(
-      "Bước 10 finding resolutions:\n" +
-        bulletList(
-          findingResolutions.map(
-            (r) =>
-              `[${r.createdAt}] ${r.judge} / "${r.targetSection}" → ${r.resolution}: ${r.note}`,
-          ),
-          "",
-        ),
-    );
-  }
-  const isPlaceholder = parts.length === 0;
-  return section(
-    "DECISION_HISTORY",
-    "14. Decision history",
-    isPlaceholder ? `${PLACEHOLDER_PREFIX} — chưa có quyết định nào được ghi nhận.` : parts.join("\n\n"),
-    isPlaceholder,
-  );
+  return section("DECISION_HISTORY", "14. Decision history", doc.toString().trim(), false);
 }
 
 // ---------------------------------------------------------------------------
