@@ -1,7 +1,7 @@
 import {
-  ConfirmedInterpretationSnapshotSchema,
   type ConfirmedDecision,
   type ConfirmedInterpretationSnapshot,
+  ConfirmedInterpretationSnapshotSchema,
 } from "@specloop/schemas";
 
 import type { InterpretationRepository } from "../interpretation/repository.js";
@@ -16,7 +16,9 @@ export type Step1ProjectReader = (
   projectId: string
 ) => Step1ProjectBoundary | undefined;
 
-export class Step1ConfirmedInterpretationReader implements ConfirmedInterpretationReader {
+export class Step1ConfirmedInterpretationReader
+  implements ConfirmedInterpretationReader
+{
   constructor(
     private readonly repository: InterpretationRepository,
     private readonly projectReader: Step1ProjectReader

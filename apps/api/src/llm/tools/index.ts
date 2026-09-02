@@ -13,20 +13,20 @@
  */
 
 export {
-  arxivSearchTool,
-  arxivSearchLlmTool,
-  executeArxivSearch,
-  getArxivClient,
-  resetArxivClient,
   ARXIV_SORT_CRITERIA,
-  ArxivSearchInputSchema,
-  ArxivSearchOutputSchema,
+  type ArxivPaper,
   ArxivPaperSchema,
   type ArxivSearchInput,
+  ArxivSearchInputSchema,
   type ArxivSearchOutput,
-  type ArxivPaper,
+  ArxivSearchOutputSchema,
   type ArxivSortCriterion,
+  arxivSearchLlmTool,
+  arxivSearchTool,
+  executeArxivSearch,
+  getArxivClient,
   type LlmTool,
+  resetArxivClient,
 } from "./arxiv-search.js";
 
 import { arxivSearchLlmTool, type LlmTool } from "./arxiv-search.js";
@@ -57,7 +57,7 @@ export function findLlmTool(name: string): LlmTool | undefined {
  */
 export async function executeLlmTool(
   name: string,
-  args: unknown,
+  args: unknown
 ): Promise<unknown> {
   const tool = findLlmTool(name);
   if (!tool) {

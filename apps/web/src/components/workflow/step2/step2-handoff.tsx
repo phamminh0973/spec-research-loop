@@ -43,7 +43,10 @@ export function Step2Handoff({
             Step 2 đã đủ required cards và không còn unresolved status. Có thể
             chuyển sang literature/evidence của Step 3.
             <div className="mt-3">
-              <Link href={`/projects/${graph.projectId}/research${fixtureMode ? "?fixture=1" : ""}`} className={buttonVariants({ size: "sm" })}>
+              <Link
+                href={`/projects/${graph.projectId}/research${fixtureMode ? "?fixture=1" : ""}`}
+                className={buttonVariants({ size: "sm" })}
+              >
                 Mở Literature & Research Design
               </Link>
             </div>

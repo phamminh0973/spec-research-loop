@@ -8,23 +8,21 @@ import {
   SpecGraphViewSchema,
   STEP2_REQUIRED_NODE_TYPES,
 } from "@specloop/schemas";
-import { describe, expect, it } from "vitest";
-
 import { decompositionOutputFixture } from "@specloop/schemas/fixtures";
-
-import {
-  InMemoryInterpretationRepository,
-  createInterpretationModule,
-} from "../modules/interpretation/index.js";
+import { describe, expect, it } from "vitest";
 import { Step1ConfirmedInterpretationReader } from "../modules/decomposition/interpretation-reader-adapter.js";
 import { createSpecStructureModule } from "../modules/decomposition/module.js";
 import {
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
 } from "../modules/decomposition/testing-adapters.js";
+import {
+  createInterpretationModule,
+  InMemoryInterpretationRepository,
+} from "../modules/interpretation/index.js";
 import { appRouter } from "../routers/index.js";
 import { getProjectById } from "../routers/projects.js";
-import { createContextInner, type ApiContext } from "../trpc/context.js";
+import { type ApiContext, createContextInner } from "../trpc/context.js";
 
 const USER_ID = "123e4567-e89b-42d3-a456-426614174099";
 
@@ -182,10 +180,10 @@ describe("Step 1 to Step 2 integration", () => {
 
     const withoutRelation = await caller.decomposition.deleteRelation({
       projectId: project.id,
-      relationId: createdRelation!.id,
+      relationId: createdRelation?.id,
     });
     expect(withoutRelation.relations).not.toContainEqual(
-      expect.objectContaining({ id: createdRelation!.id })
+      expect.objectContaining({ id: createdRelation?.id })
     );
     for (const candidate of [
       edited,

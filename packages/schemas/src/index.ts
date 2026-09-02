@@ -23,14 +23,14 @@
  */
 
 export * from "./common";
-export * from "./health";
-export * from "./projects";
-export * from "./interpretation";
-export * from "./spec-graph";
 export * from "./decomposition";
-export * from "./literature";
 export * from "./evidence";
-export * from "./research-design";
+export * from "./health";
+export * from "./interpretation";
 export * from "./judge";
-export * from "./spec-generation";
+export * from "./literature";
+export * from "./projects";
+export * from "./research-design";
 export * from "./revision";
+export * from "./spec-generation";
+export * from "./spec-graph";

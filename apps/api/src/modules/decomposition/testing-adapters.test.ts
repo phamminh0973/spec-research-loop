@@ -1,15 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
-
 import type {
   ConfirmedInterpretationSnapshot,
   DecompositionOutput,
 } from "@specloop/schemas";
+import { beforeEach, describe, expect, it } from "vitest";
+import { resetProjectStore } from "../../store/project-store.js";
 import {
   DeterministicConfirmedInterpretationReader,
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
 } from "./testing-adapters.js";
-import { resetProjectStore } from "../../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 const otherProjectId = "00000000-0000-4000-8000-000000000099";
@@ -157,9 +156,9 @@ describe("deterministic Step 2 adapters", () => {
     expect(changed.statusHistory).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-      actor: "USER",
-      authority: "USER",
-      toStatus: "USER_CONFIRMED",
+          actor: "USER",
+          authority: "USER",
+          toStatus: "USER_CONFIRMED",
         }),
       ])
     );

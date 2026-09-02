@@ -1,10 +1,10 @@
 import {
-  InterpretationDecisionSchema,
-  InterpretationOutputSchema,
-  InterpretationRecordSchema,
   type InterpretationDecision,
+  InterpretationDecisionSchema,
   type InterpretationOutput,
+  InterpretationOutputSchema,
   type InterpretationRecord,
+  InterpretationRecordSchema,
 } from "@specloop/schemas";
 import { and, desc, eq, sql } from "drizzle-orm";
 
@@ -74,15 +74,21 @@ function ensureProjectExists(projectId: string): void {
     .run();
 }
 
-function parseInterpretationRow(row: typeof interpretations.$inferSelect): InterpretationRecord {
+function parseInterpretationRow(
+  row: typeof interpretations.$inferSelect
+): InterpretationRecord {
   return InterpretationRecordSchema.parse(JSON.parse(row.data as string));
 }
 
-function parseDecisionRow(row: typeof interpretationDecisions.$inferSelect): InterpretationDecision {
+function parseDecisionRow(
+  row: typeof interpretationDecisions.$inferSelect
+): InterpretationDecision {
   return InterpretationDecisionSchema.parse(JSON.parse(row.data as string));
 }
 
-export class InMemoryInterpretationRepository implements InterpretationRepository {
+export class InMemoryInterpretationRepository
+  implements InterpretationRepository
+{
   async saveInitialProposal(
     record: InterpretationRecord
   ): Promise<InterpretationRecord> {
@@ -94,7 +100,11 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     }
     ensureProjectExists(parsed.projectId);
     const db = getDb();
-    const existing = db.select().from(interpretations).where(eq(interpretations.projectId, parsed.projectId)).all();
+    const existing = db
+      .select()
+      .from(interpretations)
+      .where(eq(interpretations.projectId, parsed.projectId))
+      .all();
     if (existing.length > 0) {
       throw new InterpretationLifecycleError(
         "An existing interpretation must be revised or regenerated explicitly."
@@ -114,7 +124,11 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
       );
     }
     const db = getDb();
-    const existing = db.select().from(interpretations).where(eq(interpretations.projectId, parsed.projectId)).all();
+    const existing = db
+      .select()
+      .from(interpretations)
+      .where(eq(interpretations.projectId, parsed.projectId))
+      .all();
     if (existing.length === 0) {
       throw new InterpretationLifecycleError(
         "Regenerate requires an existing interpretation."
@@ -203,7 +217,12 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     const row = db
       .select()
       .from(interpretations)
-      .where(and(eq(interpretations.projectId, projectId), eq(interpretations.id, interpretationId)))
+      .where(
+        and(
+          eq(interpretations.projectId, projectId),
+          eq(interpretations.id, interpretationId)
+        )
+      )
       .get();
     return row ? this.cloneRecord(parseInterpretationRow(row)) : null;
   }
@@ -216,7 +235,12 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     const active = db
       .select()
       .from(interpretations)
-      .where(and(eq(interpretations.projectId, projectId), sql`${interpretations.status} != 'SUPERSEDED'`))
+      .where(
+        and(
+          eq(interpretations.projectId, projectId),
+          sql`${interpretations.status} != 'SUPERSEDED'`
+        )
+      )
       .orderBy(desc(interpretations.createdAt))
       .get();
     if (active) return this.cloneRecord(parseInterpretationRow(active));
@@ -236,7 +260,12 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     const row = db
       .select()
       .from(interpretations)
-      .where(and(eq(interpretations.projectId, projectId), eq(interpretations.status, "USER_CONFIRMED")))
+      .where(
+        and(
+          eq(interpretations.projectId, projectId),
+          eq(interpretations.status, "USER_CONFIRMED")
+        )
+      )
       .orderBy(desc(interpretations.createdAt))
       .get();
     return row ? this.cloneRecord(parseInterpretationRow(row)) : null;
@@ -244,7 +273,11 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
 
   async listDecisions(projectId: string): Promise<InterpretationDecision[]> {
     const db = getDb();
-    const rows = db.select().from(interpretationDecisions).where(eq(interpretationDecisions.projectId, projectId)).all();
+    const rows = db
+      .select()
+      .from(interpretationDecisions)
+      .where(eq(interpretationDecisions.projectId, projectId))
+      .all();
     return rows.map(parseDecisionRow).map((d) => structuredClone(d));
   }
 
@@ -256,7 +289,12 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     const row = db
       .select()
       .from(interpretations)
-      .where(and(eq(interpretations.projectId, projectId), eq(interpretations.id, interpretationId)))
+      .where(
+        and(
+          eq(interpretations.projectId, projectId),
+          eq(interpretations.id, interpretationId)
+        )
+      )
       .get();
     if (!row) {
       throw new InterpretationLifecycleError(
@@ -303,7 +341,9 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     }
   }
 
-  private async persist(record: InterpretationRecord): Promise<InterpretationRecord> {
+  private async persist(
+    record: InterpretationRecord
+  ): Promise<InterpretationRecord> {
     const parsed = InterpretationRecordSchema.parse(record);
     ensureProjectExists(parsed.projectId);
     const db = getDb();

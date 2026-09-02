@@ -26,15 +26,15 @@ import {
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { publicProcedure, router } from "../trpc/trpc.js";
+import { getDb } from "../db/client.js";
+import { evidenceRequirements } from "../db/schema.js";
 import {
   createSpan,
   generateEvidenceRequirement,
   listEvidenceRequirements,
   listSpans,
 } from "../modules/evidence/service.js";
-import { getDb } from "../db/client.js";
-import { evidenceRequirements } from "../db/schema.js";
+import { publicProcedure, router } from "../trpc/trpc.js";
 
 // ---------------------------------------------------------------------------
 // Procedures
@@ -104,7 +104,9 @@ export const evidenceRouter = router({
       for (const row of rows) {
         const parsed = JSON.parse(row.data as string) as { id: string };
         if (parsed.id === input.requirementId) {
-          return JSON.parse(row.data as string) as import("@specloop/schemas").EvidenceRequirement;
+          return JSON.parse(
+            row.data as string
+          ) as import("@specloop/schemas").EvidenceRequirement;
         }
       }
       throw new TRPCError({

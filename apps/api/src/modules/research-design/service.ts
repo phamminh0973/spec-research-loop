@@ -8,31 +8,25 @@
  */
 
 import {
+  type AtomicClaim,
   AtomicClaimSchema,
+  type ClaimDesignOutput,
   ClaimDesignOutputSchema,
   ClaimTypeSchema,
+  type Contribution,
+  type EvidenceRequirement,
   EvidenceRequirementSchema,
+  type ExperimentPlan,
   ExperimentPlanOutputSchema,
   ExperimentPlanSchema,
+  type GapProposalOutput,
   GapProposalOutputSchema,
   SourceDocumentSchema,
   SpecGraphViewSchema,
-  type AtomicClaim,
-  type ClaimDesignOutput,
-  type Contribution,
-  type EvidenceRequirement,
-  type ExperimentPlan,
-  type GapProposalOutput,
 } from "@specloop/schemas";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+import type OpenAI from "openai";
 import { z } from "zod";
-import {
-  GAP_PROPOSAL_SYSTEM_PROMPT,
-  CLAIM_DESIGN_SYSTEM_PROMPT,
-  EXPERIMENT_PLAN_SYSTEM_PROMPT,
-} from "./prompt.js";
-import { structuredCall } from "../../llm/structured-call.js";
-import { parseOrThrow } from "../../store/project-store.js";
 import { getDb } from "../../db/client.js";
 import {
   atomicClaims,
@@ -44,6 +38,13 @@ import {
   sources,
   specGraphs,
 } from "../../db/schema.js";
+import { structuredCall } from "../../llm/structured-call.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import {
+  CLAIM_DESIGN_SYSTEM_PROMPT,
+  EXPERIMENT_PLAN_SYSTEM_PROMPT,
+  GAP_PROPOSAL_SYSTEM_PROMPT,
+} from "./prompt.js";
 
 function ensureProjectExists(projectId: string): void {
   const db = getDb();
@@ -64,7 +65,11 @@ function ensureProjectExists(projectId: string): void {
 
 function ensureSpecGraphExists(projectId: string): void {
   const db = getDb();
-  const existing = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  const existing = db
+    .select()
+    .from(specGraphs)
+    .where(eq(specGraphs.projectId, projectId))
+    .get();
   if (existing) return;
   ensureProjectExists(projectId);
   const now = new Date().toISOString();
@@ -89,7 +94,12 @@ function ensureSpecGraphExists(projectId: string): void {
 
 function ensureGapProposalExists(projectId: string): string {
   const db = getDb();
-  const existing = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).get();
+  const existing = db
+    .select()
+    .from(gapProposals)
+    .where(eq(gapProposals.projectId, projectId))
+    .orderBy(desc(gapProposals.createdAt))
+    .get();
   if (existing) return existing.id;
   ensureSpecGraphExists(projectId);
   const now = new Date().toISOString();
@@ -113,27 +123,62 @@ function ensureGapProposalExists(projectId: string): string {
 
 function fetchSources(projectId: string) {
   const db = getDb();
-  const rows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
-  return rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+  const rows = db
+    .select()
+    .from(sources)
+    .where(eq(sources.projectId, projectId))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(
+      SourceDocumentSchema,
+      JSON.parse(r.data as string),
+      "SourceDocument"
+    )
+  );
 }
 
 function fetchSpecGraph(projectId: string) {
   const db = getDb();
-  const row = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
-  return row ? parseOrThrow(SpecGraphViewSchema, JSON.parse(row.data as string), "SpecGraphView") : null;
+  const row = db
+    .select()
+    .from(specGraphs)
+    .where(eq(specGraphs.projectId, projectId))
+    .get();
+  return row
+    ? parseOrThrow(
+        SpecGraphViewSchema,
+        JSON.parse(row.data as string),
+        "SpecGraphView"
+      )
+    : null;
 }
 
 function fetchGapProposal(projectId: string): GapProposalOutput | null {
   const db = getDb();
-  const row = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).get();
+  const row = db
+    .select()
+    .from(gapProposals)
+    .where(eq(gapProposals.projectId, projectId))
+    .orderBy(desc(gapProposals.createdAt))
+    .get();
   if (!row) return null;
-  return parseOrThrow(GapProposalOutputSchema, JSON.parse(row.data as string), "GapProposalOutput");
+  return parseOrThrow(
+    GapProposalOutputSchema,
+    JSON.parse(row.data as string),
+    "GapProposalOutput"
+  );
 }
 
 function fetchAtomicClaims(projectId: string): AtomicClaim[] {
   const db = getDb();
-  const rows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all();
-  return rows.map((r) => parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim"));
+  const rows = db
+    .select()
+    .from(atomicClaims)
+    .where(eq(atomicClaims.projectId, projectId))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim")
+  );
 }
 
 /** Build corpus-bounded context for gap proposal. */
@@ -149,15 +194,35 @@ export function selectedCorpusContext(projectId: string): {
     const rows = db
       .select()
       .from(sources)
-      .where(and(eq(sources.projectId, projectId), sql`json_extract(${sources.data}, '$.selected') = 1`))
+      .where(
+        and(
+          eq(sources.projectId, projectId),
+          sql`json_extract(${sources.data}, '$.selected') = 1`
+        )
+      )
       .all();
     if (rows.length > 0) {
-      selected = rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+      selected = rows.map((r) =>
+        parseOrThrow(
+          SourceDocumentSchema,
+          JSON.parse(r.data as string),
+          "SourceDocument"
+        )
+      );
     } else {
       const all = fetchSources(projectId);
       const filtered = all.filter((s) => s.selected);
       // If json_extract returned 0 but we know there are selected, fallback to filtered
-      selected = filtered.length > 0 && rows.length === 0 ? filtered : rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+      selected =
+        filtered.length > 0 && rows.length === 0
+          ? filtered
+          : rows.map((r) =>
+              parseOrThrow(
+                SourceDocumentSchema,
+                JSON.parse(r.data as string),
+                "SourceDocument"
+              )
+            );
       if (selected.length === 0 && filtered.length > 0) selected = filtered;
     }
   } catch {
@@ -192,13 +257,13 @@ export function selectedCorpusContext(projectId: string): {
  */
 export function researchQuestionContext(
   projectId: string,
-  researchQuestionNodeIds: string[],
+  researchQuestionNodeIds: string[]
 ): { id: string; title: string; content: string; status: string }[] {
   const graph = fetchSpecGraph(projectId);
   const questionNodes = new Map(
     (graph?.nodes ?? [])
       .filter((n) => n.type === "RESEARCH_QUESTION")
-      .map((n) => [n.id, n]),
+      .map((n) => [n.id, n])
   );
 
   if (researchQuestionNodeIds.length === 0) {
@@ -214,10 +279,15 @@ export function researchQuestionContext(
     const node = questionNodes.get(id);
     if (!node) {
       throw new Error(
-        `Research question node ${id} not found in the decomposition of project ${projectId}.`,
+        `Research question node ${id} not found in the decomposition of project ${projectId}.`
       );
     }
-    return { id: node.id, title: node.title, content: node.content, status: node.status };
+    return {
+      id: node.id,
+      title: node.title,
+      content: node.content,
+      status: node.status,
+    };
   });
 }
 
@@ -226,24 +296,34 @@ export async function generateGapProposal(params: {
   projectId: string;
   /** Research-question node ids from the Step-2 graph; empty = all of them. */
   researchQuestionNodeIds?: string[];
-  client: any;
+  client: OpenAI;
   model: string;
 }): Promise<GapProposalOutput> {
   const { projectId, client, model } = params;
   const corpus = selectedCorpusContext(projectId);
   if (corpus.sourceIds.length === 0) {
-    throw new Error("Select at least one source into the corpus before proposing a gap.");
+    throw new Error(
+      "Select at least one source into the corpus before proposing a gap."
+    );
   }
-  const questions = researchQuestionContext(projectId, params.researchQuestionNodeIds ?? []);
+  const questions = researchQuestionContext(
+    projectId,
+    params.researchQuestionNodeIds ?? []
+  );
 
   const corpusText = corpus.titles
-    .map((t, i) => `Source ${corpus.sourceIds[i]}: ${t}\n${corpus.abstracts[i]}`)
+    .map(
+      (t, i) => `Source ${corpus.sourceIds[i]}: ${t}\n${corpus.abstracts[i]}`
+    )
     .join("\n\n");
 
   const untrusted = [{ label: "Selected corpus", text: corpusText }];
   if (questions.length > 0) {
     const questionsText = questions
-      .map((q) => `Research question ${q.id} [${q.status}]: ${q.title}\n${q.content}`)
+      .map(
+        (q) =>
+          `Research question ${q.id} [${q.status}]: ${q.title}\n${q.content}`
+      )
       .join("\n\n");
     untrusted.push({
       label: "Research questions from the confirmed idea decomposition",
@@ -285,29 +365,60 @@ export async function generateGapProposal(params: {
   return proposal;
 }
 
-function inferEvidenceOperator(expectedDirection: string): EvidenceRequirement["operator"] {
+function inferEvidenceOperator(
+  expectedDirection: string
+): EvidenceRequirement["operator"] {
   const lower = expectedDirection.toLowerCase();
-  if (lower.includes("statistically") || lower.includes("p <") || lower.includes("p<") || lower.includes("significant")) {
+  if (
+    lower.includes("statistically") ||
+    lower.includes("p <") ||
+    lower.includes("p<") ||
+    lower.includes("significant")
+  ) {
     return "STATISTICALLY_SIGNIFICANT";
   }
-  if (lower.includes("range") || lower.includes("between") || lower.includes("interval")) {
+  if (
+    lower.includes("range") ||
+    lower.includes("between") ||
+    lower.includes("interval")
+  ) {
     return "IN_RANGE";
   }
-  if (lower.includes("greater than") && !lower.includes("or equal")) return "GT";
+  if (lower.includes("greater than") && !lower.includes("or equal"))
+    return "GT";
   if (lower.includes("less than") && !lower.includes("or equal")) return "LT";
-  if (lower.includes("increase") || lower.includes("improv") || lower.includes("higher") || lower.includes("greater") || lower.includes("exceed") || lower.includes(">=") || lower.includes("at least")) {
+  if (
+    lower.includes("increase") ||
+    lower.includes("improv") ||
+    lower.includes("higher") ||
+    lower.includes("greater") ||
+    lower.includes("exceed") ||
+    lower.includes(">=") ||
+    lower.includes("at least")
+  ) {
     return "GTE";
   }
-  if (lower.includes("decrease") || lower.includes("reduce") || lower.includes("lower") || lower.includes("less") || lower.includes("<=")) {
+  if (
+    lower.includes("decrease") ||
+    lower.includes("reduce") ||
+    lower.includes("lower") ||
+    lower.includes("less") ||
+    lower.includes("<=")
+  ) {
     return "LTE";
   }
-  if (lower.includes("equal") || lower.includes("no difference") || lower.includes("==")) return "EQ";
+  if (
+    lower.includes("equal") ||
+    lower.includes("no difference") ||
+    lower.includes("==")
+  )
+    return "EQ";
   return "GTE";
 }
 
 function buildEvidenceRequirementForClaim(
   projectId: string,
-  claim: AtomicClaim,
+  claim: AtomicClaim
 ): EvidenceRequirement {
   const operator = inferEvidenceOperator(claim.expectedDirection);
   const threshold = `Not (${claim.falsificationCondition}) — satisfies ${claim.expectedDirection} on ${claim.metric}`;
@@ -330,7 +441,7 @@ function buildEvidenceRequirementForClaim(
       createdAt: now,
       updatedAt: now,
     },
-    "EvidenceRequirement",
+    "EvidenceRequirement"
   );
 }
 
@@ -338,9 +449,15 @@ function buildEvidenceRequirementForClaim(
 export async function generateClaimDesign(params: {
   projectId: string;
   selectedGapIndex: number;
-  client: any;
+  client: OpenAI;
   model: string;
-}): Promise<ClaimDesignOutput & { persistedClaims: AtomicClaim[]; persistedContributions: Contribution[]; persistedEvidenceRequirements: EvidenceRequirement[] }> {
+}): Promise<
+  ClaimDesignOutput & {
+    persistedClaims: AtomicClaim[];
+    persistedContributions: Contribution[];
+    persistedEvidenceRequirements: EvidenceRequirement[];
+  }
+> {
   const { projectId, selectedGapIndex, client, model } = params;
 
   const proposal = fetchGapProposal(projectId);
@@ -394,13 +511,18 @@ export async function generateClaimDesign(params: {
         createdAt: now,
         updatedAt: now,
       },
-      "AtomicClaim",
-    ),
+      "AtomicClaim"
+    )
   );
   // Replace with direct Drizzle: delete existing then insert
   const db = getDb();
   // Ensure FK gapProposal exists; fetch latest gapProposal id for FK
-  const gapRow = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).get();
+  const gapRow = db
+    .select()
+    .from(gapProposals)
+    .where(eq(gapProposals.projectId, projectId))
+    .orderBy(desc(gapProposals.createdAt))
+    .get();
   const gapProposalId = gapRow?.id ?? ensureGapProposalExists(projectId);
   for (const claim of persistedClaims) {
     db.insert(atomicClaims)
@@ -415,27 +537,31 @@ export async function generateClaimDesign(params: {
       .run();
   }
 
-  const persistedContributions: Contribution[] = design.contributions.map((c) => {
-    const id = crypto.randomUUID();
-    const claimIds = persistedClaims.slice(0, c.claimIds.length).map((cl) => cl.id);
-    return parseOrThrow(
-      z.object({
-        id: z.string().uuid(),
-        projectId: z.string().uuid(),
-        text: z.string().min(1).max(2_000),
-        claimIds: z.array(z.string().uuid()).default([]),
-        createdAt: z.string(),
-      }),
-      {
-        id,
-        projectId,
-        text: c.text,
-        claimIds,
-        createdAt: now,
-      },
-      "Contribution",
-    );
-  });
+  const persistedContributions: Contribution[] = design.contributions.map(
+    (c) => {
+      const id = crypto.randomUUID();
+      const claimIds = persistedClaims
+        .slice(0, c.claimIds.length)
+        .map((cl) => cl.id);
+      return parseOrThrow(
+        z.object({
+          id: z.string().uuid(),
+          projectId: z.string().uuid(),
+          text: z.string().min(1).max(2_000),
+          claimIds: z.array(z.string().uuid()).default([]),
+          createdAt: z.string(),
+        }),
+        {
+          id,
+          projectId,
+          text: c.text,
+          claimIds,
+          createdAt: now,
+        },
+        "Contribution"
+      );
+    }
+  );
   for (const contrib of persistedContributions) {
     db.insert(contributions)
       .values({
@@ -452,9 +578,10 @@ export async function generateClaimDesign(params: {
   // not have to run a second process manually. Deterministic, no extra LLM
   // call — the LLM-backed `evidence.generateEvidenceForClaim` remains
   // available for per-claim regeneration.
-  const persistedEvidenceRequirements: EvidenceRequirement[] = persistedClaims.map((claim) =>
-    buildEvidenceRequirementForClaim(projectId, claim),
-  );
+  const persistedEvidenceRequirements: EvidenceRequirement[] =
+    persistedClaims.map((claim) =>
+      buildEvidenceRequirementForClaim(projectId, claim)
+    );
   for (const req of persistedEvidenceRequirements) {
     db.insert(evidenceRequirements)
       .values({
@@ -470,7 +597,10 @@ export async function generateClaimDesign(params: {
 
   // Return design with persisted IDs substituted.
   return {
-    contributions: persistedContributions.map((c) => ({ text: c.text, claimIds: c.claimIds })),
+    contributions: persistedContributions.map((c) => ({
+      text: c.text,
+      claimIds: c.claimIds,
+    })),
     claims: design.claims,
     persistedClaims,
     persistedContributions,
@@ -483,15 +613,19 @@ export async function generateExperimentPlan(params: {
   projectId: string;
   claimIds: string[];
   tier: string;
-  client: any;
+  client: OpenAI;
   model: string;
 }): Promise<ExperimentPlan> {
   const { projectId, claimIds, tier, client, model } = params;
 
   const claims = fetchAtomicClaims(projectId);
-  const selectedClaims = claimIds.length ? claims.filter((c) => claimIds.includes(c.id)) : claims;
+  const selectedClaims = claimIds.length
+    ? claims.filter((c) => claimIds.includes(c.id))
+    : claims;
   if (selectedClaims.length === 0) {
-    throw new Error("Generate or select at least one atomic claim before experiment planning.");
+    throw new Error(
+      "Generate or select at least one atomic claim before experiment planning."
+    );
   }
 
   const claimsText = selectedClaims
@@ -499,7 +633,7 @@ export async function generateExperimentPlan(params: {
       (c) =>
         `Claim ${c.id} [${c.type}]: ${c.text}\n` +
         `  scope: ${c.scope}\n  baseline: ${c.baseline}\n` +
-        `  metric: ${c.metric}\n  falsifies if: ${c.falsificationCondition}`,
+        `  metric: ${c.metric}\n  falsifies if: ${c.falsificationCondition}`
     )
     .join("\n\n");
 
@@ -533,7 +667,7 @@ export async function generateExperimentPlan(params: {
       createdAt: now,
       updatedAt: now,
     },
-    "ExperimentPlan",
+    "ExperimentPlan"
   );
   const db = getDb();
   const gapProposalId = ensureGapProposalExists(projectId);

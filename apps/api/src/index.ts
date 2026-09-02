@@ -6,12 +6,12 @@
  * `pnpm --filter @specloop/api dev`.
  */
 
-export { appRouter } from "./routers/index.js";
-export type { AppRouter } from "./routers/index.js";
-export { createContext, type ApiContext } from "./trpc/context.js";
 export {
   getLlmClient,
   getLlmConfig,
-  resetLlmClient,
   type LlmConfig,
+  resetLlmClient,
 } from "./llm/index.js";
+export type { AppRouter } from "./routers/index.js";
+export { appRouter } from "./routers/index.js";
+export { type ApiContext, createContext } from "./trpc/context.js";

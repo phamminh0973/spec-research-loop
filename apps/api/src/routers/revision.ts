@@ -21,20 +21,24 @@ import {
   ResearchSpecSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
-import { publicProcedure, router } from "../trpc/trpc.js";
 import {
-  RevisionError,
   diffResearchSpecVersions,
   finalizeResearchSpec,
   listFindingResolutions,
+  RevisionError,
   recordFindingResolution,
   rerunJudge,
 } from "../modules/revision/service.js";
+import { publicProcedure, router } from "../trpc/trpc.js";
 
 function toTrpcError(err: unknown): TRPCError {
   if (err instanceof TRPCError) return err;
   if (err instanceof RevisionError) {
-    return new TRPCError({ code: "PRECONDITION_FAILED", message: err.message, cause: err });
+    return new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: err.message,
+      cause: err,
+    });
   }
   const message = err instanceof Error ? err.message : String(err);
   return new TRPCError({

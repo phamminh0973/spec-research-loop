@@ -5,10 +5,10 @@
  * App Router. The provider is mounted from the root layout.
  */
 
-import superjson from "superjson";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { useState } from "react";
+import superjson from "superjson";
 import { apiBaseUrl, trpc } from "./trpc";
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
@@ -21,7 +21,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
             refetchOnWindowFocus: false,
           },
         },
-      }),
+      })
   );
   const [trpcClient] = useState(() =>
     trpc.createClient({
@@ -31,7 +31,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
           transformer: superjson,
         }),
       ],
-    }),
+    })
   );
 
   return (

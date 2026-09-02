@@ -26,29 +26,29 @@
 
 import {
   GenerateQueriesInputSchema,
+  ImportManualSourceInputSchema,
+  ListSourcesInputSchema,
+  ListSourcesOutputSchema,
   QueryGenerationOutputSchema,
   SearchSourcesInputSchema,
   SearchSourcesOutputSchema,
   SearchWithAnalysisInputSchema,
   SearchWithAnalysisOutputSchema,
-  ImportManualSourceInputSchema,
-  ListSourcesInputSchema,
-  ListSourcesOutputSchema,
   SelectSourceInputSchema,
   SourceDocumentSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { publicProcedure, router } from "../trpc/trpc.js";
 import {
   generateQueries,
-  searchWithAnalysis,
-  search,
   importManual,
   listSources,
-  selectSource,
+  search,
+  searchWithAnalysis,
   selectedCount,
+  selectSource,
 } from "../modules/literature/service.js";
+import { publicProcedure, router } from "../trpc/trpc.js";
 
 export const literatureRouter = router({
   /**

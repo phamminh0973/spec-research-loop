@@ -14,7 +14,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "lint": "echo \"@specloop/api: eslint not configured yet\"",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "test": "vitest run"
   },
   "dependencies": {

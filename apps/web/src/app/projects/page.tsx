@@ -1,11 +1,10 @@
 "use client";
 
+import { Calendar, Folder, Hash, Plus } from "lucide-react";
 import Link from "next/link";
-import { Folder, Plus, Calendar, Hash } from "lucide-react";
-
-import { AppShell } from "@/components/workflow/shared/app-shell";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { AppShell } from "@/components/workflow/shared/app-shell";
 import { trpc } from "@/lib/trpc";
 
 export default function ProjectsPage() {
@@ -47,7 +46,9 @@ export default function ProjectsPage() {
             {isLoading ? (
               <p className="text-sm text-muted-foreground">Đang tải...</p>
             ) : error ? (
-              <p className="text-sm text-destructive">Không thể tải danh sách dự án.</p>
+              <p className="text-sm text-destructive">
+                Không thể tải danh sách dự án.
+              </p>
             ) : data && data.items.length > 0 ? (
               <ul className="grid gap-3 sm:grid-cols-2">
                 {data.items.map((project) => (
@@ -75,7 +76,9 @@ export default function ProjectsPage() {
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <Calendar size={12} aria-hidden="true" />
-                          {new Date(project.createdAt).toLocaleDateString("vi-VN")}
+                          {new Date(project.createdAt).toLocaleDateString(
+                            "vi-VN"
+                          )}
                         </span>
                       </div>
                     </Link>

@@ -17,8 +17,8 @@ export default function VersionHistoryPage() {
             Tính năng đang phát triển
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Lịch sử phiên bản chưa được triển khai. Khi hoàn thành, bạn sẽ có thể
-            xem và đối chiếu các phiên bản đặc tả của project tại đây.
+            Lịch sử phiên bản chưa được triển khai. Khi hoàn thành, bạn sẽ có
+            thể xem và đối chiếu các phiên bản đặc tả của project tại đây.
           </p>
         </section>
       </div>

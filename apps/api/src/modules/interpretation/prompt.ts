@@ -65,7 +65,7 @@ export interface InterpretationMessages {
  * data, separate from the system policy (docs/04-ai-system-design.md §16).
  */
 export function buildInterpretationMessages(
-  input: InterpretIdeaInput,
+  input: InterpretIdeaInput
 ): InterpretationMessages {
   const userPayload = {
     raw_idea: input.rawIdea,

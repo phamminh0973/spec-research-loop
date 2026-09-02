@@ -2,9 +2,9 @@
 
 import {
   PersistedNodeStatusSchema,
+  type SpecGraphView,
   SpecNodeTypeSchema,
   STEP2_REQUIRED_NODE_TYPES,
-  type SpecGraphView,
 } from "@specloop/schemas";
 import { Search, Sparkles } from "lucide-react";
 
@@ -12,7 +12,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
-import { SectionCard, LocalDevelopmentBadge } from "../shared/section-card";
+import { LocalDevelopmentBadge, SectionCard } from "../shared/section-card";
 import {
   buildStep2Coverage,
   calculateStep2Readiness,
@@ -48,8 +48,8 @@ function Metrics({ graph }: { graph: SpecGraphView | null }) {
   const relationCount = graph?.relations.length ?? 0;
 
   return (
-    <div
-      className="grid grid-cols-2 gap-3 md:grid-cols-4"
+    <ul
+      className="grid grid-cols-2 gap-3 md:grid-cols-4 list-none p-0 m-0"
       aria-label="Decomposition summary"
     >
       {[
@@ -58,12 +58,12 @@ function Metrics({ graph }: { graph: SpecGraphView | null }) {
         [warningCount, "warnings"],
         [relationCount, "relations"],
       ].map(([value, label]) => (
-        <div className="bg-muted rounded-lg p-4 text-center" key={label}>
+        <li className="bg-muted rounded-lg p-4 text-center" key={label}>
           <span className="text-foreground text-2xl font-bold">{value}</span>
           <span className="text-muted-foreground block text-sm">{label}</span>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 

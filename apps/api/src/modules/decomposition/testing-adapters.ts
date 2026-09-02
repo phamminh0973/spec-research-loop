@@ -5,12 +5,12 @@
  */
 
 import {
-  ConfirmedInterpretationSnapshotSchema,
-  DecomposeIdeaInputSchema,
-  DecompositionOutputSchema,
   type ConfirmedInterpretationSnapshot,
+  ConfirmedInterpretationSnapshotSchema,
   type DecomposeIdeaInput,
+  DecomposeIdeaInputSchema,
   type DecompositionOutput,
+  DecompositionOutputSchema,
 } from "@specloop/schemas";
 
 import type {
@@ -18,7 +18,9 @@ import type {
   DecompositionGenerator,
 } from "./ports.js";
 
-export class DeterministicConfirmedInterpretationReader implements ConfirmedInterpretationReader {
+export class DeterministicConfirmedInterpretationReader
+  implements ConfirmedInterpretationReader
+{
   private readonly snapshots: readonly ConfirmedInterpretationSnapshot[];
 
   constructor(snapshots: readonly ConfirmedInterpretationSnapshot[]) {
@@ -39,7 +41,9 @@ export class DeterministicConfirmedInterpretationReader implements ConfirmedInte
   }
 }
 
-export class DeterministicDecompositionGenerator implements DecompositionGenerator {
+export class DeterministicDecompositionGenerator
+  implements DecompositionGenerator
+{
   constructor(
     private readonly factory: (input: DecomposeIdeaInput) => DecompositionOutput
   ) {}

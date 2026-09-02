@@ -1,9 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { UuidSchema } from "@specloop/schemas";
-
-import { createContextInner } from "./context.js";
-import type { ApiContext } from "./context.js";
+import { describe, expect, it } from "vitest";
 import { appRouter } from "../routers/index.js";
+import type { ApiContext } from "./context.js";
+import { createContextInner } from "./context.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 

@@ -24,7 +24,9 @@ describe("Markdown export", () => {
     });
 
     expect(markdown).toContain("# SpecLoop Research Specification");
-    expect(markdown).toContain("## Problem statement\n\nMột vấn đề có thể kiểm chứng.");
+    expect(markdown).toContain(
+      "## Problem statement\n\nMột vấn đề có thể kiểm chứng."
+    );
     expect(markdown).toContain("## Judge review");
     expect(markdown).toContain("### Evidence Judge");
     expect(markdown).toContain("Other: Giới hạn trong domain NLP");

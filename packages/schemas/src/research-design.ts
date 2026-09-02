@@ -73,7 +73,7 @@ export const ClaimDesignOutputSchema = z.object({
     z.object({
       text: z.string().min(1).max(2_000),
       claimIds: z.array(UuidSchema).default([]),
-    }),
+    })
   ),
   claims: z.array(
     z.object({
@@ -87,7 +87,7 @@ export const ClaimDesignOutputSchema = z.object({
       falsificationCondition: z.string().min(1).max(2_000),
       evidenceRefs: z.array(UuidSchema).default([]),
       experimentRefs: z.array(UuidSchema).default([]),
-    }),
+    })
   ),
 });
 export type ClaimDesignOutput = z.infer<typeof ClaimDesignOutputSchema>;
@@ -101,9 +101,10 @@ export type ClaimDesignOutput = z.infer<typeof ClaimDesignOutputSchema>;
  * `evidence.generateEvidenceForClaim` remains available for per-claim
  * regeneration.
  */
-export const GenerateClaimDesignWithEvidenceOutputSchema = ClaimDesignOutputSchema.extend({
-  evidenceRequirements: z.array(EvidenceRequirementSchema).default([]),
-});
+export const GenerateClaimDesignWithEvidenceOutputSchema =
+  ClaimDesignOutputSchema.extend({
+    evidenceRequirements: z.array(EvidenceRequirementSchema).default([]),
+  });
 export type GenerateClaimDesignWithEvidenceOutput = z.infer<
   typeof GenerateClaimDesignWithEvidenceOutputSchema
 >;
@@ -123,7 +124,7 @@ export const ResourceEstimateSchema = z.object({
         name: z.string().min(1).max(200),
         value: z.string().min(1).max(2_000),
         basis: z.enum(["assumed", "measured"]),
-      }),
+      })
     )
     .default([]),
   /** Result of the formula; labeled estimated unless reconciled. */
@@ -198,7 +199,9 @@ export type ListAtomicClaimsInput = z.infer<typeof ListAtomicClaimsInputSchema>;
 export const ListAtomicClaimsOutputSchema = z.object({
   items: z.array(AtomicClaimSchema),
 });
-export type ListAtomicClaimsOutput = z.infer<typeof ListAtomicClaimsOutputSchema>;
+export type ListAtomicClaimsOutput = z.infer<
+  typeof ListAtomicClaimsOutputSchema
+>;
 
 export const ListExperimentPlansInputSchema = z.object({
   projectId: UuidSchema,

@@ -20,20 +20,20 @@
  */
 
 import {
-  InterpretationOutputSchema,
-  InterpretIdeaInputSchema,
   type InterpretationOutput,
+  InterpretationOutputSchema,
   type InterpretationRecord,
   type InterpretIdeaInput,
+  InterpretIdeaInputSchema,
 } from "@specloop/schemas";
 import type OpenAI from "openai";
 import { getLlmClient, getLlmConfig } from "../../llm/index.js";
 import { structuredCall } from "../../llm/structured-call.js";
 import {
+  buildInterpretationMessages,
   PROMPT_ID,
   PROMPT_VERSION,
   SCHEMA_VERSION,
-  buildInterpretationMessages,
 } from "./prompt.js";
 
 /** Provider label recorded on every interpretation call (single configurable OpenAI-compatible provider; docs/04-ai-system-design.md §1). */

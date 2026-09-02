@@ -6,13 +6,13 @@ import type {
 import { describe, expect, it } from "vitest";
 
 import {
-  InMemoryInterpretationRepository,
   createInterpretationModule,
+  InMemoryInterpretationRepository,
 } from "../modules/interpretation/index.js";
 import type { ApiContext } from "../trpc/context.js";
 import { appRouter } from "./index.js";
 
-const PROJECT_ID = "123e4567-e89b-42d3-a456-426614174000";
+const _PROJECT_ID = "123e4567-e89b-42d3-a456-426614174000";
 const USER_ID = "123e4567-e89b-42d3-a456-426614174099";
 const UNKNOWN_PROJECT_ID = "123e4567-e89b-42d3-a456-426614174010";
 

@@ -1,5 +1,9 @@
 import { z } from "zod";
-
+import { NonEmptyTextSchema, UuidSchema } from "./common";
+import {
+  ConfirmedDecisionSchema,
+  ConfirmedInterpretationSnapshotSchema,
+} from "./interpretation";
 import {
   AiGeneratedNodeStatusSchema,
   ClientRefSchema,
@@ -9,11 +13,6 @@ import {
   SpecRelationSchema,
   SpecRelationTypeSchema,
 } from "./spec-graph";
-import { NonEmptyTextSchema, UuidSchema } from "./common";
-import {
-  ConfirmedDecisionSchema,
-  ConfirmedInterpretationSnapshotSchema,
-} from "./interpretation";
 
 export const DecomposeIdeaInputSchema = z
   .object({

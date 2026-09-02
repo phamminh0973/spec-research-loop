@@ -39,7 +39,7 @@ const VALID_OUTPUT = {
 
 /** Build a fake OpenAI client whose `chat.completions.create` returns the given contents in order (one per call). */
 function fakeClient(
-  responses: Array<{ content?: string } | { throws: Error }>,
+  responses: Array<{ content?: string } | { throws: Error }>
 ): OpenAI {
   const create = vi.fn();
   for (const response of responses) {
@@ -67,7 +67,7 @@ describe("generateInterpretation", () => {
     expect(record.promptId).toBe("PT-01");
     expect(record.retryCount).toBe(0);
     expect(record.output.simpleInterpretation).toBe(
-      VALID_OUTPUT.simpleInterpretation,
+      VALID_OUTPUT.simpleInterpretation
     );
     expect(record.output.assumptions).toEqual(VALID_OUTPUT.assumptions);
   });
@@ -110,7 +110,7 @@ describe("generateInterpretation", () => {
     ]);
 
     await expect(
-      generateInterpretation(VALID_INPUT, { client, model: "test-model" }),
+      generateInterpretation(VALID_INPUT, { client, model: "test-model" })
     ).rejects.toBeInstanceOf(InterpretationGenerationError);
   });
 
@@ -149,8 +149,8 @@ describe("generateInterpretation", () => {
     await expect(
       generateInterpretation(
         { ...VALID_INPUT, rawIdea: "too short" },
-        { client, model: "test-model" },
-      ),
+        { client, model: "test-model" }
+      )
     ).rejects.toThrow();
     expect(create).not.toHaveBeenCalled();
   });

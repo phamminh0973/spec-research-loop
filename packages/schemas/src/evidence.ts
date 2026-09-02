@@ -36,19 +36,25 @@ export const CreateEvidenceSpanInputSchema = z.object({
   /** Defaults to `EXACT` when page/offsets are present, else `MANUAL`. */
   entryType: EvidenceEntryTypeSchema.optional(),
 });
-export type CreateEvidenceSpanInput = z.infer<typeof CreateEvidenceSpanInputSchema>;
+export type CreateEvidenceSpanInput = z.infer<
+  typeof CreateEvidenceSpanInputSchema
+>;
 
 export const ListEvidenceSpansInputSchema = z.object({
   projectId: UuidSchema,
   sourceId: UuidSchema.optional(),
   limit: z.number().int().min(1).max(100).default(50),
 });
-export type ListEvidenceSpansInput = z.infer<typeof ListEvidenceSpansInputSchema>;
+export type ListEvidenceSpansInput = z.infer<
+  typeof ListEvidenceSpansInputSchema
+>;
 
 export const ListEvidenceSpansOutputSchema = z.object({
   items: z.array(EvidenceSpanSchema),
 });
-export type ListEvidenceSpansOutput = z.infer<typeof ListEvidenceSpansOutputSchema>;
+export type ListEvidenceSpansOutput = z.infer<
+  typeof ListEvidenceSpansOutputSchema
+>;
 
 /**
  * Operator defining what a measured metric value must satisfy to verify a

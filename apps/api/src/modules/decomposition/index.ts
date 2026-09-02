@@ -3,15 +3,6 @@
  */
 
 export {
-  DECOMPOSITION_PROMPT_ID,
-  DECOMPOSITION_PROMPT_VERSION,
-  DECOMPOSITION_TASK_ID,
-  buildDecompositionMessages,
-  decompositionPrompt,
-  type DecompositionMessages,
-} from "./prompt.js";
-
-export {
   ConfirmationRequiredError,
   DecompositionValidationError,
   SpecGraphConflictError,
@@ -20,20 +11,20 @@ export {
   SpecNodeNotFoundError,
   SpecRelationNotFoundError,
 } from "./errors.js";
-
 export {
   LlmDecompositionGenerator,
   type LlmDecompositionGeneratorDependencies,
 } from "./generator.js";
-
 export {
   Step1ConfirmedInterpretationReader,
   type Step1ProjectBoundary,
   type Step1ProjectReader,
 } from "./interpretation-reader-adapter.js";
-
-export { InMemorySpecGraphStore } from "./repository.js";
-
+export {
+  createSpecStructureModule,
+  type SpecStructureModule,
+  type SpecStructureModuleDependencies,
+} from "./module.js";
 export type {
   ChangeStatusCommand,
   ConfirmedInterpretationReader,
@@ -45,17 +36,18 @@ export type {
   SpecGraphStore,
   UpdateNodeCommand,
 } from "./ports.js";
-
+export {
+  buildDecompositionMessages,
+  DECOMPOSITION_PROMPT_ID,
+  DECOMPOSITION_PROMPT_VERSION,
+  DECOMPOSITION_TASK_ID,
+  type DecompositionMessages,
+  decompositionPrompt,
+} from "./prompt.js";
+export { InMemorySpecGraphStore } from "./repository.js";
 export { DecompositionService } from "./service.js";
-
 export {
   applyDeterministicRules,
   calculateDeterministicWarnings,
   type RuleGraph,
 } from "./status-rules.js";
-
-export {
-  createSpecStructureModule,
-  type SpecStructureModule,
-  type SpecStructureModuleDependencies,
-} from "./module.js";

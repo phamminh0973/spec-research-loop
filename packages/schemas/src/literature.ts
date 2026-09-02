@@ -7,11 +7,7 @@ import { IsoTimestampSchema, UuidSchema } from "./common";
  * distinction between API-sourced metadata and user-provided metadata.
  * The tier describes provenance/directness, not universal credibility.
  */
-export const SourceProvenanceTierSchema = z.enum([
-  "API",
-  "MANUAL",
-  "ABSTRACT",
-]);
+export const SourceProvenanceTierSchema = z.enum(["API", "MANUAL", "ABSTRACT"]);
 export type SourceProvenanceTier = z.infer<typeof SourceProvenanceTierSchema>;
 
 /**
@@ -87,7 +83,7 @@ export const SearchSourcesOutputSchema = z.object({
       doi: z.string().nullable(),
       primaryCategory: z.string().nullable(),
       abstract: z.string(),
-    }),
+    })
   ),
   /** Number of results dropped as duplicates of existing corpus sources. */
   duplicatesDropped: z.number().int().min(0),
@@ -186,7 +182,9 @@ export const SearchWithAnalysisInputSchema = z.object({
   /** Max papers to return; bounded per AI design §14. */
   maxResults: z.number().int().min(1).max(20).default(10),
 });
-export type SearchWithAnalysisInput = z.infer<typeof SearchWithAnalysisInputSchema>;
+export type SearchWithAnalysisInput = z.infer<
+  typeof SearchWithAnalysisInputSchema
+>;
 
 export const SearchWithAnalysisOutputSchema = z.object({
   /** The arXiv query the LLM chose to run (for transparency/audit). */

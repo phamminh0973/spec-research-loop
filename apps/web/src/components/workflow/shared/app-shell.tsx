@@ -1,36 +1,22 @@
 "use client";
 
-import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
   CircleHelp,
   FileText,
   Folder,
-  Home,
   History,
-  Infinity,
+  Home,
+  Infinity as InfinityIcon,
   PanelRightClose,
   PanelRightOpen,
   Search,
   ShieldCheck,
 } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import type {
-  PanelImperativeHandle,
-  PanelSize,
-} from "react-resizable-panels";
-import type { LucideIcon } from "lucide-react";
-
-import { LocalDevelopmentBadge, StatusPill } from "./section-card";
-import { LOCAL_PROJECT } from "./local-fixtures";
-import { StepBreadcrumb } from "./step-breadcrumb";
-import { calculateStep2Readiness } from "../step2/step2-model";
-import {
-  buildWorkflowProgress,
-  type ActiveStep,
-  type WorkflowFacts,
-} from "./workflow-progress";
-import { cn } from "@/lib/utils";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import type { PanelImperativeHandle, PanelSize } from "react-resizable-panels";
 import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
@@ -38,6 +24,16 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
+import { calculateStep2Readiness } from "../step2/step2-model";
+import { LOCAL_PROJECT } from "./local-fixtures";
+import { LocalDevelopmentBadge, StatusPill } from "./section-card";
+import { StepBreadcrumb } from "./step-breadcrumb";
+import {
+  type ActiveStep,
+  buildWorkflowProgress,
+  type WorkflowFacts,
+} from "./workflow-progress";
 
 function HeaderNavLink({
   href,
@@ -111,7 +107,8 @@ export function AppShell({
   const isNavActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href) === true;
   const factsEnabled = Boolean(projectId) && !fixtureMode;
-  const needsResearchFacts = factsEnabled && (activeStep === 3 || activeStep === 4);
+  const needsResearchFacts =
+    factsEnabled && (activeStep === 3 || activeStep === 4);
   const projectQuery = trpc.projects.byId.useQuery(
     { id: projectId ?? "" },
     {
@@ -225,33 +222,59 @@ export function AppShell({
             href="/"
             aria-label="SpecResearch Loop"
           >
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground" aria-hidden="true">
-              <Infinity size={20} />
+            <span
+              className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+              aria-hidden="true"
+            >
+              <InfinityIcon size={20} />
             </span>
-            <span className="text-lg font-extrabold tracking-tight text-foreground">SpecResearch Loop</span>
+            <span className="text-lg font-extrabold tracking-tight text-foreground">
+              SpecResearch Loop
+            </span>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Điều hướng chính">
-            <HeaderNavLink href="/" label="Trang chủ" icon={Home} active={isNavActive("/")} />
-            <HeaderNavLink href="/projects" label="Dự án" icon={Folder} active={isNavActive("/projects")} />
-            <HeaderNavLink href="/history" label="Lịch sử phiên bản" icon={History} active={isNavActive("/history")} />
-            <HeaderNavLink href="/help" label="Trợ giúp" icon={CircleHelp} active={isNavActive("/help")} />
+          <nav
+            className="hidden items-center gap-1 md:flex"
+            aria-label="Điều hướng chính"
+          >
+            <HeaderNavLink
+              href="/"
+              label="Trang chủ"
+              icon={Home}
+              active={isNavActive("/")}
+            />
+            <HeaderNavLink
+              href="/projects"
+              label="Dự án"
+              icon={Folder}
+              active={isNavActive("/projects")}
+            />
+            <HeaderNavLink
+              href="/history"
+              label="Lịch sử phiên bản"
+              icon={History}
+              active={isNavActive("/history")}
+            />
+            <HeaderNavLink
+              href="/help"
+              label="Trợ giúp"
+              icon={CircleHelp}
+              active={isNavActive("/help")}
+            />
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
             {fixtureMode ? <LocalDevelopmentBadge /> : null}
-            <span className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground" aria-label="Demo user">
+            <div className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
               Demo user
-            </span>
+            </div>
           </div>
         </div>
       </header>
 
       <ResizablePanelGroup className="mx-auto w-full max-w-[1600px] flex-1 overflow-hidden">
         <ResizablePanel id="workflow-main" className="min-h-0 min-w-0">
-          <main className="h-full overflow-y-auto px-6 py-8">
-            {children}
-          </main>
+          <main className="h-full overflow-y-auto px-6 py-8">{children}</main>
         </ResizablePanel>
 
         {projectId && isLargeViewport ? (
@@ -317,79 +340,126 @@ export function AppShell({
                         <PanelRightClose size={17} />
                       </Button>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT WORKFLOW</p>
-                        <h2 className="text-base font-bold text-foreground">Bản đặc tả hiện tại</h2>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          PROJECT WORKFLOW
+                        </p>
+                        <h2 className="text-base font-bold text-foreground">
+                          Bản đặc tả hiện tại
+                        </h2>
                       </div>
                     </div>
 
                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                       <div className="p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PROJECT</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          PROJECT
+                        </p>
                         <p className="text-base font-medium text-foreground mt-1">
                           {projectLabel}
                         </p>
                         {projectId ? (
-                          <code className="text-xs text-muted-foreground mt-1 block font-mono">{projectId}</code>
+                          <code className="text-xs text-muted-foreground mt-1 block font-mono">
+                            {projectId}
+                          </code>
                         ) : (
-                          <span className="text-xs text-muted-foreground mt-1 block">Chưa tạo project</span>
+                          <span className="text-xs text-muted-foreground mt-1 block">
+                            Chưa tạo project
+                          </span>
                         )}
                       </div>
 
                       <div className="p-4 border-t border-border">
-                        <StepBreadcrumb steps={progress.steps} title={progress.title} />
+                        <StepBreadcrumb
+                          steps={progress.steps}
+                          title={progress.title}
+                        />
                       </div>
 
                       <div className="p-4 border-t border-border">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">API STATUS</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          API STATUS
+                        </p>
                         {progressFacts.interpretationStatus ? (
                           <div className="flex items-center justify-between mt-3">
-                            <span className="text-sm text-foreground">Interpretation</span>
-                            <StatusPill status={progressFacts.interpretationStatus} />
+                            <span className="text-sm text-foreground">
+                              Interpretation
+                            </span>
+                            <StatusPill
+                              status={progressFacts.interpretationStatus}
+                            />
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground mt-3">Chưa có interpretation record.</p>
+                          <p className="text-sm text-muted-foreground mt-3">
+                            Chưa có interpretation record.
+                          </p>
                         )}
                         {progressFacts.decompositionReady ? (
                           <div className="flex items-center justify-between mt-3">
-                            <span className="text-sm text-foreground">Decomposition</span>
+                            <span className="text-sm text-foreground">
+                              Decomposition
+                            </span>
                             <StatusPill status="AVAILABLE" label="AVAILABLE" />
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground mt-3">Chưa có graph view.</p>
+                          <p className="text-sm text-muted-foreground mt-3">
+                            Chưa có graph view.
+                          </p>
                         )}
                       </div>
 
                       <div className="p-4 border-t border-border flex flex-col gap-2">
                         <Link
-                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 1 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            activeStep === 1
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          )}
                           href={understandingHref}
                         >
                           <FileText size={15} /> Step 1 · Interpretation
                         </Link>
                         <Link
-                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 2 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            activeStep === 2
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          )}
                           href={decompositionHref}
                         >
                           <Search size={15} /> Step 2 · Structured decomposition
                         </Link>
                         <Link
-                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 3 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            activeStep === 3
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          )}
                           href={researchHref}
                         >
-                          <CircleHelp size={15} /> Steps 3–8 · Evidence → feasibility
+                          <CircleHelp size={15} /> Steps 3–8 · Evidence →
+                          feasibility
                         </Link>
                         <Link
-                          className={cn("flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors", activeStep === 4 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground")}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            activeStep === 4
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          )}
                           href={finalReviewHref}
                         >
-                          <ShieldCheck size={15} /> Steps 9–10 · Spec review & finalize
+                          <ShieldCheck size={15} /> Steps 9–10 · Spec review &
+                          finalize
                         </Link>
                       </div>
 
                       {fixtureMode ? (
                         <p className="p-4 text-xs text-amber-700 bg-amber-500/10 border-t border-amber-500/20 dark:text-amber-300">
-                          Fixture mode không ghi production data và không đại diện cho live
-                          LLM, PostgreSQL hay literature results.
+                          Fixture mode không ghi production data và không đại
+                          diện cho live LLM, PostgreSQL hay literature results.
                         </p>
                       ) : null}
                     </div>

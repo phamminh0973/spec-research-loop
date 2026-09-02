@@ -17,4 +17,10 @@ export async function bootstrapPersistence(): Promise<void> {
   getDb();
 }
 
-export { closeDb, closeDb as closePool, getDb, getDb as getPool, isPersistenceEnabled };
+export {
+  closeDb,
+  closeDb as closePool,
+  getDb,
+  getDb as getPool,
+  isPersistenceEnabled,
+};

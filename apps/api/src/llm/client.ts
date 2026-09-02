@@ -18,7 +18,7 @@
  */
 
 import OpenAI from "openai";
-import { loadLlmConfig, type LlmConfig } from "./config.js";
+import { type LlmConfig, loadLlmConfig } from "./config.js";
 
 let cachedClient: OpenAI | undefined;
 let cachedConfig: LlmConfig | undefined;

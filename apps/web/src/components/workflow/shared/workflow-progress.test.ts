@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildWorkflowProgress,
-  type WorkflowFacts,
-} from "./workflow-progress";
+import { buildWorkflowProgress, type WorkflowFacts } from "./workflow-progress";
 
 function states(
   activeStep: 1 | 2 | 3 | 4,
   facts: WorkflowFacts = {},
-  options?: { newProject?: boolean },
+  options?: { newProject?: boolean }
 ) {
   return buildWorkflowProgress(activeStep, facts, options).steps.map(
-    (step) => step.state,
+    (step) => step.state
   );
 }
 
@@ -22,18 +19,22 @@ describe("workflow progress", () => {
     expect(buildWorkflowProgress(2, {}).steps).toHaveLength(3);
     expect(buildWorkflowProgress(1, {}).title).toBe("Step 1 · Interpretation");
     expect(buildWorkflowProgress(3, {}).title).toBe(
-      "Steps 3–8 · Evidence → feasibility",
+      "Steps 3–8 · Evidence → feasibility"
     );
   });
 
   it("tracks Step 1 proposal review and confirmation", () => {
     expect(states(1, {})).toEqual(["current", "pending", "pending"]);
-    expect(
-      states(1, { interpretationStatus: "PROPOSED" }),
-    ).toEqual(["complete", "current", "pending"]);
-    expect(
-      states(1, { interpretationStatus: "USER_CONFIRMED" }),
-    ).toEqual(["complete", "complete", "complete"]);
+    expect(states(1, { interpretationStatus: "PROPOSED" })).toEqual([
+      "complete",
+      "current",
+      "pending",
+    ]);
+    expect(states(1, { interpretationStatus: "USER_CONFIRMED" })).toEqual([
+      "complete",
+      "complete",
+      "complete",
+    ]);
   });
 
   it("tracks Step 2 generation, review and handoff", () => {
@@ -42,13 +43,13 @@ describe("workflow progress", () => {
       states(2, {
         decompositionGenerated: true,
         decompositionReady: false,
-      }),
+      })
     ).toEqual(["complete", "current", "pending"]);
     expect(
       states(2, {
         decompositionGenerated: true,
         decompositionReady: true,
-      }),
+      })
     ).toEqual(["complete", "complete", "complete"]);
   });
 
@@ -57,7 +58,7 @@ describe("workflow progress", () => {
       states(3, {
         selectedSourceCount: 2,
         gapCount: 1,
-      }),
+      })
     ).toEqual(["complete", "complete", "current", "pending"]);
     expect(
       states(3, {
@@ -66,7 +67,7 @@ describe("workflow progress", () => {
         claimCount: 1,
         experimentPlanCount: 1,
         feasibilityEstimateCount: 1,
-      }),
+      })
     ).toEqual(["complete", "complete", "complete", "complete"]);
   });
 
@@ -77,7 +78,7 @@ describe("workflow progress", () => {
         judgeFindingCount: 3,
         hasRevisionDecision: true,
         finalized: false,
-      }),
+      })
     ).toEqual(["complete", "complete", "complete", "current"]);
     expect(
       states(4, {
@@ -85,7 +86,7 @@ describe("workflow progress", () => {
         judgeFindingCount: 3,
         hasRevisionDecision: true,
         finalized: true,
-      }),
+      })
     ).toEqual(["complete", "complete", "complete", "complete"]);
   });
 

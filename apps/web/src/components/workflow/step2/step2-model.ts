@@ -1,10 +1,10 @@
 import {
-  SpecNodeTypeSchema,
-  STEP2_REQUIRED_NODE_TYPES,
   type PersistedNodeStatus,
   type SpecGraphView,
   type SpecNode,
   type SpecNodeType,
+  SpecNodeTypeSchema,
+  STEP2_REQUIRED_NODE_TYPES,
   type Step2RequiredNodeType,
 } from "@specloop/schemas";
 

@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
-
 import { NodeStatusHistorySchema } from "@specloop/schemas";
+import { describe, expect, it } from "vitest";
 
 const baseChange = {
   id: "00000000-0000-4000-8000-000000000010",

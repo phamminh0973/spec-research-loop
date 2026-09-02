@@ -25,9 +25,9 @@
 
 import {
   Client,
-  Search,
-  SortCriterion,
   type Result,
+  Search,
+  type SortCriterion,
 } from "@everdeep/arxiv";
 import { z } from "zod";
 
@@ -63,7 +63,7 @@ export const ArxivSearchInputSchema = z.object({
     .max(2_000)
     .describe(
       "Raw arXiv query string, e.g. 'cat:cs.AI AND ti:agent'. " +
-        "See https://arxiv.org/help/api/user-manual#query_details.",
+        "See https://arxiv.org/help/api/user-manual#query_details."
     ),
   maxResults: z
     .number()
@@ -85,13 +85,13 @@ export type ArxivSearchInput = z.infer<typeof ArxivSearchInputSchema>;
  */
 export const ArxivPaperSchema = z.object({
   id: z.string().describe("arXiv id, e.g. 2301.00001 (no version)."),
-  shortId: z
-    .string()
-    .describe("arXiv id with version, e.g. 2301.00001v2."),
+  shortId: z.string().describe("arXiv id with version, e.g. 2301.00001v2."),
   entryId: z
     .string()
     .url()
-    .describe("Canonical abstract page URL, e.g. https://arxiv.org/abs/2301.00001v2."),
+    .describe(
+      "Canonical abstract page URL, e.g. https://arxiv.org/abs/2301.00001v2."
+    ),
   title: z.string(),
   summary: z.string(),
   authors: z.array(z.string()),
@@ -208,7 +208,7 @@ function toPaper(result: Result): ArxivPaper {
  */
 export async function executeArxivSearch(
   args: unknown,
-  client: Client = getArxivClient(),
+  client: Client = getArxivClient()
 ): Promise<ArxivSearchOutput> {
   const input = ArxivSearchInputSchema.parse(args);
   const search = new Search({

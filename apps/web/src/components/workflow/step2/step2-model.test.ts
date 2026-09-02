@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
-
 import {
-  STEP2_REQUIRED_NODE_TYPES,
-  SpecGraphViewSchema,
   type SpecGraphView,
+  SpecGraphViewSchema,
+  STEP2_REQUIRED_NODE_TYPES,
 } from "@specloop/schemas";
+import { describe, expect, it } from "vitest";
 import { cloneLocalGraph } from "./step2-fixtures";
 import {
   buildNodeReviewRows,
@@ -108,8 +107,8 @@ describe("workflow UI model", () => {
         {
           id: "00000000-0000-4000-8000-000000000301",
           projectId: graph.projectId,
-          sourceNodeId: graph.nodes[0]!.id,
-          targetNodeId: graph.nodes[1]!.id,
+          sourceNodeId: graph.nodes[0]?.id,
+          targetNodeId: graph.nodes[1]?.id,
           type: "ADDRESSES" as const,
           createdAt: "2026-08-13T00:00:00Z",
         },

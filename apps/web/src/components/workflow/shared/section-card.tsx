@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import type { PersistedNodeStatus } from "@specloop/schemas";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export type CardTone = "blue" | "green" | "purple" | "amber" | "neutral";

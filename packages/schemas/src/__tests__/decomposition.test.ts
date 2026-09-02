@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-
-import { ConfirmedInterpretationSnapshotSchema } from "../interpretation";
 import {
-  DecompositionOutputSchema,
   DecomposeIdeaInputSchema,
+  DecompositionOutputSchema,
 } from "../decomposition";
+import { ConfirmedInterpretationSnapshotSchema } from "../interpretation";
 import { STEP2_REQUIRED_NODE_TYPES } from "../spec-graph";
 
 const projectId = "00000000-0000-4000-8000-000000000001";

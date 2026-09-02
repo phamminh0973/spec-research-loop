@@ -3,32 +3,30 @@
  */
 
 export {
-  PROMPT_ID,
-  PROMPT_VERSION,
-  SCHEMA_VERSION,
-  TASK_ID,
-  PROMPT_RECORD,
-  buildInterpretationMessages,
-  type InterpretationMessages,
-} from "./prompt.js";
-
-export {
-  generateInterpretation,
-  InterpretationGenerationError,
-  type GenerateInterpretationDeps,
-} from "./service.js";
-
-export {
-  InMemoryInterpretationRepository,
-  InterpretationLifecycleError,
-  interpretationRepository,
-  type ConfirmInterpretationCommand,
-  type InterpretationRepository,
-  type ReviseInterpretationCommand,
-} from "./repository.js";
-
-export {
   createInterpretationModule,
   type InterpretationModule,
   type InterpretationModuleDependencies,
 } from "./module.js";
+export {
+  buildInterpretationMessages,
+  type InterpretationMessages,
+  PROMPT_ID,
+  PROMPT_RECORD,
+  PROMPT_VERSION,
+  SCHEMA_VERSION,
+  TASK_ID,
+} from "./prompt.js";
+
+export {
+  type ConfirmInterpretationCommand,
+  InMemoryInterpretationRepository,
+  InterpretationLifecycleError,
+  type InterpretationRepository,
+  interpretationRepository,
+  type ReviseInterpretationCommand,
+} from "./repository.js";
+export {
+  type GenerateInterpretationDeps,
+  generateInterpretation,
+  InterpretationGenerationError,
+} from "./service.js";

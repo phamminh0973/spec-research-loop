@@ -1,6 +1,6 @@
 import {
-  STEP2_REQUIRED_NODE_TYPES,
   type DecomposeIdeaInput,
+  STEP2_REQUIRED_NODE_TYPES,
 } from "@specloop/schemas";
 
 export interface DecompositionMessages {

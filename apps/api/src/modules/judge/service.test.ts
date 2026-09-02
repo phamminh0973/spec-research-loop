@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
-
 import type { Finding, JudgeReport } from "@specloop/schemas";
+import { describe, expect, it } from "vitest";
 import { computeConsensus } from "./service.js";
 
 let findingCounter = 0;
@@ -35,7 +34,11 @@ describe("computeConsensus", () => {
     const consensus = computeConsensus(reports);
 
     expect(consensus.overallSeverity).toBeNull();
-    expect(consensus.severityCounts).toEqual({ CRITICAL: 0, MAJOR: 0, MINOR: 0 });
+    expect(consensus.severityCounts).toEqual({
+      CRITICAL: 0,
+      MAJOR: 0,
+      MINOR: 0,
+    });
     expect(consensus.agreedSections).toEqual([]);
     expect(consensus.readyToFinalize).toBe(true);
   });
@@ -43,14 +46,22 @@ describe("computeConsensus", () => {
   it("takes the worst severity across all Judges as overallSeverity", () => {
     const reports: JudgeReport[] = [
       report("GAP", [finding({ judge: "GAP", severity: "MINOR" })]),
-      report("EVIDENCE", [finding({ judge: "EVIDENCE", severity: "CRITICAL" })]),
-      report("EXPERIMENT", [finding({ judge: "EXPERIMENT", severity: "MAJOR" })]),
+      report("EVIDENCE", [
+        finding({ judge: "EVIDENCE", severity: "CRITICAL" }),
+      ]),
+      report("EXPERIMENT", [
+        finding({ judge: "EXPERIMENT", severity: "MAJOR" }),
+      ]),
     ];
 
     const consensus = computeConsensus(reports);
 
     expect(consensus.overallSeverity).toBe("CRITICAL");
-    expect(consensus.severityCounts).toEqual({ CRITICAL: 1, MAJOR: 1, MINOR: 1 });
+    expect(consensus.severityCounts).toEqual({
+      CRITICAL: 1,
+      MAJOR: 1,
+      MINOR: 1,
+    });
     expect(consensus.readyToFinalize).toBe(false);
   });
 

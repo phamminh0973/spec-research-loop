@@ -21,7 +21,7 @@
  */
 
 import {
-  ClaimDesignOutputSchema,
+  ExperimentPlanSchema,
   GapProposalOutputSchema,
   GenerateClaimDesignInputSchema,
   GenerateClaimDesignWithEvidenceOutputSchema,
@@ -31,18 +31,17 @@ import {
   ListAtomicClaimsOutputSchema,
   ListExperimentPlansInputSchema,
   ListExperimentPlansOutputSchema,
-  ExperimentPlanSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
-import { eq, desc } from "drizzle-orm";
-import { publicProcedure, router } from "../trpc/trpc.js";
-import {
-  generateGapProposal,
-  generateClaimDesign,
-  generateExperimentPlan,
-} from "../modules/research-design/service.js";
+import { desc, eq } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { atomicClaims, experimentPlans, gapProposals } from "../db/schema.js";
+import {
+  generateClaimDesign,
+  generateExperimentPlan,
+  generateGapProposal,
+} from "../modules/research-design/service.js";
+import { publicProcedure, router } from "../trpc/trpc.js";
 
 // ---------------------------------------------------------------------------
 // Procedures
@@ -99,29 +98,37 @@ export const researchDesignRouter = router({
    * the user does not have to run a second process manually. The LLM-backed
    * `evidence.generateEvidenceForClaim` remains for per-claim regeneration.
    */
-   generateClaimDesign: publicProcedure
-     .input(GenerateClaimDesignInputSchema)
-     .output(GenerateClaimDesignWithEvidenceOutputSchema)
-     .mutation(async ({ input, ctx }) => {
-       const db = getDb();
-        const gapRow = db.select().from(gapProposals).where(eq(gapProposals.projectId, input.projectId)).orderBy(desc(gapProposals.createdAt)).limit(1).get();
-        const proposal: import("@specloop/schemas").GapProposalOutput | null = gapRow ? JSON.parse(gapRow.data as string) : null;
-       if (!proposal) {
-         throw new TRPCError({
-           code: "PRECONDITION_FAILED",
-           message:
-             "Generate a gap proposal before claim design " +
-             "(researchDesign.generateGapProposal).",
-         });
-       }
-       const candidate = proposal.candidates[input.selectedGapIndex];
-       if (!candidate) {
-         throw new TRPCError({
-           code: "BAD_REQUEST",
-           message: `selectedGapIndex ${input.selectedGapIndex} out of range ` +
-             `(have ${proposal.candidates.length} candidate(s)).`,
-         });
-       }
+  generateClaimDesign: publicProcedure
+    .input(GenerateClaimDesignInputSchema)
+    .output(GenerateClaimDesignWithEvidenceOutputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const db = getDb();
+      const gapRow = db
+        .select()
+        .from(gapProposals)
+        .where(eq(gapProposals.projectId, input.projectId))
+        .orderBy(desc(gapProposals.createdAt))
+        .limit(1)
+        .get();
+      const proposal: import("@specloop/schemas").GapProposalOutput | null =
+        gapRow ? JSON.parse(gapRow.data as string) : null;
+      if (!proposal) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Generate a gap proposal before claim design " +
+            "(researchDesign.generateGapProposal).",
+        });
+      }
+      const candidate = proposal.candidates[input.selectedGapIndex];
+      if (!candidate) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            `selectedGapIndex ${input.selectedGapIndex} out of range ` +
+            `(have ${proposal.candidates.length} candidate(s)).`,
+        });
+      }
 
       try {
         const result = await generateClaimDesign({
@@ -213,42 +220,68 @@ export const researchDesignRouter = router({
     }),
 
   /**
-    * List atomic claims for a project.
-    */
+   * List atomic claims for a project.
+   */
   listClaims: publicProcedure
     .input(ListAtomicClaimsInputSchema)
     .output(ListAtomicClaimsOutputSchema)
     .query(({ input }) => {
       const db = getDb();
-      const rows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, input.projectId)).all();
-      const items = rows.map((r) => JSON.parse(r.data as string) as import("@specloop/schemas").AtomicClaim);
+      const rows = db
+        .select()
+        .from(atomicClaims)
+        .where(eq(atomicClaims.projectId, input.projectId))
+        .all();
+      const items = rows.map(
+        (r) =>
+          JSON.parse(
+            r.data as string
+          ) as import("@specloop/schemas").AtomicClaim
+      );
       return { items };
     }),
 
   /**
-    * List experiment plans for a project.
-    */
+   * List experiment plans for a project.
+   */
   listPlans: publicProcedure
     .input(ListExperimentPlansInputSchema)
     .output(ListExperimentPlansOutputSchema)
     .query(({ input }) => {
       const db = getDb();
-      const rows = db.select().from(experimentPlans).where(eq(experimentPlans.projectId, input.projectId)).all();
-      const items = rows.map((r) => JSON.parse(r.data as string) as import("@specloop/schemas").ExperimentPlan);
+      const rows = db
+        .select()
+        .from(experimentPlans)
+        .where(eq(experimentPlans.projectId, input.projectId))
+        .all();
+      const items = rows.map(
+        (r) =>
+          JSON.parse(
+            r.data as string
+          ) as import("@specloop/schemas").ExperimentPlan
+      );
       return { items };
     }),
 
   /**
-    * Read the most recent gap proposal for a project (proposed data; the
-    * user selects a candidate before claim design).
-    */
+   * Read the most recent gap proposal for a project (proposed data; the
+   * user selects a candidate before claim design).
+   */
   gapProposal: publicProcedure
     .input(ListAtomicClaimsInputSchema)
     .output(GapProposalOutputSchema.nullable())
     .query(({ input }) => {
       const db = getDb();
-      const row = db.select().from(gapProposals).where(eq(gapProposals.projectId, input.projectId)).orderBy(desc(gapProposals.createdAt)).limit(1).get();
+      const row = db
+        .select()
+        .from(gapProposals)
+        .where(eq(gapProposals.projectId, input.projectId))
+        .orderBy(desc(gapProposals.createdAt))
+        .limit(1)
+        .get();
       if (!row) return null;
-      return JSON.parse(row.data as string) as import("@specloop/schemas").GapProposalOutput;
+      return JSON.parse(
+        row.data as string
+      ) as import("@specloop/schemas").GapProposalOutput;
     }),
 });

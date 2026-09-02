@@ -1,7 +1,7 @@
 import {
   DecomposeIdeaInputSchema,
-  DecompositionOutputSchema,
   type DecompositionOutput,
+  DecompositionOutputSchema,
 } from "@specloop/schemas";
 
 import {
@@ -21,8 +21,7 @@ export class DecompositionService {
       await this.dependencies.reader.getConfirmedByProject(projectId);
 
     if (
-      !interpretation ||
-      interpretation.status !== "USER_CONFIRMED" ||
+      interpretation?.status !== "USER_CONFIRMED" ||
       interpretation.projectId !== projectId
     ) {
       throw new ConfirmationRequiredError(projectId);

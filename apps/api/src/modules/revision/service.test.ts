@@ -1,21 +1,23 @@
+import type {
+  JudgePanelResult,
+  JudgeReport,
+  ResearchSpec,
+} from "@specloop/schemas";
 import type OpenAI from "openai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { JudgePanelResult, JudgeReport, ResearchSpec } from "@specloop/schemas";
+import { getDb } from "../../db/client.js";
+import { judgePanels, projects, researchSpecs } from "../../db/schema.js";
+import { resetProjectStore } from "../../store/project-store.js";
 import { computeConsensus } from "../judge/service.js";
 import {
-  RevisionError,
   computeSpecDiff,
   diffResearchSpecVersions,
   finalizeResearchSpec,
   listFindingResolutions,
+  RevisionError,
   recordFindingResolution,
   rerunJudge,
 } from "./service.js";
-import { resetProjectStore } from "../../store/project-store.js";
-import { getDb } from "../../db/client.js";
-import { judgePanels, projects, researchSpecs } from "../../db/schema.js";
-import { eq } from "drizzle-orm";
 
 const PROJECT_ID = "00000000-0000-4000-8000-0000000000aa";
 const FINDING_ID = "00000000-0000-4000-8000-0000000000f1";
@@ -37,7 +39,10 @@ function ensureProject(): void {
     .run();
 }
 
-function report(judge: JudgeReport["judge"], findings: JudgeReport["findings"]): JudgeReport {
+function report(
+  judge: JudgeReport["judge"],
+  findings: JudgeReport["findings"]
+): JudgeReport {
   return { judge, summary: `${judge} summary`, findings };
 }
 
@@ -81,7 +86,10 @@ function seedPanel(overrides?: Partial<JudgeReport>): JudgePanelResult {
   return panel;
 }
 
-function seedSpecVersion(version: number, claimEvidenceContent: string): ResearchSpec {
+function seedSpecVersion(
+  version: number,
+  claimEvidenceContent: string
+): ResearchSpec {
   const sectionIds = [
     "PROBLEM_STATEMENT",
     "RESEARCH_QUESTIONS",
@@ -109,7 +117,10 @@ function seedSpecVersion(version: number, claimEvidenceContent: string): Researc
       id,
       title: id,
       isPlaceholder: false,
-      content: id === "CLAIM_EVIDENCE_MATRIX" ? claimEvidenceContent : `content for ${id}`,
+      content:
+        id === "CLAIM_EVIDENCE_MATRIX"
+          ? claimEvidenceContent
+          : `content for ${id}`,
     })),
   };
   ensureProject();
@@ -140,8 +151,14 @@ beforeEach(() => {
 
 describe("computeSpecDiff", () => {
   it("marks a section changed only when its content differs between versions", () => {
-    const before = seedSpecVersion(1, "| Claim | Evidence |\n| c1 | (không có evidence) |");
-    const after = seedSpecVersion(2, "| Claim | Evidence |\n| c1 | valid quote |");
+    const before = seedSpecVersion(
+      1,
+      "| Claim | Evidence |\n| c1 | (không có evidence) |"
+    );
+    const after = seedSpecVersion(
+      2,
+      "| Claim | Evidence |\n| c1 | valid quote |"
+    );
 
     const diff = computeSpecDiff(before, after);
     const claimRow = diff.find((d) => d.sectionId === "CLAIM_EVIDENCE_MATRIX");
@@ -162,7 +179,7 @@ describe("recordFindingResolution", () => {
         findingId: FINDING_ID,
         resolution: "RESOLVED",
         note: "fixed the link",
-      }),
+      })
     ).toThrow(RevisionError);
   });
 
@@ -189,7 +206,7 @@ describe("recordFindingResolution", () => {
         findingId: "non-existent",
         resolution: "DISMISSED",
         note: "not applicable",
-      }),
+      })
     ).toThrow(RevisionError);
   });
 });
@@ -198,7 +215,7 @@ describe("rerunJudge", () => {
   it("replaces only the target Judge's report and recomputes consensus", async () => {
     seedPanel();
     const client = fakeJudgeClient(
-      JSON.stringify({ summary: "Evidence now checks out.", findings: [] }),
+      JSON.stringify({ summary: "Evidence now checks out.", findings: [] })
     );
 
     const updated = await rerunJudge({
@@ -212,16 +229,25 @@ describe("rerunJudge", () => {
     expect(evidenceReport?.findings).toHaveLength(0);
     expect(evidenceReport?.summary).toBe("Evidence now checks out.");
     // Other Judges' reports must be untouched.
-    expect(updated.judges.find((r) => r.judge === "GAP")?.findings).toHaveLength(0);
+    expect(
+      updated.judges.find((r) => r.judge === "GAP")?.findings
+    ).toHaveLength(0);
     // Consensus must reflect the resolved MAJOR finding disappearing.
     expect(updated.consensus.severityCounts.MAJOR).toBe(0);
     expect(updated.consensus.readyToFinalize).toBe(true);
   });
 
   it("throws when no panel exists yet", async () => {
-    const client = fakeJudgeClient(JSON.stringify({ summary: "ok", findings: [] }));
+    const client = fakeJudgeClient(
+      JSON.stringify({ summary: "ok", findings: [] })
+    );
     await expect(
-      rerunJudge({ projectId: PROJECT_ID, judge: "EVIDENCE", client, model: "gpt-4o-mini" }),
+      rerunJudge({
+        projectId: PROJECT_ID,
+        judge: "EVIDENCE",
+        client,
+        model: "gpt-4o-mini",
+      })
     ).rejects.toThrow(RevisionError);
   });
 });
@@ -230,7 +256,11 @@ describe("diffResearchSpecVersions", () => {
   it("throws a RevisionError when a requested version does not exist", () => {
     seedSpecVersion(1, "content v1");
     expect(() =>
-      diffResearchSpecVersions({ projectId: PROJECT_ID, fromVersion: 1, toVersion: 2 }),
+      diffResearchSpecVersions({
+        projectId: PROJECT_ID,
+        fromVersion: 1,
+        toVersion: 2,
+      })
     ).toThrow(RevisionError);
   });
 
@@ -242,9 +272,10 @@ describe("diffResearchSpecVersions", () => {
       fromVersion: 1,
       toVersion: 2,
     });
-    expect(result.sections.find((s) => s.sectionId === "CLAIM_EVIDENCE_MATRIX")?.changed).toBe(
-      true,
-    );
+    expect(
+      result.sections.find((s) => s.sectionId === "CLAIM_EVIDENCE_MATRIX")
+        ?.changed
+    ).toBe(true);
   });
 });
 
@@ -265,9 +296,9 @@ describe("finalizeResearchSpec", () => {
       ],
     });
 
-    expect(() => finalizeResearchSpec({ projectId: PROJECT_ID, version: 1 })).toThrow(
-      RevisionError,
-    );
+    expect(() =>
+      finalizeResearchSpec({ projectId: PROJECT_ID, version: 1 })
+    ).toThrow(RevisionError);
   });
 
   it("finalizes successfully once no CRITICAL finding remains", () => {
@@ -282,8 +313,8 @@ describe("finalizeResearchSpec", () => {
 
   it("throws when no Judge panel has ever run", () => {
     seedSpecVersion(1, "content");
-    expect(() => finalizeResearchSpec({ projectId: PROJECT_ID, version: 1 })).toThrow(
-      RevisionError,
-    );
+    expect(() =>
+      finalizeResearchSpec({ projectId: PROJECT_ID, version: 1 })
+    ).toThrow(RevisionError);
   });
 });

@@ -1,10 +1,6 @@
 export type ActiveStep = 1 | 2 | 3 | 4;
 
-export type WorkflowStepState =
-  | "complete"
-  | "current"
-  | "blocked"
-  | "pending";
+export type WorkflowStepState = "complete" | "current" | "blocked" | "pending";
 
 export type WorkflowFacts = {
   interpretationStatus?: string | null;
@@ -41,7 +37,7 @@ function hasItems(value: number | undefined) {
 function buildSequentialProgress(
   title: string,
   definitions: StepDefinition[],
-  gates: boolean[],
+  gates: boolean[]
 ): WorkflowProgress {
   const firstIncomplete = gates.findIndex((gate) => !gate);
 
@@ -94,13 +90,13 @@ const FINAL_REVIEW_STEPS: StepDefinition[] = [
 export function buildWorkflowProgress(
   activeStep: ActiveStep,
   facts: WorkflowFacts,
-  options: { newProject?: boolean } = {},
+  options: { newProject?: boolean } = {}
 ): WorkflowProgress {
   if (activeStep === 1 && options.newProject) {
     return buildSequentialProgress(
       "Step 1 · Interpretation",
       NEW_PROJECT_STEPS,
-      [false, false, false],
+      [false, false, false]
     );
   }
 
@@ -111,7 +107,7 @@ export function buildWorkflowProgress(
     return buildSequentialProgress(
       "Step 1 · Interpretation",
       UNDERSTANDING_STEPS,
-      [hasProposal, confirmed, confirmed],
+      [hasProposal, confirmed, confirmed]
     );
   }
 
@@ -123,7 +119,7 @@ export function buildWorkflowProgress(
     return buildSequentialProgress(
       "Step 2 · Structured decomposition",
       DECOMPOSITION_STEPS,
-      [generated, ready, ready],
+      [generated, ready, ready]
     );
   }
 
@@ -137,7 +133,7 @@ export function buildWorkflowProgress(
         hasItems(facts.claimCount),
         hasItems(facts.experimentPlanCount) &&
           hasItems(facts.feasibilityEstimateCount),
-      ],
+      ]
     );
   }
 
@@ -149,6 +145,6 @@ export function buildWorkflowProgress(
       hasItems(facts.judgeFindingCount),
       facts.hasRevisionDecision === true,
       facts.finalized === true,
-    ],
+    ]
   );
 }

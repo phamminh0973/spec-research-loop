@@ -26,7 +26,9 @@ export const env = createEnv({
     API_PORT: z.coerce.number().int().positive().default(4000),
     API_HOST: z.string().default("0.0.0.0"),
     WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
-    LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+    LOG_LEVEL: z
+      .enum(["fatal", "error", "warn", "info", "debug", "trace"])
+      .default("info"),
 
     // ------------------------------------------------------------------
     // LLM provider (OpenAI-compatible) — see apps/api/src/llm

@@ -29,7 +29,8 @@ export const PROMPT_EXPERIMENT_JUDGE_VERSION = "0.1.0";
 export const PROMPT_EVIDENCE_JUDGE_ID = "PT-09-EVIDENCE";
 export const PROMPT_EVIDENCE_JUDGE_VERSION = "0.1.0";
 
-export const PROMPT_CONFERENCE_READINESS_JUDGE_ID = "PT-09-CONFERENCE-READINESS";
+export const PROMPT_CONFERENCE_READINESS_JUDGE_ID =
+  "PT-09-CONFERENCE-READINESS";
 export const PROMPT_CONFERENCE_READINESS_JUDGE_VERSION = "0.1.0";
 
 /** Shared rules appended to every Judge's system prompt. */
@@ -164,7 +165,8 @@ export const PROMPT_RECORDS = {
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
     contentHash: "judge-contribution-v0.1.0",
-    changeNote: "PT-09-CONTRIBUTION v0.1.0: initial independent Contribution Judge prompt.",
+    changeNote:
+      "PT-09-CONTRIBUTION v0.1.0: initial independent Contribution Judge prompt.",
     status: "active" as const,
   },
   experiment: {
@@ -174,7 +176,8 @@ export const PROMPT_RECORDS = {
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
     contentHash: "judge-experiment-v0.1.0",
-    changeNote: "PT-09-EXPERIMENT v0.1.0: initial independent Experiment Judge prompt.",
+    changeNote:
+      "PT-09-EXPERIMENT v0.1.0: initial independent Experiment Judge prompt.",
     status: "active" as const,
   },
   evidence: {
@@ -184,7 +187,8 @@ export const PROMPT_RECORDS = {
     taskId: TASK_ID,
     schemaVersion: SCHEMA_VERSION,
     contentHash: "judge-evidence-v0.1.0",
-    changeNote: "PT-09-EVIDENCE v0.1.0: initial independent Evidence Judge prompt.",
+    changeNote:
+      "PT-09-EVIDENCE v0.1.0: initial independent Evidence Judge prompt.",
     status: "active" as const,
   },
   conferenceReadiness: {

@@ -1,7 +1,7 @@
 "use client";
 
+import { type NodeDraft, NodeReviewCard } from "./node-review-card";
 import type { NodeReviewRow } from "./step2-model";
-import { NodeReviewCard, type NodeDraft } from "./node-review-card";
 
 export type NodeReviewListProps = {
   rows: readonly NodeReviewRow[];

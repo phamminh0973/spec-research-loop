@@ -1,26 +1,25 @@
 "use client";
 
+import type { SpecGraphView } from "@specloop/schemas";
 import { useState } from "react";
-import type { SpecGraphView, SpecRelationType } from "@specloop/schemas";
 
 import { trpc } from "@/lib/trpc";
-import { AppShell } from "../shared/app-shell";
 import { ApiErrorMessage } from "../shared/api-error-message";
+import { AppShell } from "../shared/app-shell";
+import type { NodeDraft } from "./node-review-card";
+import { NodeReviewList } from "./node-review-list";
+import { type RelationDraft, RelationsEditor } from "./relations-editor";
+import { StatusHistoryPanel } from "./status-history-panel";
 import { cloneLocalGraph } from "./step2-fixtures";
+import { Step2Handoff } from "./step2-handoff";
 import {
   buildNodeReviewRows,
   buildRelationReviewRows,
-  calculateStep2Readiness,
   filterAndSortNodeReviewRows,
   type NodeReviewRow,
   type RelationReviewRow,
   type Step2NodeFilters,
 } from "./step2-model";
-import { NodeReviewList } from "./node-review-list";
-import { type NodeDraft } from "./node-review-card";
-import { RelationsEditor, type RelationDraft } from "./relations-editor";
-import { StatusHistoryPanel } from "./status-history-panel";
-import { Step2Handoff } from "./step2-handoff";
 import { Step2Overview } from "./step2-overview";
 import { WarningsPanel } from "./warnings-panel";
 
@@ -313,7 +312,11 @@ export function Step2Workspace({
           onGenerate={handleGenerate}
         />
 
-        <ApiErrorMessage error={operationError} title="API-backed Step 2 chưa khả dụng" showIcon />
+        <ApiErrorMessage
+          error={operationError}
+          title="API-backed Step 2 chưa khả dụng"
+          showIcon
+        />
 
         <section aria-labelledby="step2-cards-heading">
           <h2

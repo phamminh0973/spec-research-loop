@@ -1,29 +1,35 @@
 "use client";
 
+import type {
+  InterpretationOutput,
+  InterpretationRecord,
+  ProjectSummary,
+} from "@specloop/schemas";
 import {
   ArrowRight,
   Brain,
   Check,
   CircleHelp,
-  FileText,
   Lightbulb,
   Pencil,
   RefreshCw,
   ShieldCheck,
   Target,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type {
-  InterpretationOutput,
-  InterpretationRecord,
-  ProjectSummary,
-} from "@specloop/schemas";
-
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { AppShell } from "../shared/app-shell";
 import { ApiErrorMessage } from "../shared/api-error-message";
+import { AppShell } from "../shared/app-shell";
+import { LOCAL_PROJECT, LOCAL_PROJECT_ID } from "../shared/local-fixtures";
 import {
   LocalDevelopmentBadge,
   SectionCard,
@@ -31,15 +37,6 @@ import {
   StatusPill,
 } from "../shared/section-card";
 import { cloneLocalInterpretation } from "./step1-fixtures";
-import { LOCAL_PROJECT, LOCAL_PROJECT_ID } from "../shared/local-fixtures";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 const initialIdea =
   "Tôi muốn chuyển một ý tưởng nghiên cứu mơ hồ thành một đặc tả có thể review, với các giả định, câu hỏi và cảnh báo rõ ràng.";
@@ -57,7 +54,10 @@ function PageHeading({
 }) {
   return (
     <div className="flex items-start gap-4 mb-8">
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
+      <span
+        className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+        aria-hidden="true"
+      >
         <Icon size={27} />
       </span>
       <div>
@@ -104,7 +104,10 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
         />
 
         {fixtureMode ? (
-          <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200" role="status">
+          <Alert
+            className="bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200"
+            role="status"
+          >
             <div className="flex items-center gap-2">
               <LocalDevelopmentBadge />
               <span>
@@ -125,7 +128,9 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
             <CardContent>
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div>
-                  <Label htmlFor="title" className="text-sm font-medium">Tên project</Label>
+                  <Label htmlFor="title" className="text-sm font-medium">
+                    Tên project
+                  </Label>
                   <Input
                     id="title"
                     value={title}
@@ -135,7 +140,9 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="idea" className="text-sm font-medium">Raw idea</Label>
+                  <Label htmlFor="idea" className="text-sm font-medium">
+                    Raw idea
+                  </Label>
                   <Textarea
                     id="idea"
                     value={idea}
@@ -154,7 +161,9 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                   ))}
                 </div>
                 <div>
-                  <Label htmlFor="domain" className="text-sm font-medium">Domain (tuỳ chọn)</Label>
+                  <Label htmlFor="domain" className="text-sm font-medium">
+                    Domain (tuỳ chọn)
+                  </Label>
                   <Input
                     id="domain"
                     value={domain}
@@ -164,7 +173,9 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="constraint" className="text-sm font-medium">Resource constraint (tuỳ chọn)</Label>
+                  <Label htmlFor="constraint" className="text-sm font-medium">
+                    Resource constraint (tuỳ chọn)
+                  </Label>
                   <Input
                     id="constraint"
                     value={constraint}
@@ -199,10 +210,12 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                     Interpretation chỉ là proposal cho đến khi bạn xác nhận.
                   </li>
                   <li>
-                    Hệ thống không được tự gán <code>USER_CONFIRMED</code> từ output AI.
+                    Hệ thống không được tự gán <code>USER_CONFIRMED</code> từ
+                    output AI.
                   </li>
                   <li>
-                    Decomposition sẽ nhận <code>projectId</code> và tự kiểm tra gate ở server.
+                    Decomposition sẽ nhận <code>projectId</code> và tự kiểm tra
+                    gate ở server.
                   </li>
                 </ul>
               </CardContent>
@@ -215,9 +228,9 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
               />
               <CardContent>
                 <p className="text-sm text-muted-foreground text-justify">
-                  Màn hình này chỉ thu thập raw idea và constraints. Search paper,
-                  related-work, evidence và research gap có provenance sẽ xuất
-                  hiện sau khi capability tương ứng được tích hợp.
+                  Màn hình này chỉ thu thập raw idea và constraints. Search
+                  paper, related-work, evidence và research gap có provenance sẽ
+                  xuất hiện sau khi capability tương ứng được tích hợp.
                 </p>
               </CardContent>
             </SectionCard>
@@ -232,17 +245,22 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
             <CardContent>
               <div className="space-y-4">
                 <div className="rounded-lg bg-muted p-4 border-border border-2">
-                  <h3 className="font-semibold text-foreground mb-2">Interpretation contract</h3>
+                  <h3 className="font-semibold text-foreground mb-2">
+                    Interpretation contract
+                  </h3>
                   <p className="text-sm text-muted-foreground text-justify">
-                    simple interpretation, technical interpretation, assumptions,
-                    objectives và ambiguities — đúng theo schema AIT-01 hiện có.
+                    simple interpretation, technical interpretation,
+                    assumptions, objectives và ambiguities — đúng theo schema
+                    AIT-01 hiện có.
                   </p>
                 </div>
                 <div className="rounded-lg bg-muted p-4 border-border border-2">
-                  <h3 className="font-semibold text-foreground mb-2">Quyền quyết định</h3>
+                  <h3 className="font-semibold text-foreground mb-2">
+                    Quyền quyết định
+                  </h3>
                   <p className="text-sm text-muted-foreground text-justify">
-                    Bạn có thể Confirm, Edit, Other hoặc Regenerate. Mỗi lựa chọn
-                    phải đi qua lifecycle API tương ứng.
+                    Bạn có thể Confirm, Edit, Other hoặc Regenerate. Mỗi lựa
+                    chọn phải đi qua lifecycle API tương ứng.
                   </p>
                 </div>
               </div>
@@ -274,7 +292,9 @@ function InterpretationDetails({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">SIMPLE INTERPRETATION</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          SIMPLE INTERPRETATION
+        </p>
         {editing ? (
           <Textarea
             value={output.simpleInterpretation}
@@ -291,7 +311,9 @@ function InterpretationDetails({
         )}
       </div>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">TECHNICAL INTERPRETATION</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          TECHNICAL INTERPRETATION
+        </p>
         {editing ? (
           <Textarea
             value={output.technicalInterpretation}
@@ -308,32 +330,46 @@ function InterpretationDetails({
         )}
       </div>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">ASSUMPTIONS</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          ASSUMPTIONS
+        </p>
         <ul className="mt-2 space-y-1">
           {output.assumptions.length > 0 ? (
             output.assumptions.map((item) => (
-              <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+              <li
+                key={item}
+                className="flex items-start gap-2 text-sm text-muted-foreground"
+              >
                 <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
                 {item}
               </li>
             ))
           ) : (
-            <li className="text-sm text-muted-foreground">Không có assumption nào được trả về.</li>
+            <li className="text-sm text-muted-foreground">
+              Không có assumption nào được trả về.
+            </li>
           )}
         </ul>
       </div>
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">OBJECTIVES</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          OBJECTIVES
+        </p>
         <ul className="mt-2 space-y-1">
           {output.objectives.length > 0 ? (
             output.objectives.map((item) => (
-              <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+              <li
+                key={item}
+                className="flex items-start gap-2 text-sm text-muted-foreground"
+              >
                 <span className="flex size-1.5 shrink-0 mt-1.5 rounded-full bg-current" />
                 {item}
               </li>
             ))
           ) : (
-            <li className="text-sm text-muted-foreground">Không có objective nào được trả về.</li>
+            <li className="text-sm text-muted-foreground">
+              Không có objective nào được trả về.
+            </li>
           )}
         </ul>
       </div>
@@ -460,11 +496,7 @@ export function UnderstandingWorkspace({
   }
 
   return (
-    <AppShell
-      activeStep={1}
-      projectId={projectId}
-      fixtureMode={fixtureMode}
-    >
+    <AppShell activeStep={1} projectId={projectId} fixtureMode={fixtureMode}>
       <div className="space-y-8">
         <PageHeading
           icon={Brain}
@@ -473,7 +505,10 @@ export function UnderstandingWorkspace({
         />
 
         {fixtureMode ? (
-          <Alert className="bg-amber-50 border-amber-200 text-amber-800" role="status">
+          <Alert
+            className="bg-amber-50 border-amber-200 text-amber-800"
+            role="status"
+          >
             <div className="flex items-center gap-2">
               <LocalDevelopmentBadge />
               <span>
@@ -496,9 +531,12 @@ export function UnderstandingWorkspace({
                     {project.title}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    API hiện trả về <code className="bg-muted px-1 rounded">ProjectSummary</code>; rawIdea không nằm
-                    trong response này. Nội dung interpretation bên cạnh vẫn được
-                    lấy từ lifecycle API.
+                    API hiện trả về{" "}
+                    <code className="bg-muted px-1 rounded">
+                      ProjectSummary
+                    </code>
+                    ; rawIdea không nằm trong response này. Nội dung
+                    interpretation bên cạnh vẫn được lấy từ lifecycle API.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {project.domain ? (
@@ -506,20 +544,23 @@ export function UnderstandingWorkspace({
                         {project.domain}
                       </Badge>
                     ) : null}
-                    <Badge variant="secondary" className="text-xs">project-scoped</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      project-scoped
+                    </Badge>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <h3 className="font-semibold text-foreground mb-1">Chưa đọc được project</h3>
-                  <p className="text-sm text-muted-foreground">Kiểm tra projectId hoặc mở local fixture để kiểm tra UI.</p>
+                  <h3 className="font-semibold text-foreground mb-1">
+                    Chưa đọc được project
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Kiểm tra projectId hoặc mở local fixture để kiểm tra UI.
+                  </p>
                 </div>
               )}
               <div className="mt-4">
-                <Button
-                  onClick={handleGenerate}
-                  disabled={pending}
-                >
+                <Button onClick={handleGenerate} disabled={pending}>
                   <RefreshCw size={15} className="mr-2" />
                   {record ? "Generate lại proposal" : "Generate interpretation"}
                 </Button>
@@ -545,10 +586,7 @@ export function UnderstandingWorkspace({
                   />
                   {editing ? (
                     <div className="mt-4 flex gap-2">
-                      <Button
-                        onClick={saveRevision}
-                        disabled={pending}
-                      >
+                      <Button onClick={saveRevision} disabled={pending}>
                         <Check size={15} className="mr-2" /> Lưu{" "}
                         {editAction === "OTHER" ? "Other" : "Edit"}
                       </Button>
@@ -563,8 +601,12 @@ export function UnderstandingWorkspace({
                 </>
               ) : (
                 <div className="text-center py-8">
-                  <h3 className="font-semibold text-foreground mb-1">Chưa có interpretation proposal</h3>
-                  <p className="text-sm text-muted-foreground">Nhấn Generate để bắt đầu lifecycle AIT-01.</p>
+                  <h3 className="font-semibold text-foreground mb-1">
+                    Chưa có interpretation proposal
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Nhấn Generate để bắt đầu lifecycle AIT-01.
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -582,7 +624,9 @@ export function UnderstandingWorkspace({
               <div className="space-y-6">
                 <div className="rounded-lg border border-border bg-card p-4">
                   <p className="font-medium text-foreground mb-3">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">1</span>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">
+                      1
+                    </span>
                     Interpretation này có phản ánh đúng ý định của bạn không?
                   </p>
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -616,7 +660,9 @@ export function UnderstandingWorkspace({
                 </div>
                 <div className="rounded-lg border border-border bg-card p-4">
                   <p className="font-medium text-foreground mb-3">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">2</span>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold mr-2">
+                      2
+                    </span>
                     Bạn muốn chạy lại proposal không?
                   </p>
                   <Button
@@ -634,7 +680,9 @@ export function UnderstandingWorkspace({
               </div>
             ) : (
               <div className="text-center py-8">
-                <h3 className="font-semibold text-foreground mb-1">Đợi proposal</h3>
+                <h3 className="font-semibold text-foreground mb-1">
+                  Đợi proposal
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   Các lựa chọn Confirm/Edit/Other sẽ xuất hiện sau khi có output
                   hợp lệ.
@@ -647,7 +695,10 @@ export function UnderstandingWorkspace({
         <SectionCard>
           <CardContent className="pt-0">
             <div className="flex items-center gap-3 text-sm font-semibold text-foreground">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-green-50 text-green-600" aria-hidden="true">
+              <span
+                className="flex size-9 items-center justify-center rounded-lg bg-green-50 text-green-600"
+                aria-hidden="true"
+              >
                 <ShieldCheck size={18} />
               </span>
               <span>{confirmed ? "Đã xác nhận" : "Đang chờ xác nhận"}</span>
@@ -662,7 +713,9 @@ export function UnderstandingWorkspace({
                   Mở Step 2 <ArrowRight size={14} className="inline ml-1" />
                 </Link>
               ) : (
-                <span className="text-sm text-muted-foreground">Step 2 locked by BR-01</span>
+                <span className="text-sm text-muted-foreground">
+                  Step 2 locked by BR-01
+                </span>
               )}
             </div>
             <div className="mt-4 text-sm text-muted-foreground">

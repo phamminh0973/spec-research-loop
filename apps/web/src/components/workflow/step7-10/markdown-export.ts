@@ -1,9 +1,9 @@
-import { MarkdownDocument } from "build-md";
 import type {
   JudgePanelResult,
   ResearchSpec,
   SpecSection,
 } from "@specloop/schemas";
+import { MarkdownDocument } from "build-md";
 
 export type MarkdownSection = readonly [title: string, content: string];
 
@@ -16,18 +16,20 @@ export type MarkdownJudge = {
 
 /** Convert a persisted ResearchSpec's sections to the MarkdownSection tuple used by the exporter. */
 export function researchSpecToMarkdownSections(
-  sections: readonly SpecSection[],
+  sections: readonly SpecSection[]
 ): MarkdownSection[] {
   return sections.map((s) => [s.title, s.content] as const);
 }
 
 /** Map the five Judge reports in a panel to the MarkdownJudge rows used by the exporter. */
 export function judgePanelToMarkdownJudges(
-  panel: JudgePanelResult | null | undefined,
+  panel: JudgePanelResult | null | undefined
 ): MarkdownJudge[] {
   if (!panel) return [];
   return panel.judges.map((report) => {
-    const focus = report.findings.map((f) => f.targetSection).join(", ") || "general review";
+    const focus =
+      report.findings.map((f) => f.targetSection).join(", ") ||
+      "general review";
     const score = report.findings[0]?.severity ?? "NONE";
     const finding =
       report.findings.length > 0
@@ -84,7 +86,7 @@ export function buildResearchSpecMarkdown({
   const doc = new MarkdownDocument()
     .heading(1, "SpecLoop Research Specification")
     .$foreach([...sections], (d, [title, content]) =>
-      d.heading(2, title).paragraph(content),
+      d.heading(2, title).paragraph(content)
     )
     .heading(2, "Judge review")
     .$foreach([...judges], (d, judge) =>
@@ -94,7 +96,7 @@ export function buildResearchSpecMarkdown({
           `Focus: ${judge.focus}`,
           `Severity: ${judge.score}`,
           `Finding: ${judge.finding}`,
-        ]),
+        ])
     )
     .heading(2, "User revision decision")
     .paragraph(`Decision: ${decision}`)

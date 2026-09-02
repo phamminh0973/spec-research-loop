@@ -1,7 +1,7 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
 type ApiError = { message?: string } | Error | null | undefined;
@@ -10,7 +10,8 @@ type ErrorInput = ApiError | string | null | undefined;
 function extractMessage(input: ErrorInput): string {
   if (!input) return "";
   if (typeof input === "string") return input;
-  if ("message" in input && typeof input.message === "string") return input.message;
+  if ("message" in input && typeof input.message === "string")
+    return input.message;
   if (input instanceof Error) return input.message;
   return "Operation failed.";
 }
@@ -46,10 +47,14 @@ export function ApiErrorMessage({
     >
       <div className="flex items-start gap-2">
         {showIcon && (
-          <ShieldAlert size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <ShieldAlert
+            size={17}
+            className="mt-0.5 shrink-0"
+            aria-hidden="true"
+          />
         )}
         <AlertDescription className="flex flex-col gap-1">
-          {title ?? defaultTitle ? (
+          {(title ?? defaultTitle) ? (
             <strong>{title ?? defaultTitle}</strong>
           ) : null}
           <span>{message}</span>

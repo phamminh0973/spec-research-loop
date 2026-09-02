@@ -14,12 +14,12 @@ import {
   ResearchSpecSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
-import { publicProcedure, router } from "../trpc/trpc.js";
 import {
   generateResearchSpec,
   getLatestResearchSpec,
   listResearchSpecVersions,
 } from "../modules/spec-generation/service.js";
+import { publicProcedure, router } from "../trpc/trpc.js";
 
 export const specGenerationRouter = router({
   /**
@@ -54,5 +54,7 @@ export const specGenerationRouter = router({
   listVersions: publicProcedure
     .input(ListResearchSpecVersionsInputSchema)
     .output(ListResearchSpecVersionsOutputSchema)
-    .query(({ input }) => ({ items: listResearchSpecVersions(input.projectId) })),
+    .query(({ input }) => ({
+      items: listResearchSpecVersions(input.projectId),
+    })),
 });

@@ -1,14 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-
-import type { ApiContext } from "../trpc/context.js";
-import { appRouter } from "./index.js";
+import { createSpecStructureModule } from "../modules/decomposition/module.js";
 import {
   DeterministicConfirmedInterpretationReader,
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
 } from "../modules/decomposition/testing-adapters.js";
-import { createSpecStructureModule } from "../modules/decomposition/module.js";
 import { resetProjectStore } from "../store/project-store.js";
+import type { ApiContext } from "../trpc/context.js";
+import { appRouter } from "./index.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 
@@ -222,7 +221,7 @@ describe("decomposition tRPC router", () => {
 
     const deleted = await caller.decomposition.deleteRelation({
       projectId,
-      relationId: withRelation.relations[0]!.id,
+      relationId: withRelation.relations[0]?.id,
     });
     expect(deleted.relations).toEqual([]);
     expect(deleted.statusHistory).toEqual(confirmed.statusHistory);

@@ -1,10 +1,8 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ConfirmedInterpretationSnapshot,
   DecompositionOutput,
 } from "@specloop/schemas";
-import { DecompositionService } from "./service.js";
+import { describe, expect, it } from "vitest";
 import {
   ConfirmationRequiredError,
   DecompositionValidationError,
@@ -14,6 +12,7 @@ import type {
   DecompositionGenerator,
   SpecGraphRepository,
 } from "./ports.js";
+import { DecompositionService } from "./service.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 

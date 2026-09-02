@@ -1,17 +1,17 @@
 import {
+  type DecomposeIdeaInput,
   DecomposeIdeaInputSchema,
+  type DecompositionOutput,
   DecompositionOutputSchema,
   STEP2_REQUIRED_NODE_TYPES,
-  type DecomposeIdeaInput,
-  type DecompositionOutput,
 } from "@specloop/schemas";
 import type OpenAI from "openai";
 
 import { getLlmClient, getLlmConfig } from "../../llm/index.js";
 import { structuredCall } from "../../llm/structured-call.js";
 import { DecompositionValidationError } from "./errors.js";
-import { buildDecompositionMessages } from "./prompt.js";
 import type { DecompositionGenerator } from "./ports.js";
+import { buildDecompositionMessages } from "./prompt.js";
 
 export interface LlmDecompositionGeneratorDependencies {
   /** Optional injection point for tests or an alternate OpenAI-compatible client. */

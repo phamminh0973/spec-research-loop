@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
-
 import type { DecompositionOutput } from "@specloop/schemas";
 import {
   DecompositionOutputSchema,
   STEP2_REQUIRED_NODE_TYPES,
 } from "@specloop/schemas";
+import { describe, expect, it } from "vitest";
 import { applyDeterministicRules } from "./status-rules.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";

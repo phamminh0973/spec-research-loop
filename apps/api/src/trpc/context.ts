@@ -11,20 +11,20 @@
  */
 
 import type OpenAI from "openai";
-import {
-  createInterpretationModule,
-  generateInterpretation,
-  interpretationRepository,
-  type InterpretationModule,
-} from "../modules/interpretation/index.js";
-import { Step1ConfirmedInterpretationReader } from "../modules/decomposition/interpretation-reader-adapter.js";
+import { getLlmClient, getLlmConfig, type LlmConfig } from "../llm/index.js";
 import { LlmDecompositionGenerator } from "../modules/decomposition/generator.js";
-import { InMemorySpecGraphStore } from "../modules/decomposition/repository.js";
+import { Step1ConfirmedInterpretationReader } from "../modules/decomposition/interpretation-reader-adapter.js";
 import {
   createSpecStructureModule,
   type SpecStructureModule,
 } from "../modules/decomposition/module.js";
-import { getLlmClient, getLlmConfig, type LlmConfig } from "../llm/index.js";
+import { InMemorySpecGraphStore } from "../modules/decomposition/repository.js";
+import {
+  createInterpretationModule,
+  generateInterpretation,
+  type InterpretationModule,
+  interpretationRepository,
+} from "../modules/interpretation/index.js";
 import { getProjectById } from "../routers/projects.js";
 
 export interface ApiContext {

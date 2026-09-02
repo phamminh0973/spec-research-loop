@@ -17,38 +17,29 @@
  */
 
 import {
-  FindingSchema,
-  JudgeCallOutputSchema,
-  JudgePanelResultSchema,
-  JudgeReportSchema,
-  GapProposalOutputSchema,
-  SourceDocumentSchema,
-  SpecGraphViewSchema,
+  ALL_JUDGE_NAMES,
+  type AtomicClaim,
   AtomicClaimSchema,
-  ContributionSchema,
+  type Consensus,
+  type Contribution,
+  type EvidenceRequirement,
   EvidenceRequirementSchema,
   ExperimentPlanSchema,
-  type Consensus,
   type Finding,
+  FindingSchema,
   type FindingSeverity,
+  GapProposalOutputSchema,
+  JudgeCallOutputSchema,
   type JudgeName,
   type JudgePanelResult,
+  JudgePanelResultSchema,
   type JudgeReport,
-  ALL_JUDGE_NAMES,
+  JudgeReportSchema,
+  SourceDocumentSchema,
+  SpecGraphViewSchema,
 } from "@specloop/schemas";
-import { eq, and, sql, desc } from "drizzle-orm";
-import {
-  CONFERENCE_READINESS_JUDGE_SYSTEM_PROMPT,
-  CONTRIBUTION_JUDGE_SYSTEM_PROMPT,
-  EVIDENCE_JUDGE_SYSTEM_PROMPT,
-  EXPERIMENT_JUDGE_SYSTEM_PROMPT,
-  GAP_JUDGE_SYSTEM_PROMPT,
-} from "./prompt.js";
-import {
-  structuredCall,
-  type UntrustedContent,
-} from "../../llm/structured-call.js";
-import { parseOrThrow } from "../../store/project-store.js";
+import { desc, eq } from "drizzle-orm";
+import type OpenAI from "openai";
 import { getDb } from "../../db/client.js";
 import {
   atomicClaims,
@@ -61,6 +52,18 @@ import {
   sources,
   specGraphs,
 } from "../../db/schema.js";
+import {
+  structuredCall,
+  type UntrustedContent,
+} from "../../llm/structured-call.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import {
+  CONFERENCE_READINESS_JUDGE_SYSTEM_PROMPT,
+  CONTRIBUTION_JUDGE_SYSTEM_PROMPT,
+  EVIDENCE_JUDGE_SYSTEM_PROMPT,
+  EXPERIMENT_JUDGE_SYSTEM_PROMPT,
+  GAP_JUDGE_SYSTEM_PROMPT,
+} from "./prompt.js";
 
 // ---------------------------------------------------------------------------
 // Context builders — one per Judge, scoped to only what that Judge needs.
@@ -68,8 +71,18 @@ import {
 
 function fetchSpecGraph(projectId: string) {
   const db = getDb();
-  const row = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
-  return row ? parseOrThrow(SpecGraphViewSchema, JSON.parse(row.data as string), "SpecGraphView") : null;
+  const row = db
+    .select()
+    .from(specGraphs)
+    .where(eq(specGraphs.projectId, projectId))
+    .get();
+  return row
+    ? parseOrThrow(
+        SpecGraphViewSchema,
+        JSON.parse(row.data as string),
+        "SpecGraphView"
+      )
+    : null;
 }
 
 function nodesByType(projectId: string, type: string) {
@@ -79,7 +92,7 @@ function nodesByType(projectId: string, type: string) {
 
 function renderNodes(
   nodes: ReturnType<typeof nodesByType>,
-  emptyLabel: string,
+  emptyLabel: string
 ): string {
   if (nodes.length === 0) return emptyLabel;
   return nodes
@@ -89,45 +102,97 @@ function renderNodes(
 
 function fetchGapProposal(projectId: string) {
   const db = getDb();
-  const row = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).limit(1).get();
+  const row = db
+    .select()
+    .from(gapProposals)
+    .where(eq(gapProposals.projectId, projectId))
+    .orderBy(desc(gapProposals.createdAt))
+    .limit(1)
+    .get();
   if (!row) return null;
-  return parseOrThrow(GapProposalOutputSchema, JSON.parse(row.data as string), "GapProposalOutput");
+  return parseOrThrow(
+    GapProposalOutputSchema,
+    JSON.parse(row.data as string),
+    "GapProposalOutput"
+  );
 }
 
 function fetchSources(projectId: string) {
   const db = getDb();
-  const rows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
-  return rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+  const rows = db
+    .select()
+    .from(sources)
+    .where(eq(sources.projectId, projectId))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(
+      SourceDocumentSchema,
+      JSON.parse(r.data as string),
+      "SourceDocument"
+    )
+  );
 }
 
 function fetchAtomicClaims(projectId: string) {
   const db = getDb();
-  const rows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all();
-  return rows.map((r) => parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim"));
+  const rows = db
+    .select()
+    .from(atomicClaims)
+    .where(eq(atomicClaims.projectId, projectId))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim")
+  );
 }
 
-function fetchContributions(projectId: string) {
+function fetchContributions(projectId: string): Contribution[] {
   const db = getDb();
-  const rows = db.select().from(contributions).where(eq(contributions.projectId, projectId)).all();
-  return rows.map((r) => {
-    try {
-      return JSON.parse(r.data as string);
-    } catch {
-      return null;
-    }
-  }).filter(Boolean) as any[];
+  const rows = db
+    .select()
+    .from(contributions)
+    .where(eq(contributions.projectId, projectId))
+    .all();
+  return rows
+    .map((r) => {
+      try {
+        return JSON.parse(r.data as string) as Contribution;
+      } catch {
+        return null;
+      }
+    })
+    .filter((c): c is Contribution => c !== null);
 }
 
 function fetchExperimentPlans(projectId: string) {
   const db = getDb();
-  const rows = db.select().from(experimentPlans).where(eq(experimentPlans.projectId, projectId)).all();
-  return rows.map((r) => parseOrThrow(ExperimentPlanSchema, JSON.parse(r.data as string), "ExperimentPlan"));
+  const rows = db
+    .select()
+    .from(experimentPlans)
+    .where(eq(experimentPlans.projectId, projectId))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(
+      ExperimentPlanSchema,
+      JSON.parse(r.data as string),
+      "ExperimentPlan"
+    )
+  );
 }
 
 function fetchEvidenceRequirements(projectId: string) {
   const db = getDb();
-  const rows = db.select().from(evidenceRequirements).where(eq(evidenceRequirements.projectId, projectId)).all();
-  return rows.map((r) => parseOrThrow(EvidenceRequirementSchema, JSON.parse(r.data as string), "EvidenceRequirement"));
+  const rows = db
+    .select()
+    .from(evidenceRequirements)
+    .where(eq(evidenceRequirements.projectId, projectId))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(
+      EvidenceRequirementSchema,
+      JSON.parse(r.data as string),
+      "EvidenceRequirement"
+    )
+  );
 }
 
 /** Judge 1 — Gap: problem/research-question/gap nodes, gap proposal, selected corpus. */
@@ -153,19 +218,21 @@ export function buildGapJudgeContext(projectId: string): UntrustedContent[] {
 
   if (proposal) {
     blocks.push({
-      label: "Most recent gap proposal (AI-generated, user has not necessarily confirmed)",
-      text: proposal.candidates
-        .map(
-          (c, i) =>
-            `Candidate ${i}:\n` +
-            `  known_capability: ${c.knownCapability}\n` +
-            `  limitation: ${c.limitation}\n` +
-            `  importance: ${c.importance}\n` +
-            `  testable_hypothesis: ${c.testableHypothesis}\n` +
-            `  novelty_risk: ${c.noveltyRisk}\n` +
-            `  scope: ${c.scope}`,
-        )
-        .join("\n\n") || "(no candidates)",
+      label:
+        "Most recent gap proposal (AI-generated, user has not necessarily confirmed)",
+      text:
+        proposal.candidates
+          .map(
+            (c, i) =>
+              `Candidate ${i}:\n` +
+              `  known_capability: ${c.knownCapability}\n` +
+              `  limitation: ${c.limitation}\n` +
+              `  importance: ${c.importance}\n` +
+              `  testable_hypothesis: ${c.testableHypothesis}\n` +
+              `  novelty_risk: ${c.noveltyRisk}\n` +
+              `  scope: ${c.scope}`
+          )
+          .join("\n\n") || "(no candidates)",
     });
   }
 
@@ -181,7 +248,9 @@ export function buildGapJudgeContext(projectId: string): UntrustedContent[] {
 }
 
 /** Judge 2 — Contribution: contribution nodes/records, atomic claims, chosen gap. */
-export function buildContributionJudgeContext(projectId: string): UntrustedContent[] {
+export function buildContributionJudgeContext(
+  projectId: string
+): UntrustedContent[] {
   const contributionNodes = nodesByType(projectId, "CONTRIBUTION");
   const contributionsList = fetchContributions(projectId);
   const claims = fetchAtomicClaims(projectId);
@@ -210,7 +279,7 @@ export function buildContributionJudgeContext(projectId: string): UntrustedConte
                 (c) =>
                   `- [${c.type}] ${c.text}\n` +
                   `  scope: ${c.scope}\n` +
-                  `  falsifies if: ${c.falsificationCondition}`,
+                  `  falsifies if: ${c.falsificationCondition}`
               )
               .join("\n"),
     },
@@ -218,7 +287,9 @@ export function buildContributionJudgeContext(projectId: string): UntrustedConte
 }
 
 /** Judge 3 — Experiment: atomic claims + experiment plans (baselines/metrics/ablations/estimates). */
-export function buildExperimentJudgeContext(projectId: string): UntrustedContent[] {
+export function buildExperimentJudgeContext(
+  projectId: string
+): UntrustedContent[] {
   const claims = fetchAtomicClaims(projectId);
   const plans = fetchExperimentPlans(projectId);
 
@@ -229,7 +300,10 @@ export function buildExperimentJudgeContext(projectId: string): UntrustedContent
         claims.length === 0
           ? "(none generated yet)"
           : claims
-              .map((c) => `- Claim ${c.id} [${c.type}]: ${c.text}\n  scope: ${c.scope}\n  baseline: ${c.baseline}\n  metric: ${c.metric}`)
+              .map(
+                (c) =>
+                  `- Claim ${c.id} [${c.type}]: ${c.text}\n  scope: ${c.scope}\n  baseline: ${c.baseline}\n  metric: ${c.metric}`
+              )
               .join("\n"),
     },
     {
@@ -246,9 +320,14 @@ export function buildExperimentJudgeContext(projectId: string): UntrustedContent
                   `  controls: ${p.controls.join("; ") || "(none)"}\n` +
                   `  ablations: ${p.ablations.join("; ") || "(none)"}\n` +
                   `  generalization_proposals: ${p.generalizationProposals.join("; ") || "(none)"}\n` +
-                  `  estimates: ${p.estimates
-                    .map((e) => `${e.label}=${e.result} (${e.inputs.map((i) => `${i.name}:${i.value}[${i.basis}]`).join(", ")})`)
-                    .join("; ") || "(none)"}`,
+                  `  estimates: ${
+                    p.estimates
+                      .map(
+                        (e) =>
+                          `${e.label}=${e.result} (${e.inputs.map((i) => `${i.name}:${i.value}[${i.basis}]`).join(", ")})`
+                      )
+                      .join("; ") || "(none)"
+                  }`
               )
               .join("\n\n"),
     },
@@ -256,7 +335,9 @@ export function buildExperimentJudgeContext(projectId: string): UntrustedContent
 }
 
 /** Judge 4 — Evidence: does each claim have a verifiable metric threshold? */
-export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[] {
+export function buildEvidenceJudgeContext(
+  projectId: string
+): UntrustedContent[] {
   const db = getDb();
   // Use LEFT JOIN between atomic_claims and evidence_requirements on claimId to find missing in one query
   const joined = db
@@ -265,13 +346,29 @@ export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[]
       requirementData: evidenceRequirements.data,
     })
     .from(atomicClaims)
-    .leftJoin(evidenceRequirements, eq(evidenceRequirements.claimId, atomicClaims.id))
+    .leftJoin(
+      evidenceRequirements,
+      eq(evidenceRequirements.claimId, atomicClaims.id)
+    )
     .where(eq(atomicClaims.projectId, projectId))
     .all();
 
-  const claimsWithReq: { claim: any; req: any | null }[] = joined.map((row) => {
-    const claim = parseOrThrow(AtomicClaimSchema, JSON.parse(row.claimData as string), "AtomicClaim");
-    const req = row.requirementData ? parseOrThrow(EvidenceRequirementSchema, JSON.parse(row.requirementData as string), "EvidenceRequirement") : null;
+  const claimsWithReq: {
+    claim: AtomicClaim;
+    req: EvidenceRequirement | null;
+  }[] = joined.map((row) => {
+    const claim = parseOrThrow(
+      AtomicClaimSchema,
+      JSON.parse(row.claimData as string),
+      "AtomicClaim"
+    );
+    const req = row.requirementData
+      ? parseOrThrow(
+          EvidenceRequirementSchema,
+          JSON.parse(row.requirementData as string),
+          "EvidenceRequirement"
+        )
+      : null;
     return { claim, req };
   });
 
@@ -281,14 +378,17 @@ export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[]
   if (joined.length === 0) {
     // No atomic claims via join, try direct fetch for text rendering (still join attempt was empty)
     const claims = fetchAtomicClaims(projectId);
-    const reqByClaim = new Map(fetchEvidenceRequirements(projectId).map((r) => [r.claimId, r]));
+    const reqByClaim = new Map(
+      fetchEvidenceRequirements(projectId).map((r) => [r.claimId, r])
+    );
     return [
       {
         label: "Claim nodes",
         text: renderNodes(claimNodes, "(no CLAIM node yet)"),
       },
       {
-        label: "Atomic claims with their EvidenceRequirements (what the metric value must satisfy to be verified)",
+        label:
+          "Atomic claims with their EvidenceRequirements (what the metric value must satisfy to be verified)",
         text:
           claims.length === 0
             ? "(no atomic claims generated yet)"
@@ -318,7 +418,8 @@ export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[]
       text: renderNodes(claimNodes, "(no CLAIM node yet)"),
     },
     {
-      label: "Atomic claims with their EvidenceRequirements (what the metric value must satisfy to be verified)",
+      label:
+        "Atomic claims with their EvidenceRequirements (what the metric value must satisfy to be verified)",
       text:
         claimsWithReq.length === 0
           ? "(no atomic claims generated yet)"
@@ -342,7 +443,9 @@ export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[]
 }
 
 /** Judge 5 — Conference Readiness: compact holistic summary across the whole spec. */
-export function buildConferenceReadinessJudgeContext(projectId: string): UntrustedContent[] {
+export function buildConferenceReadinessJudgeContext(
+  projectId: string
+): UntrustedContent[] {
   const problems = nodesByType(projectId, "PROBLEM");
   const gapNodes = nodesByType(projectId, "GAP");
   const contributionsList = fetchContributions(projectId);
@@ -370,9 +473,15 @@ export function buildConferenceReadinessJudgeContext(projectId: string): Untrust
 
 const JUDGE_DISPATCH: Record<
   JudgeName,
-  { systemPrompt: string; buildContext: (projectId: string) => UntrustedContent[] }
+  {
+    systemPrompt: string;
+    buildContext: (projectId: string) => UntrustedContent[];
+  }
 > = {
-  GAP: { systemPrompt: GAP_JUDGE_SYSTEM_PROMPT, buildContext: buildGapJudgeContext },
+  GAP: {
+    systemPrompt: GAP_JUDGE_SYSTEM_PROMPT,
+    buildContext: buildGapJudgeContext,
+  },
   CONTRIBUTION: {
     systemPrompt: CONTRIBUTION_JUDGE_SYSTEM_PROMPT,
     buildContext: buildContributionJudgeContext,
@@ -395,7 +504,7 @@ const JUDGE_DISPATCH: Record<
 export async function runJudge(params: {
   judge: JudgeName;
   projectId: string;
-  client: any;
+  client: OpenAI;
   model: string;
 }): Promise<JudgeReport> {
   const { judge, projectId, client, model } = params;
@@ -417,14 +526,14 @@ export async function runJudge(params: {
     parseOrThrow(
       FindingSchema,
       { ...f, id: crypto.randomUUID(), judge },
-      "Finding",
-    ),
+      "Finding"
+    )
   );
 
   return parseOrThrow(
     JudgeReportSchema,
     { judge, summary: output.summary, findings },
-    "JudgeReport",
+    "JudgeReport"
   );
 }
 
@@ -434,7 +543,10 @@ export async function runJudge(params: {
  */
 export function computeConsensus(reports: JudgeReport[]): Consensus {
   const severityCounts = { CRITICAL: 0, MAJOR: 0, MINOR: 0 };
-  const sectionAgreement = new Map<string, { label: string; judges: Set<JudgeName> }>();
+  const sectionAgreement = new Map<
+    string,
+    { label: string; judges: Set<JudgeName> }
+  >();
 
   for (const report of reports) {
     for (const finding of report.findings) {
@@ -467,7 +579,8 @@ export function computeConsensus(reports: JudgeReport[]): Consensus {
     severityCounts,
     overallSeverity,
     agreedSections,
-    readyToFinalize: severityCounts.CRITICAL === 0 && severityCounts.MAJOR === 0,
+    readyToFinalize:
+      severityCounts.CRITICAL === 0 && severityCounts.MAJOR === 0,
   };
 }
 
@@ -495,7 +608,7 @@ function ensureProjectExistsForJudge(projectId: string): void {
  */
 export async function runJudgePanel(params: {
   projectId: string;
-  client: any;
+  client: OpenAI;
   model: string;
 }): Promise<JudgePanelResult> {
   const { projectId, client, model } = params;
@@ -503,12 +616,14 @@ export async function runJudgePanel(params: {
   if (!fetchSpecGraph(projectId)) {
     throw new Error(
       "Generate a decomposition graph before running the Judge panel " +
-        "(decomposition.generate).",
+        "(decomposition.generate)."
     );
   }
 
   const judges = await Promise.all(
-    ALL_JUDGE_NAMES.map((judge) => runJudge({ judge, projectId, client, model })),
+    ALL_JUDGE_NAMES.map((judge) =>
+      runJudge({ judge, projectId, client, model })
+    )
   );
 
   const consensus = computeConsensus(judges);
@@ -523,13 +638,19 @@ export async function runJudgePanel(params: {
       consensus,
       createdAt: now,
     },
-    "JudgePanelResult",
+    "JudgePanelResult"
   );
 
   ensureProjectExistsForJudge(projectId);
   const db = getDb();
   // Need experimentPlanId FK — pick latest experiment plan if exists else null
-  const latestPlan = db.select().from(experimentPlans).where(eq(experimentPlans.projectId, projectId)).orderBy(desc(experimentPlans.createdAt)).limit(1).get();
+  const latestPlan = db
+    .select()
+    .from(experimentPlans)
+    .where(eq(experimentPlans.projectId, projectId))
+    .orderBy(desc(experimentPlans.createdAt))
+    .limit(1)
+    .get();
   const experimentPlanId = latestPlan?.id ?? null;
   db.insert(judgePanels)
     .values({

@@ -21,27 +21,28 @@
  */
 
 import {
-  FindingResolutionSchema,
-  JudgePanelResultSchema,
-  ResearchSpecSchema,
-  SPEC_SECTION_ORDER,
   type DiffResearchSpecVersionsOutput,
   type Finding,
   type FindingResolution,
+  FindingResolutionSchema,
   type JudgeName,
   type JudgePanelResult,
+  JudgePanelResultSchema,
   type ResearchSpec,
+  ResearchSpecSchema,
+  SPEC_SECTION_ORDER,
   type SpecSectionDiff,
 } from "@specloop/schemas";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
-import { computeConsensus, runJudge } from "../judge/service.js";
-import { parseOrThrow } from "../../store/project-store.js";
+import { and, asc, desc, eq } from "drizzle-orm";
+import type OpenAI from "openai";
 import { getDb } from "../../db/client.js";
 import {
   findingResolutions,
   judgePanels,
   researchSpecs,
 } from "../../db/schema.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { computeConsensus, runJudge } from "../judge/service.js";
 
 export class RevisionError extends Error {
   constructor(message: string) {
@@ -52,31 +53,63 @@ export class RevisionError extends Error {
 
 function fetchJudgePanel(projectId: string): JudgePanelResult | null {
   const db = getDb();
-  const row = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+  const row = db
+    .select()
+    .from(judgePanels)
+    .where(eq(judgePanels.projectId, projectId))
+    .orderBy(desc(judgePanels.createdAt))
+    .limit(1)
+    .get();
   if (!row) return null;
-  return parseOrThrow(JudgePanelResultSchema, JSON.parse(row.data as string), "JudgePanelResult");
+  return parseOrThrow(
+    JudgePanelResultSchema,
+    JSON.parse(row.data as string),
+    "JudgePanelResult"
+  );
 }
 
 function fetchResearchSpecs(projectId: string): ResearchSpec[] {
   const db = getDb();
-  const rows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).orderBy(asc(researchSpecs.createdAt)).all();
-  return rows.map((r) => parseOrThrow(ResearchSpecSchema, JSON.parse(r.data as string), "ResearchSpec"));
+  const rows = db
+    .select()
+    .from(researchSpecs)
+    .where(eq(researchSpecs.projectId, projectId))
+    .orderBy(asc(researchSpecs.createdAt))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(
+      ResearchSpecSchema,
+      JSON.parse(r.data as string),
+      "ResearchSpec"
+    )
+  );
 }
 
 function fetchFindingResolutions(projectId: string): FindingResolution[] {
   const db = getDb();
-  const rows = db.select().from(findingResolutions).where(eq(findingResolutions.projectId, projectId)).orderBy(asc(findingResolutions.createdAt)).all();
-  return rows.map((r) => parseOrThrow(FindingResolutionSchema, JSON.parse(r.data as string), "FindingResolution"));
+  const rows = db
+    .select()
+    .from(findingResolutions)
+    .where(eq(findingResolutions.projectId, projectId))
+    .orderBy(asc(findingResolutions.createdAt))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(
+      FindingResolutionSchema,
+      JSON.parse(r.data as string),
+      "FindingResolution"
+    )
+  );
 }
 
 function findFindingInLatestPanel(
   projectId: string,
-  findingId: string,
+  findingId: string
 ): { panel: JudgePanelResult; finding: Finding } {
   const panel = fetchJudgePanel(projectId);
   if (!panel) {
     throw new RevisionError(
-      "No Judge panel has been run yet for this project (judge.runPanel).",
+      "No Judge panel has been run yet for this project (judge.runPanel)."
     );
   }
   for (const report of panel.judges) {
@@ -84,7 +117,7 @@ function findFindingInLatestPanel(
     if (finding) return { panel, finding };
   }
   throw new RevisionError(
-    `Finding ${findingId} was not found in the latest Judge panel.`,
+    `Finding ${findingId} was not found in the latest Judge panel.`
   );
 }
 
@@ -100,7 +133,10 @@ export function recordFindingResolution(input: {
   resolution: FindingResolution["resolution"];
   note: string;
 }): FindingResolution {
-  const { finding } = findFindingInLatestPanel(input.projectId, input.findingId);
+  const { finding } = findFindingInLatestPanel(
+    input.projectId,
+    input.findingId
+  );
 
   const record: FindingResolution = parseOrThrow(
     FindingResolutionSchema,
@@ -114,7 +150,7 @@ export function recordFindingResolution(input: {
       note: input.note,
       createdAt: new Date().toISOString(),
     },
-    "FindingResolution",
+    "FindingResolution"
   );
 
   const db = getDb();
@@ -145,20 +181,20 @@ export function listFindingResolutions(projectId: string): FindingResolution[] {
 export async function rerunJudge(params: {
   projectId: string;
   judge: JudgeName;
-  client: any;
+  client: OpenAI;
   model: string;
 }): Promise<JudgePanelResult> {
   const { projectId, judge, client, model } = params;
   const existingPanel = fetchJudgePanel(projectId);
   if (!existingPanel) {
     throw new RevisionError(
-      "No Judge panel has been run yet for this project (judge.runPanel).",
+      "No Judge panel has been run yet for this project (judge.runPanel)."
     );
   }
 
   const freshReport = await runJudge({ judge, projectId, client, model });
   const mergedReports = existingPanel.judges.map((report) =>
-    report.judge === judge ? freshReport : report,
+    report.judge === judge ? freshReport : report
   );
   const consensus = computeConsensus(mergedReports);
 
@@ -171,14 +207,20 @@ export async function rerunJudge(params: {
       consensus,
       createdAt: new Date().toISOString(),
     },
-    "JudgePanelResult",
+    "JudgePanelResult"
   );
 
   const db = getDb();
   // Keep FK to latest experiment plan
   // Find latest experiment plan id via judge panel's experimentPlanId or via direct lookup
-  const latestPanelRow = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
-  const experimentPlanId = (latestPanelRow as any)?.experimentPlanId ?? null;
+  const latestPanelRow = db
+    .select()
+    .from(judgePanels)
+    .where(eq(judgePanels.projectId, projectId))
+    .orderBy(desc(judgePanels.createdAt))
+    .limit(1)
+    .get();
+  const experimentPlanId = latestPanelRow?.experimentPlanId ?? null;
   db.insert(judgePanels)
     .values({
       id: updatedPanel.id,
@@ -198,7 +240,7 @@ export async function rerunJudge(params: {
  */
 export function computeSpecDiff(
   fromSpec: ResearchSpec,
-  toSpec: ResearchSpec,
+  toSpec: ResearchSpec
 ): SpecSectionDiff[] {
   const fromById = new Map(fromSpec.sections.map((s) => [s.id, s]));
   const toById = new Map(toSpec.sections.map((s) => [s.id, s]));
@@ -226,8 +268,10 @@ export function diffResearchSpecVersions(params: {
   const fromSpec = versions.find((v) => v.version === fromVersion);
   const toSpec = versions.find((v) => v.version === toVersion);
 
-  if (!fromSpec) throw new RevisionError(`Research spec version ${fromVersion} not found.`);
-  if (!toSpec) throw new RevisionError(`Research spec version ${toVersion} not found.`);
+  if (!fromSpec)
+    throw new RevisionError(`Research spec version ${fromVersion} not found.`);
+  if (!toSpec)
+    throw new RevisionError(`Research spec version ${toVersion} not found.`);
 
   return {
     fromVersion,
@@ -255,16 +299,26 @@ export function finalizeResearchSpec(params: {
 
   // Use JOIN to check overallSeverity without separate lookups: SELECT judge_panels.data FROM judge_panels WHERE project_id = ?
   const db = getDb();
-  const panelRow = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+  const panelRow = db
+    .select()
+    .from(judgePanels)
+    .where(eq(judgePanels.projectId, projectId))
+    .orderBy(desc(judgePanels.createdAt))
+    .limit(1)
+    .get();
   if (!panelRow) {
     throw new RevisionError(
-      "Run the Judge panel before finalizing a research spec (judge.runPanel).",
+      "Run the Judge panel before finalizing a research spec (judge.runPanel)."
     );
   }
-  const panel = parseOrThrow(JudgePanelResultSchema, JSON.parse(panelRow.data as string), "JudgePanelResult");
+  const panel = parseOrThrow(
+    JudgePanelResultSchema,
+    JSON.parse(panelRow.data as string),
+    "JudgePanelResult"
+  );
   if (panel.consensus.severityCounts.CRITICAL > 0) {
     throw new RevisionError(
-      "Cannot finalize: the latest Judge panel still has unresolved CRITICAL findings.",
+      "Cannot finalize: the latest Judge panel still has unresolved CRITICAL findings."
     );
   }
 
@@ -275,7 +329,7 @@ export function finalizeResearchSpec(params: {
       status: "FINALIZED",
       finalizedAt: new Date().toISOString(),
     },
-    "ResearchSpec",
+    "ResearchSpec"
   );
 
   // Update DB row
@@ -283,7 +337,12 @@ export function finalizeResearchSpec(params: {
     .set({
       data: JSON.stringify(finalized),
     })
-    .where(and(eq(researchSpecs.projectId, projectId), eq(researchSpecs.id, finalized.id)))
+    .where(
+      and(
+        eq(researchSpecs.projectId, projectId),
+        eq(researchSpecs.id, finalized.id)
+      )
+    )
     .run();
 
   return finalized;

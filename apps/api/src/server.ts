@@ -10,11 +10,14 @@
  * handles CORS.
  */
 
-import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
+import {
+  type FastifyTRPCPluginOptions,
+  fastifyTRPCPlugin,
+} from "@trpc/server/adapters/fastify";
 import Fastify from "fastify";
 import { bootstrapPersistence, closePool } from "./db/hydrate.js";
 import { env } from "./env.js";
-import { appRouter, type AppRouter } from "./routers/index.js";
+import { type AppRouter, appRouter } from "./routers/index.js";
 import { createContext } from "./trpc/context.js";
 
 const PORT = env.API_PORT;
@@ -47,7 +50,7 @@ async function main() {
       onError({ path, error }) {
         app.log.error({ err: error, path }, "tRPC procedure failed");
       },
-    } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],
+    } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
   });
 
   app.get("/healthz", async () => ({

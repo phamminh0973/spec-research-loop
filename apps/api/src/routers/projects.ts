@@ -15,7 +15,7 @@ import {
   UuidSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
-import { eq, desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
 import { projects } from "../db/schema.js";
@@ -37,7 +37,9 @@ function rowToRecord(row: typeof projects.$inferSelect): ProjectRecord {
     title: row.title,
     domain: row.domain,
     rawIdea: row.rawIdea,
-    resourceConstraints: JSON.parse(row.resourceConstraints as string) as string[],
+    resourceConstraints: JSON.parse(
+      row.resourceConstraints as string
+    ) as string[],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -102,7 +104,11 @@ function toSummary(record: ProjectRecord) {
 
 function listAllProjects(): ProjectRecord[] {
   const db = getDb();
-  const rows = db.select().from(projects).orderBy(desc(projects.createdAt)).all();
+  const rows = db
+    .select()
+    .from(projects)
+    .orderBy(desc(projects.createdAt))
+    .all();
   return rows.map(rowToRecord);
 }
 
@@ -112,10 +118,14 @@ export const projectsRouter = router({
     .output(ListProjectsOutputSchema)
     .query(({ input }) => {
       const all = listAllProjects();
-      const startIndex = input.cursor ? all.findIndex((p) => p.id === input.cursor) + 1 : 0;
+      const startIndex = input.cursor
+        ? all.findIndex((p) => p.id === input.cursor) + 1
+        : 0;
       const page = all.slice(startIndex, startIndex + input.limit);
       const nextCursor =
-        startIndex + input.limit < all.length ? (page[page.length - 1]?.id ?? null) : null;
+        startIndex + input.limit < all.length
+          ? (page[page.length - 1]?.id ?? null)
+          : null;
       return {
         items: page.map(toSummary),
         nextCursor,

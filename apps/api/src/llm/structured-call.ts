@@ -241,7 +241,7 @@ export async function structuredCall<TOutput>(
       const detail = shown
         .map(
           (issue) =>
-            `- ${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message}`,
+            `- ${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message}`
         )
         .join("\n");
       return (

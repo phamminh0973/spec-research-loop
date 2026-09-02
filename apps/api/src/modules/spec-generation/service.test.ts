@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   AtomicClaim,
   Contribution,
@@ -9,8 +7,10 @@ import type {
   InterpretationDecision,
   InterpretationRecord,
   NodeStatusHistory,
+  SourceDocument,
   SpecNode,
 } from "@specloop/schemas";
+import { describe, expect, it } from "vitest";
 import {
   assembleSections,
   buildAblationPlanSection,
@@ -64,14 +64,17 @@ describe("spec-generation section builders", () => {
 
   it("renders research questions as a bullet list", () => {
     const result = buildResearchQuestionsSection([
-      node({ type: "RESEARCH_QUESTION", content: "Tối ưu nhiều vòng có giảm unsupported claims không?" }),
+      node({
+        type: "RESEARCH_QUESTION",
+        content: "Tối ưu nhiều vòng có giảm unsupported claims không?",
+      }),
     ]);
     expect(result.isPlaceholder).toBe(false);
     expect(result.content).toContain("- [CONFIRMED]");
   });
 
   it("renders the related-work matrix only from selected sources", () => {
-    const selected = {
+    const selected: SourceDocument = {
       id: "s1",
       projectId: PROJECT_ID,
       externalId: "arxiv:1",
@@ -91,8 +94,13 @@ describe("spec-generation section builders", () => {
       selected: true,
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
-    } as any;
-    const unselected = { ...selected, id: "s2", selected: false, title: "Unselected paper" };
+    };
+    const unselected = {
+      ...selected,
+      id: "s2",
+      selected: false,
+      title: "Unselected paper",
+    };
 
     const result = buildRelatedWorkMatrixSection([selected, unselected]);
     expect(result.isPlaceholder).toBe(false);
@@ -208,10 +216,13 @@ describe("spec-generation section builders", () => {
         claimId: "claim-1",
         metric: "unsupported claim rate",
         operator: "LTE",
-        threshold: "Not (không cải thiện ổn định) — satisfies giảm on unsupported claim rate",
-        successCriterion: 'Claim "Phương pháp giảm unsupported claims." is verified if unsupported claim rate measured on arXiv cs.AI in scope "paper khoa học" vs baseline self-refine shows giảm and does not satisfy falsification condition: không cải thiện ổn định.',
+        threshold:
+          "Not (không cải thiện ổn định) — satisfies giảm on unsupported claim rate",
+        successCriterion:
+          'Claim "Phương pháp giảm unsupported claims." is verified if unsupported claim rate measured on arXiv cs.AI in scope "paper khoa học" vs baseline self-refine shows giảm and does not satisfy falsification condition: không cải thiện ổn định.',
         falsificationCriterion: "không cải thiện ổn định",
-        measurementMethod: "Measure unsupported claim rate on arXiv cs.AI against baseline self-refine within scope paper khoa học.",
+        measurementMethod:
+          "Measure unsupported claim rate on arXiv cs.AI against baseline self-refine within scope paper khoa học.",
         requiredObservations: ["unsupported claim rate"],
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
@@ -290,7 +301,10 @@ describe("spec-generation section builders", () => {
 
   it("renders open issues from OPEN_QUESTION nodes", () => {
     const result = buildOpenIssuesSection([
-      node({ type: "OPEN_QUESTION", content: "Tối ưu một prompt hay cả pipeline?" }),
+      node({
+        type: "OPEN_QUESTION",
+        content: "Tối ưu một prompt hay cả pipeline?",
+      }),
     ]);
     expect(result.isPlaceholder).toBe(false);
     expect(result.content).toContain("Tối ưu một prompt hay cả pipeline?");
@@ -306,7 +320,7 @@ describe("spec-generation section builders", () => {
         content: null,
         actorId: "user-1",
         createdAt: "2026-01-01T00:00:00.000Z",
-      } as any,
+      },
     ];
     const history: NodeStatusHistory[] = [
       {
@@ -319,7 +333,7 @@ describe("spec-generation section builders", () => {
         authority: "USER",
         reason: "User confirmed via UI",
         occurredAt: "2026-01-02T00:00:00.000Z",
-      } as any,
+      },
     ];
     const result = buildDecisionHistorySection(decisions, history);
     expect(result.content).toContain("CONFIRM");

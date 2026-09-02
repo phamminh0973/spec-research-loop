@@ -1,16 +1,9 @@
 import { Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { WorkflowStep, WorkflowStepState } from "./workflow-progress";
+import type { WorkflowStep } from "./workflow-progress";
 
 export type { WorkflowStep } from "./workflow-progress";
-
-function stateLabel(state: WorkflowStepState) {
-  if (state === "complete") return "đã hoàn tất";
-  if (state === "current") return "đang thực hiện";
-  if (state === "pending") return "chưa bắt đầu";
-  return "đang bị chặn";
-}
 
 export function StepBreadcrumb({
   steps,
@@ -23,10 +16,7 @@ export function StepBreadcrumb({
     <div>
       <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
 
-      <ol
-        className="flex flex-col items-start"
-        aria-label={title}
-      >
+      <ol className="flex flex-col items-start" aria-label={title}>
         {steps.map((step, index) => {
           const isDone = step.state === "complete";
           const isCurrent = step.state === "current";
@@ -43,10 +33,9 @@ export function StepBreadcrumb({
                     step.state === "pending" &&
                       "border-border bg-background text-muted-foreground",
                     step.state === "blocked" &&
-                      "border-dashed border-border bg-muted/40 text-muted-foreground",
+                      "border-dashed border-border bg-muted/40 text-muted-foreground"
                   )}
                   aria-current={isCurrent ? "step" : undefined}
-                  aria-label={`Bước ${index + 1}: ${step.label}, ${stateLabel(step.state)}`}
                 >
                   {isDone ? <Check className="size-4" /> : index + 1}
                 </div>
@@ -54,7 +43,7 @@ export function StepBreadcrumb({
                   <div
                     className={cn(
                       "h-5 w-px",
-                      isDone ? "bg-emerald-500" : "bg-border",
+                      isDone ? "bg-emerald-500" : "bg-border"
                     )}
                     aria-hidden="true"
                   />
@@ -66,7 +55,7 @@ export function StepBreadcrumb({
                   isDone && "font-medium text-foreground",
                   isCurrent && "font-semibold text-primary",
                   step.state === "pending" && "text-muted-foreground",
-                  step.state === "blocked" && "text-muted-foreground/70",
+                  step.state === "blocked" && "text-muted-foreground/70"
                 )}
                 title={step.label}
               >

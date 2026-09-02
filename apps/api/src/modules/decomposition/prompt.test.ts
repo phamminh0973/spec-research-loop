@@ -2,9 +2,8 @@ import {
   DecomposeIdeaInputSchema,
   STEP2_REQUIRED_NODE_TYPES,
 } from "@specloop/schemas";
-import { describe, expect, it } from "vitest";
-
 import { confirmedInterpretationFixture } from "@specloop/schemas/fixtures";
+import { describe, expect, it } from "vitest";
 import { buildDecompositionMessages, decompositionPrompt } from "./prompt.js";
 
 const input = DecomposeIdeaInputSchema.parse({

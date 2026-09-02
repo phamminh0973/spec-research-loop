@@ -18,7 +18,7 @@ const CLAIM_SCHEMA = z.object({
       type: z.enum(["EMPIRICAL", "METHODOLOGICAL", "THEORETICAL", "NEGATIVE"]),
       text: z.string().min(1).max(2_000),
       evidenceRefs: z.array(z.string().uuid()).default([]),
-    }),
+    })
   ),
 });
 
@@ -35,7 +35,7 @@ const VALID_OUTPUT = {
 };
 
 function fakeClient(
-  responses: Array<{ content?: string } | { throws: Error }>,
+  responses: Array<{ content?: string } | { throws: Error }>
 ): OpenAI {
   const create = vi.fn();
   for (const response of responses) {
@@ -51,9 +51,12 @@ function fakeClient(
 }
 
 function calls(client: OpenAI): Array<{ content: string }> {
-  const create = (client.chat.completions.create as ReturnType<typeof vi.fn>);
+  const create = client.chat.completions.create as ReturnType<typeof vi.fn>;
   return create.mock.calls.map((call) => {
-    const messages = call[0]?.messages as Array<{ role: string; content: string }>;
+    const messages = call[0]?.messages as Array<{
+      role: string;
+      content: string;
+    }>;
     const last = messages[messages.length - 1];
     return { content: last?.content ?? "" };
   });
@@ -133,7 +136,7 @@ describe("structuredCall repair feedback", () => {
       extractReferencedIds: (out) => out.claims.flatMap((c) => c.evidenceRefs),
     });
 
-    expect(output.claims[0]!.evidenceRefs).toEqual([SOURCE_ID]);
+    expect(output.claims[0]?.evidenceRefs).toEqual([SOURCE_ID]);
     expect(repairCall(client).content).toContain(fabricated);
     expect(repairCall(client).content).toContain(SOURCE_ID);
   });
@@ -141,7 +144,9 @@ describe("structuredCall repair feedback", () => {
   it("throws a terminal error when the allowlist violation persists after repair", async () => {
     const fabricated = "22222222-2222-4222-8222-222222222222";
     const badOutput = {
-      claims: [{ type: "EMPIRICAL", text: "A claim.", evidenceRefs: [fabricated] }],
+      claims: [
+        { type: "EMPIRICAL", text: "A claim.", evidenceRefs: [fabricated] },
+      ],
     };
     const client = fakeClient([
       { content: JSON.stringify(badOutput) },
@@ -157,8 +162,9 @@ describe("structuredCall repair feedback", () => {
         outputSchema: CLAIM_SCHEMA,
         schemaName: "test_schema",
         allowedIds: new Set([SOURCE_ID]),
-        extractReferencedIds: (out) => out.claims.flatMap((c) => c.evidenceRefs),
-      }),
+        extractReferencedIds: (out) =>
+          out.claims.flatMap((c) => c.evidenceRefs),
+      })
     ).rejects.toThrow("still rejected after one repair attempt");
   });
 

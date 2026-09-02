@@ -1,6 +1,4 @@
 import type { SpecGraphView } from "@specloop/schemas";
-
-import { DecompositionService } from "./service.js";
 import { SpecGraphNotFoundError } from "./errors.js";
 import type {
   ChangeStatusCommand,
@@ -11,6 +9,7 @@ import type {
   SpecGraphStore,
   UpdateNodeCommand,
 } from "./ports.js";
+import { DecompositionService } from "./service.js";
 
 export interface SpecStructureModule {
   generate(projectId: string): Promise<SpecGraphView>;

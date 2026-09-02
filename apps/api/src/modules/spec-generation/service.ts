@@ -15,35 +15,30 @@
  */
 
 import {
-  ResearchSpecSchema,
-  SPEC_SECTION_ORDER,
-  InterpretationRecordSchema,
-  SpecGraphViewSchema,
-  SourceDocumentSchema,
-  GapProposalOutputSchema,
-  AtomicClaimSchema,
-  EvidenceRequirementSchema,
-  ExperimentPlanSchema,
-  JudgePanelResultSchema,
-  FindingResolutionSchema,
   type AtomicClaim,
+  AtomicClaimSchema,
   type Contribution,
   type EvidenceRequirement,
+  EvidenceRequirementSchema,
   type ExperimentPlan,
+  ExperimentPlanSchema,
   type FindingResolution,
   type GapProposalOutput,
+  GapProposalOutputSchema,
   type InterpretationDecision,
   type InterpretationRecord,
   type NodeStatusHistory,
   type ResearchSpec,
+  ResearchSpecSchema,
   type SourceDocument,
+  SourceDocumentSchema,
+  SPEC_SECTION_ORDER,
+  SpecGraphViewSchema,
   type SpecNode,
   type SpecSection,
 } from "@specloop/schemas";
-import { eq, desc, asc, sql } from "drizzle-orm";
 import { MarkdownDocument, md } from "build-md";
-import { interpretationRepository } from "../interpretation/index.js";
-import { parseOrThrow } from "../../store/project-store.js";
+import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../db/client.js";
 import {
   atomicClaims,
@@ -58,6 +53,8 @@ import {
   sources,
   specGraphs,
 } from "../../db/schema.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { interpretationRepository } from "../interpretation/index.js";
 
 const PLACEHOLDER_PREFIX = "(chưa có dữ liệu)";
 
@@ -65,7 +62,7 @@ function section(
   id: SpecSection["id"],
   title: string,
   content: string,
-  isPlaceholder: boolean,
+  isPlaceholder: boolean
 ): SpecSection {
   return { id, title, content, isPlaceholder };
 }
@@ -81,7 +78,7 @@ function nodesByType(nodes: SpecNode[], type: SpecNode["type"]): SpecNode[] {
 /** 1. Problem statement — confirmed interpretation + PROBLEM nodes. */
 export function buildProblemStatementSection(
   interpretation: InterpretationRecord | null,
-  problemNodes: SpecNode[],
+  problemNodes: SpecNode[]
 ): SpecSection {
   const isPlaceholder = !interpretation && problemNodes.length === 0;
   if (isPlaceholder) {
@@ -89,7 +86,7 @@ export function buildProblemStatementSection(
       "PROBLEM_STATEMENT",
       "1. Problem statement",
       `${PLACEHOLDER_PREFIX} — chưa có interpretation đã xác nhận hoặc PROBLEM node.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument()
@@ -97,30 +94,44 @@ export function buildProblemStatementSection(
     .$if(problemNodes.length > 0, (d) =>
       d
         .paragraph("Problem nodes (Bước 2):")
-        .list(problemNodes.map((n) => `[${n.status}] ${n.title}: ${n.content}`)),
+        .list(problemNodes.map((n) => `[${n.status}] ${n.title}: ${n.content}`))
     );
-  return section("PROBLEM_STATEMENT", "1. Problem statement", doc.toString().trim(), false);
+  return section(
+    "PROBLEM_STATEMENT",
+    "1. Problem statement",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 2. Research questions — RESEARCH_QUESTION nodes. */
-export function buildResearchQuestionsSection(questionNodes: SpecNode[]): SpecSection {
+export function buildResearchQuestionsSection(
+  questionNodes: SpecNode[]
+): SpecSection {
   const isPlaceholder = questionNodes.length === 0;
   if (isPlaceholder) {
     return section(
       "RESEARCH_QUESTIONS",
       "2. Research questions",
       `${PLACEHOLDER_PREFIX} — chưa có RESEARCH_QUESTION node nào.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().list(
-    questionNodes.map((n) => `[${n.status}] ${n.content}`),
+    questionNodes.map((n) => `[${n.status}] ${n.content}`)
   );
-  return section("RESEARCH_QUESTIONS", "2. Research questions", doc.toString().trim(), false);
+  return section(
+    "RESEARCH_QUESTIONS",
+    "2. Research questions",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 3. Related-work matrix — selected sources with LLM-proposed analysis (user-reviewed). */
-export function buildRelatedWorkMatrixSection(sources: SourceDocument[]): SpecSection {
+export function buildRelatedWorkMatrixSection(
+  sources: SourceDocument[]
+): SpecSection {
   const selected = sources.filter((s) => s.selected);
   const isPlaceholder = selected.length === 0;
   if (isPlaceholder) {
@@ -128,7 +139,7 @@ export function buildRelatedWorkMatrixSection(sources: SourceDocument[]): SpecSe
       "RELATED_WORK_MATRIX",
       "3. Related-work matrix",
       `${PLACEHOLDER_PREFIX} — chưa có nguồn nào được chọn vào corpus.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().table(
@@ -143,15 +154,20 @@ export function buildRelatedWorkMatrixSection(sources: SourceDocument[]): SpecSe
         analysis?.methodology ?? "—",
         analysis?.additionalResearchNeeded ?? "—",
       ];
-    }),
+    })
   );
-  return section("RELATED_WORK_MATRIX", "3. Related-work matrix", doc.toString().trim(), false);
+  return section(
+    "RELATED_WORK_MATRIX",
+    "3. Related-work matrix",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 4. Research gap — GAP nodes + most recent gap proposal (always carries novelty-risk warning). */
 export function buildResearchGapSection(
   gapNodes: SpecNode[],
-  gapProposal: GapProposalOutput | null,
+  gapProposal: GapProposalOutput | null
 ): SpecSection {
   const isPlaceholder = gapNodes.length === 0 && !gapProposal;
   if (isPlaceholder) {
@@ -159,65 +175,87 @@ export function buildResearchGapSection(
       "RESEARCH_GAP",
       "4. Research gap",
       `${PLACEHOLDER_PREFIX} — chưa có GAP node hoặc gap proposal.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument()
     .$if(gapNodes.length > 0, (d) =>
       d
         .paragraph("Gap nodes (Bước 2):")
-        .list(gapNodes.map((n) => `[${n.status}] ${n.content}`)),
+        .list(gapNodes.map((n) => `[${n.status}] ${n.content}`))
     )
     .$if(!!gapProposal, (d) =>
       d
         .paragraph("Gap candidates (AIT-06):")
         .list(
           "ordered",
-          gapProposal!.candidates.map(
-            (c) => `${c.limitation} (importance: ${c.importance})\n   novelty risk: ${c.noveltyRisk}`,
-          ),
+          gapProposal?.candidates.map(
+            (c) =>
+              `${c.limitation} (importance: ${c.importance})\n   novelty risk: ${c.noveltyRisk}`
+          )
         )
-        .paragraph(`Warning: ${gapProposal!.warning}`),
+        .paragraph(`Warning: ${gapProposal?.warning}`)
     );
-  return section("RESEARCH_GAP", "4. Research gap", doc.toString().trim(), false);
+  return section(
+    "RESEARCH_GAP",
+    "4. Research gap",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 5. Proposed approach — synthesized from contribution text (no new content, only formatting). */
-export function buildProposedApproachSection(contributions: Contribution[]): SpecSection {
+export function buildProposedApproachSection(
+  contributions: Contribution[]
+): SpecSection {
   const isPlaceholder = contributions.length === 0;
   if (isPlaceholder) {
     return section(
       "PROPOSED_APPROACH",
       "5. Proposed approach",
       `${PLACEHOLDER_PREFIX} — chưa có contribution nào được tạo.`,
-      true,
+      true
     );
   }
-  const doc = new MarkdownDocument().paragraph(contributions.map((c) => c.text).join(" "));
-  return section("PROPOSED_APPROACH", "5. Proposed approach", doc.toString().trim(), false);
+  const doc = new MarkdownDocument().paragraph(
+    contributions.map((c) => c.text).join(" ")
+  );
+  return section(
+    "PROPOSED_APPROACH",
+    "5. Proposed approach",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 6. Expected contributions — contribution records with linked claim counts. */
-export function buildExpectedContributionsSection(contributions: Contribution[]): SpecSection {
+export function buildExpectedContributionsSection(
+  contributions: Contribution[]
+): SpecSection {
   const isPlaceholder = contributions.length === 0;
   if (isPlaceholder) {
     return section(
       "EXPECTED_CONTRIBUTIONS",
       "6. Expected contributions",
       `${PLACEHOLDER_PREFIX} — chưa có contribution nào được tạo.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().list(
-    contributions.map((c) => `${c.text} (${c.claimIds.length} claim liên kết)`),
+    contributions.map((c) => `${c.text} (${c.claimIds.length} claim liên kết)`)
   );
-  return section("EXPECTED_CONTRIBUTIONS", "6. Expected contributions", doc.toString().trim(), false);
+  return section(
+    "EXPECTED_CONTRIBUTIONS",
+    "6. Expected contributions",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 7. Claim–evidence matrix — every claim's verifiable evidence requirement (what the metric value must satisfy). */
 export function buildClaimEvidenceMatrixSection(
   claims: AtomicClaim[],
-  requirements: EvidenceRequirement[],
+  requirements: EvidenceRequirement[]
 ): SpecSection {
   const isPlaceholder = claims.length === 0;
   if (isPlaceholder) {
@@ -225,7 +263,7 @@ export function buildClaimEvidenceMatrixSection(
       "CLAIM_EVIDENCE_MATRIX",
       "7. Claim–evidence matrix",
       `${PLACEHOLDER_PREFIX} — chưa có atomic claim nào được tạo.`,
-      true,
+      true
     );
   }
   const reqByClaim = new Map(requirements.map((r) => [r.claimId, r]));
@@ -233,7 +271,13 @@ export function buildClaimEvidenceMatrixSection(
   for (const claim of claims) {
     const req = reqByClaim.get(claim.id);
     if (!req) {
-      rows.push([claim.text, claim.metric, "—", "—", "(chưa có evidence requirement — cần xác định metric/threshold)"]);
+      rows.push([
+        claim.text,
+        claim.metric,
+        "—",
+        "—",
+        "(chưa có evidence requirement — cần xác định metric/threshold)",
+      ]);
     } else {
       rows.push([
         claim.text,
@@ -245,21 +289,34 @@ export function buildClaimEvidenceMatrixSection(
     }
   }
   const doc = new MarkdownDocument().table(
-    ["Claim", "Metric", "Operator / Threshold", "Success criterion (verified if)", "Falsification (fails if)"],
-    rows,
+    [
+      "Claim",
+      "Metric",
+      "Operator / Threshold",
+      "Success criterion (verified if)",
+      "Falsification (fails if)",
+    ],
+    rows
   );
-  return section("CLAIM_EVIDENCE_MATRIX", "7. Claim–evidence matrix", doc.toString().trim(), false);
+  return section(
+    "CLAIM_EVIDENCE_MATRIX",
+    "7. Claim–evidence matrix",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 8. Experimental protocol — protocol steps + controls across all plans. */
-export function buildExperimentalProtocolSection(plans: ExperimentPlan[]): SpecSection {
+export function buildExperimentalProtocolSection(
+  plans: ExperimentPlan[]
+): SpecSection {
   const isPlaceholder = plans.length === 0;
   if (isPlaceholder) {
     return section(
       "EXPERIMENTAL_PROTOCOL",
       "8. Experimental protocol",
       `${PLACEHOLDER_PREFIX} — chưa có experiment plan nào được tạo.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().$foreach(plans, (d, p) =>
@@ -268,20 +325,27 @@ export function buildExperimentalProtocolSection(plans: ExperimentPlan[]): SpecS
       .paragraph("Protocol:")
       .list(p.protocol.length > 0 ? p.protocol : ["(none)"])
       .paragraph("Controls:")
-      .list(p.controls.length > 0 ? p.controls : ["(none)"]),
+      .list(p.controls.length > 0 ? p.controls : ["(none)"])
   );
-  return section("EXPERIMENTAL_PROTOCOL", "8. Experimental protocol", doc.toString().trim(), false);
+  return section(
+    "EXPERIMENTAL_PROTOCOL",
+    "8. Experimental protocol",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 9. Baselines and metrics. */
-export function buildBaselinesAndMetricsSection(plans: ExperimentPlan[]): SpecSection {
+export function buildBaselinesAndMetricsSection(
+  plans: ExperimentPlan[]
+): SpecSection {
   const isPlaceholder = plans.length === 0;
   if (isPlaceholder) {
     return section(
       "BASELINES_AND_METRICS",
       "9. Baselines and metrics",
       `${PLACEHOLDER_PREFIX} — chưa có experiment plan nào được tạo.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().$foreach(plans, (d, p) =>
@@ -289,9 +353,14 @@ export function buildBaselinesAndMetricsSection(plans: ExperimentPlan[]): SpecSe
       .paragraph("Baselines:")
       .list(p.baselines.length > 0 ? p.baselines : ["(none)"])
       .paragraph("Metrics:")
-      .list(p.metrics.length > 0 ? p.metrics : ["(none)"]),
+      .list(p.metrics.length > 0 ? p.metrics : ["(none)"])
   );
-  return section("BASELINES_AND_METRICS", "9. Baselines and metrics", doc.toString().trim(), false);
+  return section(
+    "BASELINES_AND_METRICS",
+    "9. Baselines and metrics",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 10. Ablation plan — at least one is required per AI design §8. */
@@ -303,15 +372,22 @@ export function buildAblationPlanSection(plans: ExperimentPlan[]): SpecSection {
       "ABLATION_PLAN",
       "10. Ablation plan",
       `${PLACEHOLDER_PREFIX} — chưa có ablation nào được đề xuất.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().list(ablations);
-  return section("ABLATION_PLAN", "10. Ablation plan", doc.toString().trim(), false);
+  return section(
+    "ABLATION_PLAN",
+    "10. Ablation plan",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 11. Compute budget — resource estimates, each input labeled assumed/measured. */
-export function buildComputeBudgetSection(plans: ExperimentPlan[]): SpecSection {
+export function buildComputeBudgetSection(
+  plans: ExperimentPlan[]
+): SpecSection {
   const estimates = plans.flatMap((p) => p.estimates);
   const isPlaceholder = estimates.length === 0;
   if (isPlaceholder) {
@@ -319,20 +395,29 @@ export function buildComputeBudgetSection(plans: ExperimentPlan[]): SpecSection 
       "COMPUTE_BUDGET",
       "11. Compute budget",
       `${PLACEHOLDER_PREFIX} — chưa có resource estimate nào.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().$foreach(estimates, (d, e) => {
-    const inputs = e.inputs.map((i) => `${i.name}=${i.value}[${i.basis}]`).join(", ") || "none";
-    return d.paragraph(`${e.label}: ${e.result} (formula: ${e.formula}; inputs: ${inputs})`);
+    const inputs =
+      e.inputs.map((i) => `${i.name}=${i.value}[${i.basis}]`).join(", ") ||
+      "none";
+    return d.paragraph(
+      `${e.label}: ${e.result} (formula: ${e.formula}; inputs: ${inputs})`
+    );
   });
-  return section("COMPUTE_BUDGET", "11. Compute budget", doc.toString().trim(), false);
+  return section(
+    "COMPUTE_BUDGET",
+    "11. Compute budget",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 12. Risks and limitations — RISK nodes + every gap candidate's novelty-risk warning. */
 export function buildRisksAndLimitationsSection(
   riskNodes: SpecNode[],
-  gapProposal: GapProposalOutput | null,
+  gapProposal: GapProposalOutput | null
 ): SpecSection {
   const isPlaceholder = riskNodes.length === 0 && !gapProposal;
   if (isPlaceholder) {
@@ -340,69 +425,103 @@ export function buildRisksAndLimitationsSection(
       "RISKS_AND_LIMITATIONS",
       "12. Risks and limitations",
       `${PLACEHOLDER_PREFIX} — chưa có RISK node hoặc gap proposal.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument()
     .$if(riskNodes.length > 0, (d) =>
-      d.list(riskNodes.map((n) => `[${n.status}] ${n.content}`)),
+      d.list(riskNodes.map((n) => `[${n.status}] ${n.content}`))
     )
     .$if(!!gapProposal, (d) =>
-      d.paragraph(`Novelty-risk warning (BR-04): ${gapProposal!.warning}`),
+      d.paragraph(`Novelty-risk warning (BR-04): ${gapProposal?.warning}`)
     );
-  return section("RISKS_AND_LIMITATIONS", "12. Risks and limitations", doc.toString().trim(), false);
+  return section(
+    "RISKS_AND_LIMITATIONS",
+    "12. Risks and limitations",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 13. Open issues — OPEN_QUESTION nodes. */
-export function buildOpenIssuesSection(openQuestionNodes: SpecNode[]): SpecSection {
+export function buildOpenIssuesSection(
+  openQuestionNodes: SpecNode[]
+): SpecSection {
   const isPlaceholder = openQuestionNodes.length === 0;
   if (isPlaceholder) {
     return section(
       "OPEN_ISSUES",
       "13. Open issues",
       `${PLACEHOLDER_PREFIX} — chưa có OPEN_QUESTION node nào.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument().list(
-    openQuestionNodes.map((n) => `[${n.status}] ${n.content}`),
+    openQuestionNodes.map((n) => `[${n.status}] ${n.content}`)
   );
-  return section("OPEN_ISSUES", "13. Open issues", doc.toString().trim(), false);
+  return section(
+    "OPEN_ISSUES",
+    "13. Open issues",
+    doc.toString().trim(),
+    false
+  );
 }
 
 /** 14. Decision history — Step-1 confirm/edit/regenerate/other decisions + node status changes + Bước 10 finding resolutions. */
 export function buildDecisionHistorySection(
   decisions: InterpretationDecision[],
   statusHistory: NodeStatusHistory[],
-  findingResolutions: FindingResolution[] = [],
+  findingResolutions: FindingResolution[] = []
 ): SpecSection {
   const isPlaceholder =
-    decisions.length === 0 && statusHistory.length === 0 && findingResolutions.length === 0;
+    decisions.length === 0 &&
+    statusHistory.length === 0 &&
+    findingResolutions.length === 0;
   if (isPlaceholder) {
     return section(
       "DECISION_HISTORY",
       "14. Decision history",
       `${PLACEHOLDER_PREFIX} — chưa có quyết định nào được ghi nhận.`,
-      true,
+      true
     );
   }
   const doc = new MarkdownDocument()
     .$if(decisions.length > 0, (d) =>
       d
         .paragraph("Bước 1 decisions:")
-        .list(decisions.map((d2) => `[${d2.createdAt}] ${d2.action}${d2.content ? `: ${d2.content}` : ""}`)),
+        .list(
+          decisions.map(
+            (d2) =>
+              `[${d2.createdAt}] ${d2.action}${d2.content ? `: ${d2.content}` : ""}`
+          )
+        )
     )
     .$if(statusHistory.length > 0, (d) =>
       d
         .paragraph("Node status changes:")
-        .list(statusHistory.map((h) => `[${h.occurredAt}] ${h.nodeId} ${h.fromStatus ?? "(new)"} → ${h.toStatus} (${h.actor}: ${h.reason})`)),
+        .list(
+          statusHistory.map(
+            (h) =>
+              `[${h.occurredAt}] ${h.nodeId} ${h.fromStatus ?? "(new)"} → ${h.toStatus} (${h.actor}: ${h.reason})`
+          )
+        )
     )
     .$if(findingResolutions.length > 0, (d) =>
       d
         .paragraph("Bước 10 finding resolutions:")
-        .list(findingResolutions.map((r) => `[${r.createdAt}] ${r.judge} / "${r.targetSection}" → ${r.resolution}: ${r.note}`)),
+        .list(
+          findingResolutions.map(
+            (r) =>
+              `[${r.createdAt}] ${r.judge} / "${r.targetSection}" → ${r.resolution}: ${r.note}`
+          )
+        )
     );
-  return section("DECISION_HISTORY", "14. Decision history", doc.toString().trim(), false);
+  return section(
+    "DECISION_HISTORY",
+    "14. Decision history",
+    doc.toString().trim(),
+    false
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -429,29 +548,39 @@ export function assembleSections(data: {
   const sections: Record<(typeof SPEC_SECTION_ORDER)[number], SpecSection> = {
     PROBLEM_STATEMENT: buildProblemStatementSection(
       data.interpretation,
-      nodesByType(data.graphNodes, "PROBLEM"),
+      nodesByType(data.graphNodes, "PROBLEM")
     ),
     RESEARCH_QUESTIONS: buildResearchQuestionsSection(
-      nodesByType(data.graphNodes, "RESEARCH_QUESTION"),
+      nodesByType(data.graphNodes, "RESEARCH_QUESTION")
     ),
     RELATED_WORK_MATRIX: buildRelatedWorkMatrixSection(data.sources),
-    RESEARCH_GAP: buildResearchGapSection(nodesByType(data.graphNodes, "GAP"), data.gapProposal),
+    RESEARCH_GAP: buildResearchGapSection(
+      nodesByType(data.graphNodes, "GAP"),
+      data.gapProposal
+    ),
     PROPOSED_APPROACH: buildProposedApproachSection(data.contributions),
-    EXPECTED_CONTRIBUTIONS: buildExpectedContributionsSection(data.contributions),
-    CLAIM_EVIDENCE_MATRIX: buildClaimEvidenceMatrixSection(data.claims, data.requirements),
+    EXPECTED_CONTRIBUTIONS: buildExpectedContributionsSection(
+      data.contributions
+    ),
+    CLAIM_EVIDENCE_MATRIX: buildClaimEvidenceMatrixSection(
+      data.claims,
+      data.requirements
+    ),
     EXPERIMENTAL_PROTOCOL: buildExperimentalProtocolSection(data.plans),
     BASELINES_AND_METRICS: buildBaselinesAndMetricsSection(data.plans),
     ABLATION_PLAN: buildAblationPlanSection(data.plans),
     COMPUTE_BUDGET: buildComputeBudgetSection(data.plans),
     RISKS_AND_LIMITATIONS: buildRisksAndLimitationsSection(
       nodesByType(data.graphNodes, "RISK"),
-      data.gapProposal,
+      data.gapProposal
     ),
-    OPEN_ISSUES: buildOpenIssuesSection(nodesByType(data.graphNodes, "OPEN_QUESTION")),
+    OPEN_ISSUES: buildOpenIssuesSection(
+      nodesByType(data.graphNodes, "OPEN_QUESTION")
+    ),
     DECISION_HISTORY: buildDecisionHistorySection(
       data.decisions,
       data.statusHistory,
-      data.findingResolutions ?? [],
+      data.findingResolutions ?? []
     ),
   };
   return SPEC_SECTION_ORDER.map((id) => sections[id]);
@@ -469,7 +598,7 @@ export function assembleSections(data: {
 export async function generateResearchSpec(params: {
   projectId: string;
   getConfirmedInterpretation?: (
-    projectId: string,
+    projectId: string
   ) => Promise<InterpretationRecord | null>;
 }): Promise<ResearchSpec> {
   const { projectId } = params;
@@ -478,43 +607,133 @@ export async function generateResearchSpec(params: {
     ((id: string) => interpretationRepository.getConfirmedByProject(id));
 
   const db = getDb();
-  const graphRow = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  const graphRow = db
+    .select()
+    .from(specGraphs)
+    .where(eq(specGraphs.projectId, projectId))
+    .get();
   if (!graphRow) {
     throw new Error(
       "Generate a decomposition graph before assembling the research spec " +
-        "(decomposition.generate).",
+        "(decomposition.generate)."
     );
   }
-  const graph = parseOrThrow(SpecGraphViewSchema, JSON.parse(graphRow.data as string), "SpecGraphView");
+  const graph = parseOrThrow(
+    SpecGraphViewSchema,
+    JSON.parse(graphRow.data as string),
+    "SpecGraphView"
+  );
 
-  const [interpretation] = await Promise.all([getConfirmedInterpretation(projectId)]);
+  const [interpretation] = await Promise.all([
+    getConfirmedInterpretation(projectId),
+  ]);
 
   // Parallel direct selects for each table
-  const sourcesRows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
-  const gapRow = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).limit(1).get();
-  const contribRows = db.select().from(contributions).where(eq(contributions.projectId, projectId)).all();
-  const claimRows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all();
-  const reqRows = db.select().from(evidenceRequirements).where(eq(evidenceRequirements.projectId, projectId)).all();
-  const planRows = db.select().from(experimentPlans).where(eq(experimentPlans.projectId, projectId)).all();
-  const decisionRows = db.select().from(interpretationDecisions).where(eq(interpretationDecisions.projectId, projectId)).all();
-  const findingRows = db.select().from(findingResolutions).where(eq(findingResolutions.projectId, projectId)).all();
-  const researchSpecRows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).all();
+  const sourcesRows = db
+    .select()
+    .from(sources)
+    .where(eq(sources.projectId, projectId))
+    .all();
+  const gapRow = db
+    .select()
+    .from(gapProposals)
+    .where(eq(gapProposals.projectId, projectId))
+    .orderBy(desc(gapProposals.createdAt))
+    .limit(1)
+    .get();
+  const contribRows = db
+    .select()
+    .from(contributions)
+    .where(eq(contributions.projectId, projectId))
+    .all();
+  const claimRows = db
+    .select()
+    .from(atomicClaims)
+    .where(eq(atomicClaims.projectId, projectId))
+    .all();
+  const reqRows = db
+    .select()
+    .from(evidenceRequirements)
+    .where(eq(evidenceRequirements.projectId, projectId))
+    .all();
+  const planRows = db
+    .select()
+    .from(experimentPlans)
+    .where(eq(experimentPlans.projectId, projectId))
+    .all();
+  const decisionRows = db
+    .select()
+    .from(interpretationDecisions)
+    .where(eq(interpretationDecisions.projectId, projectId))
+    .all();
+  const findingRows = db
+    .select()
+    .from(findingResolutions)
+    .where(eq(findingResolutions.projectId, projectId))
+    .all();
+  const researchSpecRows = db
+    .select()
+    .from(researchSpecs)
+    .where(eq(researchSpecs.projectId, projectId))
+    .all();
 
   const sections = assembleSections({
     interpretation,
     graphNodes: graph.nodes,
-    sources: sourcesRows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument")),
-    gapProposal: gapRow ? parseOrThrow(GapProposalOutputSchema, JSON.parse(gapRow.data as string), "GapProposalOutput") : null,
-    contributions: contribRows.map((r) => JSON.parse(r.data as string) as Contribution),
-    claims: claimRows.map((r) => parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim")),
-    requirements: reqRows.map((r) => parseOrThrow(EvidenceRequirementSchema, JSON.parse(r.data as string), "EvidenceRequirement")),
-    plans: planRows.map((r) => parseOrThrow(ExperimentPlanSchema, JSON.parse(r.data as string), "ExperimentPlan")),
-    decisions: decisionRows.map((r) => JSON.parse(r.data as string) as InterpretationDecision),
+    sources: sourcesRows.map((r) =>
+      parseOrThrow(
+        SourceDocumentSchema,
+        JSON.parse(r.data as string),
+        "SourceDocument"
+      )
+    ),
+    gapProposal: gapRow
+      ? parseOrThrow(
+          GapProposalOutputSchema,
+          JSON.parse(gapRow.data as string),
+          "GapProposalOutput"
+        )
+      : null,
+    contributions: contribRows.map(
+      (r) => JSON.parse(r.data as string) as Contribution
+    ),
+    claims: claimRows.map((r) =>
+      parseOrThrow(
+        AtomicClaimSchema,
+        JSON.parse(r.data as string),
+        "AtomicClaim"
+      )
+    ),
+    requirements: reqRows.map((r) =>
+      parseOrThrow(
+        EvidenceRequirementSchema,
+        JSON.parse(r.data as string),
+        "EvidenceRequirement"
+      )
+    ),
+    plans: planRows.map((r) =>
+      parseOrThrow(
+        ExperimentPlanSchema,
+        JSON.parse(r.data as string),
+        "ExperimentPlan"
+      )
+    ),
+    decisions: decisionRows.map(
+      (r) => JSON.parse(r.data as string) as InterpretationDecision
+    ),
     statusHistory: graph.statusHistory,
-    findingResolutions: findingRows.map((r) => JSON.parse(r.data as string) as FindingResolution),
+    findingResolutions: findingRows.map(
+      (r) => JSON.parse(r.data as string) as FindingResolution
+    ),
   });
 
-  const existing = researchSpecRows.map((r) => parseOrThrow(ResearchSpecSchema, JSON.parse(r.data as string), "ResearchSpec"));
+  const existing = researchSpecRows.map((r) =>
+    parseOrThrow(
+      ResearchSpecSchema,
+      JSON.parse(r.data as string),
+      "ResearchSpec"
+    )
+  );
   const spec: ResearchSpec = parseOrThrow(
     ResearchSpecSchema,
     {
@@ -526,11 +745,17 @@ export async function generateResearchSpec(params: {
       finalizedAt: null,
       createdAt: new Date().toISOString(),
     },
-    "ResearchSpec",
+    "ResearchSpec"
   );
 
   // Need judgePanelId FK — pick latest judge panel if exists
-  const latestPanel = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+  const latestPanel = db
+    .select()
+    .from(judgePanels)
+    .where(eq(judgePanels.projectId, projectId))
+    .orderBy(desc(judgePanels.createdAt))
+    .limit(1)
+    .get();
   const judgePanelId = latestPanel?.id ?? null;
 
   db.insert(researchSpecs)
@@ -549,15 +774,35 @@ export async function generateResearchSpec(params: {
 /** Latest version for a project, or null if none has been generated yet. */
 export function getLatestResearchSpec(projectId: string): ResearchSpec | null {
   const db = getDb();
-  const rows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).orderBy(desc(researchSpecs.createdAt)).all();
+  const rows = db
+    .select()
+    .from(researchSpecs)
+    .where(eq(researchSpecs.projectId, projectId))
+    .orderBy(desc(researchSpecs.createdAt))
+    .all();
   if (rows.length === 0) return null;
   const latest = rows[0]!;
-  return parseOrThrow(ResearchSpecSchema, JSON.parse(latest.data as string), "ResearchSpec");
+  return parseOrThrow(
+    ResearchSpecSchema,
+    JSON.parse(latest.data as string),
+    "ResearchSpec"
+  );
 }
 
 /** All versions for a project, oldest first — used by the Bước 10 version/diff view. */
 export function listResearchSpecVersions(projectId: string): ResearchSpec[] {
   const db = getDb();
-  const rows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).orderBy(asc(researchSpecs.createdAt)).all();
-  return rows.map((r) => parseOrThrow(ResearchSpecSchema, JSON.parse(r.data as string), "ResearchSpec"));
+  const rows = db
+    .select()
+    .from(researchSpecs)
+    .where(eq(researchSpecs.projectId, projectId))
+    .orderBy(asc(researchSpecs.createdAt))
+    .all();
+  return rows.map((r) =>
+    parseOrThrow(
+      ResearchSpecSchema,
+      JSON.parse(r.data as string),
+      "ResearchSpec"
+    )
+  );
 }

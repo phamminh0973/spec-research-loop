@@ -60,7 +60,7 @@ export const interpretations = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (t) => [index("interpretations_by_project").on(t.projectId)],
+  (t) => [index("interpretations_by_project").on(t.projectId)]
 );
 
 export const interpretationDecisions = sqliteTable(
@@ -79,7 +79,7 @@ export const interpretationDecisions = sqliteTable(
   (t) => [
     index("interpretation_decisions_by_project").on(t.projectId),
     index("interpretation_decisions_by_interpretation").on(t.interpretationId),
-  ],
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -93,14 +93,17 @@ export const specGraphs = sqliteTable(
     projectId: text("project_id")
       .primaryKey()
       .references(() => projects.id, { onDelete: "cascade" }),
-    interpretationId: text("interpretation_id").references(() => interpretations.id, {
-      onDelete: "set null",
-    }),
+    interpretationId: text("interpretation_id").references(
+      () => interpretations.id,
+      {
+        onDelete: "set null",
+      }
+    ),
     data: text("data").notNull(), // SpecGraphView JSON
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
-  (t) => [index("spec_graphs_by_interpretation").on(t.interpretationId)],
+  (t) => [index("spec_graphs_by_interpretation").on(t.interpretationId)]
 );
 
 // ---------------------------------------------------------------------------
@@ -125,7 +128,7 @@ export const sources = sqliteTable(
   (t) => [
     index("sources_by_project").on(t.projectId),
     index("sources_by_spec_graph").on(t.specGraphProjectId),
-  ],
+  ]
 );
 
 export const evidenceSpans = sqliteTable(
@@ -144,7 +147,7 @@ export const evidenceSpans = sqliteTable(
   (t) => [
     index("evidence_spans_by_project").on(t.projectId),
     index("evidence_spans_by_source").on(t.sourceId),
-  ],
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -168,7 +171,7 @@ export const gapProposals = sqliteTable(
   (t) => [
     index("gap_proposals_by_project").on(t.projectId),
     index("gap_proposals_by_spec_graph").on(t.specGraphProjectId),
-  ],
+  ]
 );
 
 export const atomicClaims = sqliteTable(
@@ -188,7 +191,7 @@ export const atomicClaims = sqliteTable(
   (t) => [
     index("atomic_claims_by_project").on(t.projectId),
     index("atomic_claims_by_gap").on(t.gapProposalId),
-  ],
+  ]
 );
 
 export const contributions = sqliteTable(
@@ -207,7 +210,7 @@ export const contributions = sqliteTable(
   (t) => [
     index("contributions_by_project").on(t.projectId),
     index("contributions_by_gap").on(t.gapProposalId),
-  ],
+  ]
 );
 
 export const evidenceRequirements = sqliteTable(
@@ -227,7 +230,7 @@ export const evidenceRequirements = sqliteTable(
   (t) => [
     index("evidence_requirements_by_project").on(t.projectId),
     index("evidence_requirements_by_claim").on(t.claimId),
-  ],
+  ]
 );
 
 export const experimentPlans = sqliteTable(
@@ -247,7 +250,7 @@ export const experimentPlans = sqliteTable(
   (t) => [
     index("experiment_plans_by_project").on(t.projectId),
     index("experiment_plans_by_gap").on(t.gapProposalId),
-  ],
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -261,16 +264,19 @@ export const judgePanels = sqliteTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    experimentPlanId: text("experiment_plan_id").references(() => experimentPlans.id, {
-      onDelete: "set null",
-    }),
+    experimentPlanId: text("experiment_plan_id").references(
+      () => experimentPlans.id,
+      {
+        onDelete: "set null",
+      }
+    ),
     data: text("data").notNull(), // JudgePanelResult JSON
     createdAt: text("created_at").notNull(),
   },
   (t) => [
     index("judge_panels_by_project").on(t.projectId),
     index("judge_panels_by_experiment").on(t.experimentPlanId),
-  ],
+  ]
 );
 
 export const researchSpecs = sqliteTable(
@@ -290,7 +296,7 @@ export const researchSpecs = sqliteTable(
   (t) => [
     index("research_specs_by_project").on(t.projectId),
     index("research_specs_by_judge").on(t.judgePanelId),
-  ],
+  ]
 );
 
 export const findingResolutions = sqliteTable(
@@ -309,5 +315,5 @@ export const findingResolutions = sqliteTable(
   (t) => [
     index("finding_resolutions_by_project").on(t.projectId),
     index("finding_resolutions_by_judge").on(t.judgePanelId),
-  ],
+  ]
 );

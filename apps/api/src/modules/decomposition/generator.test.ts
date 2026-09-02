@@ -1,8 +1,7 @@
-import { describe, expect, it } from "vitest";
-
-import type OpenAI from "openai";
 import type { DecomposeIdeaInput } from "@specloop/schemas";
 import { decompositionOutputFixture } from "@specloop/schemas/fixtures";
+import type OpenAI from "openai";
+import { describe, expect, it } from "vitest";
 import { LlmDecompositionGenerator } from "./generator.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";

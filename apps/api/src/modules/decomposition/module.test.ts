@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-
+import { resetProjectStore } from "../../store/project-store.js";
+import { createSpecStructureModule } from "./module.js";
 import {
   DeterministicConfirmedInterpretationReader,
   DeterministicDecompositionGenerator,
   InMemorySpecGraphRepository,
 } from "./testing-adapters.js";
-import { createSpecStructureModule } from "./module.js";
-import { resetProjectStore } from "../../store/project-store.js";
 
 const projectId = "00000000-0000-4000-8000-000000000001";
 

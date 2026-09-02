@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ArrowRight, Home } from "lucide-react";
+import Link from "next/link";
 
 import { AppShell } from "@/components/workflow/shared/app-shell";
 

@@ -1,5 +1,5 @@
-import { TRPCError } from "@trpc/server";
 import { UuidSchema } from "@specloop/schemas";
+import { TRPCError } from "@trpc/server";
 import { getDb } from "../db/client.js";
 import {
   atomicClaims,
@@ -21,7 +21,7 @@ import {
 export function parseOrThrow<T>(
   schema: { parse: (v: unknown) => T },
   value: unknown,
-  label: string,
+  label: string
 ): T {
   try {
     return schema.parse(value);

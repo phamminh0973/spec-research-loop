@@ -19,11 +19,11 @@
 
 import { existsSync, mkdirSync } from "node:fs";
 import path, { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
+import type { NodeSQLiteDatabase } from "drizzle-orm/node-sqlite";
 import { drizzle } from "drizzle-orm/node-sqlite";
 import { migrate } from "drizzle-orm/node-sqlite/migrator";
-import type { NodeSQLiteDatabase } from "drizzle-orm/node-sqlite";
 import { env } from "../env.js";
 
 export type DrizzleDb = NodeSQLiteDatabase;
@@ -41,7 +41,11 @@ function resolveDbPath(): string {
   if (direct) return direct;
 
   const legacy = env.DATABASE_URL;
-  if (legacy && !legacy.startsWith("postgres://") && !legacy.startsWith("postgresql://")) {
+  if (
+    legacy &&
+    !legacy.startsWith("postgres://") &&
+    !legacy.startsWith("postgresql://")
+  ) {
     return legacy;
   }
   return ":memory:";

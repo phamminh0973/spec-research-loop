@@ -1,21 +1,11 @@
 /** @type {import("lint-staged").Configuration} */
 const config = {
-  "apps/web/**/*.{js,jsx,mjs,cjs,ts,tsx}": [
-    "pnpm --dir apps/web exec eslint --fix --max-warnings=0",
-    "pnpm exec prettier --write",
+  "**/*.{js,jsx,mjs,cjs,ts,tsx}": [
+    "biome check --write --files-ignore-unknown=true",
   ],
-  "apps/api/**/*.py": [
-    "uv run --directory apps/api ruff check --fix",
-    "uv run --directory apps/api ruff format",
+  "**/*.{json,jsonc,css,yml,yaml,md,mdx}": [
+    "biome check --write --files-ignore-unknown=true",
   ],
-  "apps/worker/**/*.py": [
-    "uv run --directory apps/worker ruff check --fix",
-    "uv run --directory apps/worker ruff format",
-  ],
-  "./*.{js,mjs,cjs}": "pnpm exec prettier --write",
-  "packages/**/*.{js,mjs,cjs}": "pnpm exec prettier --write",
-  "**/*.{md,mdx}": "pnpm exec prettier --write",
-  "*.{json,jsonc,css,yml,yaml}": "pnpm exec prettier --write",
 };
 
 export default config;
