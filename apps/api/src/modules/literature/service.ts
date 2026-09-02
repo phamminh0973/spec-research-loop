@@ -22,6 +22,7 @@ import { getDb } from "../../db/client.js";
 import { projects, sources, specGraphs } from "../../db/schema.js";
 import { structuredCall } from "../../llm/structured-call.js";
 import {
+  ArxivSearchInputSchema,
   arxivSearchTool,
   executeArxivSearch,
 } from "../../llm/tools/arxiv-search.js";
@@ -309,7 +310,11 @@ async function planArxivSearchViaTool(params: {
     );
   }
 
-  const toolArgs = JSON.parse(toolCall.function.arguments);
+  const toolArgs = parseOrThrow(
+    ArxivSearchInputSchema,
+    JSON.parse(toolCall.function.arguments),
+    "search_arxiv args"
+  );
   const arxivResult = (await executeLlmTool("search_arxiv", {
     ...toolArgs,
     maxResults: fetchLimit,

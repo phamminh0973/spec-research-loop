@@ -18,14 +18,17 @@ import {
   type AtomicClaim,
   AtomicClaimSchema,
   type Contribution,
+  ContributionSchema,
   type EvidenceRequirement,
   EvidenceRequirementSchema,
   type ExperimentPlan,
   ExperimentPlanSchema,
   type FindingResolution,
+  FindingResolutionSchema,
   type GapProposalOutput,
   GapProposalOutputSchema,
   type InterpretationDecision,
+  InterpretationDecisionSchema,
   type InterpretationRecord,
   type NodeStatusHistory,
   type ResearchSpec,
@@ -694,8 +697,12 @@ export async function generateResearchSpec(params: {
           "GapProposalOutput"
         )
       : null,
-    contributions: contribRows.map(
-      (r) => JSON.parse(r.data as string) as Contribution
+    contributions: contribRows.map((r) =>
+      parseOrThrow(
+        ContributionSchema,
+        JSON.parse(r.data as string),
+        "Contribution"
+      )
     ),
     claims: claimRows.map((r) =>
       parseOrThrow(
@@ -718,12 +725,20 @@ export async function generateResearchSpec(params: {
         "ExperimentPlan"
       )
     ),
-    decisions: decisionRows.map(
-      (r) => JSON.parse(r.data as string) as InterpretationDecision
+    decisions: decisionRows.map((r) =>
+      parseOrThrow(
+        InterpretationDecisionSchema,
+        JSON.parse(r.data as string),
+        "InterpretationDecision"
+      )
     ),
     statusHistory: graph.statusHistory,
-    findingResolutions: findingRows.map(
-      (r) => JSON.parse(r.data as string) as FindingResolution
+    findingResolutions: findingRows.map((r) =>
+      parseOrThrow(
+        FindingResolutionSchema,
+        JSON.parse(r.data as string),
+        "FindingResolution"
+      )
     ),
   });
 

@@ -34,6 +34,7 @@ import {
   listEvidenceRequirements,
   listSpans,
 } from "../modules/evidence/service.js";
+import { parseOrThrow } from "../store/project-store.js";
 import { publicProcedure, router } from "../trpc/trpc.js";
 
 // ---------------------------------------------------------------------------
@@ -102,11 +103,13 @@ export const evidenceRouter = router({
     .query(({ input }) => {
       const rows = getDb().select().from(evidenceRequirements).all();
       for (const row of rows) {
-        const parsed = JSON.parse(row.data as string) as { id: string };
+        const parsed = parseOrThrow(
+          EvidenceRequirementSchema,
+          JSON.parse(row.data as string),
+          "EvidenceRequirement"
+        );
         if (parsed.id === input.requirementId) {
-          return JSON.parse(
-            row.data as string
-          ) as import("@specloop/schemas").EvidenceRequirement;
+          return parsed;
         }
       }
       throw new TRPCError({

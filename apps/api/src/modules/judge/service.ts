@@ -22,6 +22,7 @@ import {
   AtomicClaimSchema,
   type Consensus,
   type Contribution,
+  ContributionSchema,
   type EvidenceRequirement,
   EvidenceRequirementSchema,
   ExperimentPlanSchema,
@@ -152,15 +153,9 @@ function fetchContributions(projectId: string): Contribution[] {
     .from(contributions)
     .where(eq(contributions.projectId, projectId))
     .all();
-  return rows
-    .map((r) => {
-      try {
-        return JSON.parse(r.data as string) as Contribution;
-      } catch {
-        return null;
-      }
-    })
-    .filter((c): c is Contribution => c !== null);
+  return rows.map((r) =>
+    parseOrThrow(ContributionSchema, r.data, "Contribution")
+  );
 }
 
 function fetchExperimentPlans(projectId: string) {

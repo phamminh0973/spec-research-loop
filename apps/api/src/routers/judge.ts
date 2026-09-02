@@ -22,6 +22,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { judgePanels } from "../db/schema.js";
 import { runJudgePanel } from "../modules/judge/service.js";
+import { parseOrThrow } from "../store/project-store.js";
 import { publicProcedure, router } from "../trpc/trpc.js";
 
 export const judgeRouter = router({
@@ -69,8 +70,10 @@ export const judgeRouter = router({
         .limit(1)
         .get();
       if (!row) return null;
-      return JSON.parse(
-        row.data as string
-      ) as import("@specloop/schemas").JudgePanelResult;
+      return parseOrThrow(
+        JudgePanelResultSchema,
+        JSON.parse(row.data as string),
+        "JudgePanelResult"
+      );
     }),
 });

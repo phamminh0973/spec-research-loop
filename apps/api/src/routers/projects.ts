@@ -19,6 +19,7 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
 import { projects } from "../db/schema.js";
+import { parseOrThrow } from "../store/project-store.js";
 import { protectedProcedure, publicProcedure, router } from "../trpc/trpc.js";
 
 export interface ProjectRecord {
@@ -37,9 +38,11 @@ function rowToRecord(row: typeof projects.$inferSelect): ProjectRecord {
     title: row.title,
     domain: row.domain,
     rawIdea: row.rawIdea,
-    resourceConstraints: JSON.parse(
-      row.resourceConstraints as string
-    ) as string[],
+    resourceConstraints: parseOrThrow(
+      z.array(z.string()),
+      JSON.parse(row.resourceConstraints as string),
+      "resourceConstraints"
+    ),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

@@ -21,6 +21,7 @@
  */
 
 import {
+  AtomicClaimSchema,
   ExperimentPlanSchema,
   GapProposalOutputSchema,
   GenerateClaimDesignInputSchema,
@@ -41,6 +42,7 @@ import {
   generateExperimentPlan,
   generateGapProposal,
 } from "../modules/research-design/service.js";
+import { parseOrThrow } from "../store/project-store.js";
 import { publicProcedure, router } from "../trpc/trpc.js";
 
 // ---------------------------------------------------------------------------
@@ -111,7 +113,13 @@ export const researchDesignRouter = router({
         .limit(1)
         .get();
       const proposal: import("@specloop/schemas").GapProposalOutput | null =
-        gapRow ? JSON.parse(gapRow.data as string) : null;
+        gapRow
+          ? parseOrThrow(
+              GapProposalOutputSchema,
+              JSON.parse(gapRow.data as string),
+              "GapProposalOutput"
+            )
+          : null;
       if (!proposal) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
@@ -232,11 +240,12 @@ export const researchDesignRouter = router({
         .from(atomicClaims)
         .where(eq(atomicClaims.projectId, input.projectId))
         .all();
-      const items = rows.map(
-        (r) =>
-          JSON.parse(
-            r.data as string
-          ) as import("@specloop/schemas").AtomicClaim
+      const items = rows.map((r) =>
+        parseOrThrow(
+          AtomicClaimSchema,
+          JSON.parse(r.data as string),
+          "AtomicClaim"
+        )
       );
       return { items };
     }),
@@ -254,11 +263,12 @@ export const researchDesignRouter = router({
         .from(experimentPlans)
         .where(eq(experimentPlans.projectId, input.projectId))
         .all();
-      const items = rows.map(
-        (r) =>
-          JSON.parse(
-            r.data as string
-          ) as import("@specloop/schemas").ExperimentPlan
+      const items = rows.map((r) =>
+        parseOrThrow(
+          ExperimentPlanSchema,
+          JSON.parse(r.data as string),
+          "ExperimentPlan"
+        )
       );
       return { items };
     }),
@@ -280,8 +290,10 @@ export const researchDesignRouter = router({
         .limit(1)
         .get();
       if (!row) return null;
-      return JSON.parse(
-        row.data as string
-      ) as import("@specloop/schemas").GapProposalOutput;
+      return parseOrThrow(
+        GapProposalOutputSchema,
+        JSON.parse(row.data as string),
+        "GapProposalOutput"
+      );
     }),
 });
