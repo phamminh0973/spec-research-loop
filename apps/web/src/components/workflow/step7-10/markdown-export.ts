@@ -28,7 +28,7 @@ export function judgePanelToMarkdownJudges(
   if (!panel) return [];
   return panel.judges.map((report) => {
     const focus = report.findings.map((f) => f.targetSection).join(", ") || "general review";
-    const score = report.findings[0]?.severity ?? "MINOR";
+    const score = report.findings[0]?.severity ?? "NONE";
     const finding =
       report.findings.length > 0
         ? report.findings
