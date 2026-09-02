@@ -11,6 +11,8 @@ import {
   Scale,
   ShieldCheck,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { AppShell } from "../shared/app-shell";
 import { ApiErrorMessage } from "../shared/api-error-message";
 import { SectionCard, SectionHeader } from "../shared/section-card";
@@ -282,7 +284,9 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
                 {fixtureSections.map(([title, content]) => (
                   <div key={title} className="py-5">
                     <h3 className="font-semibold">{title}</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">{content}</p>
+                    <div className="mt-2 text-sm text-muted-foreground overflow-x-auto leading-relaxed [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:px-2 [&_td]:py-1.5 [&_a]:text-primary [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p]:leading-relaxed">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -323,7 +327,9 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
                             </Badge>
                           )}
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{s.content}</p>
+                        <div className="mt-2 text-sm text-muted-foreground overflow-x-auto leading-relaxed [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:px-2 [&_td]:py-1.5 [&_a]:text-primary [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_p]:leading-relaxed">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{s.content}</ReactMarkdown>
+                        </div>
                       </div>
                     ))}
                   </div>
