@@ -32,7 +32,7 @@ import {
   type SpecNode,
   type SpecSection,
 } from "@specloop/schemas";
-import { MarkdownDocument } from "build-md";
+import { MarkdownDocument, md } from "build-md";
 import { interpretationRepository } from "../interpretation/index.js";
 import {
   atomicClaimsByProject,
@@ -125,8 +125,10 @@ export function buildRelatedWorkMatrixSection(sources: SourceDocument[]): SpecSe
     ["Nghiên cứu", "Đã làm gì", "Phương pháp", "Điểm cần nghiên cứu thêm"],
     selected.map((s) => {
       const analysis = s.analysis;
+      const href = s.url ?? (s.doi ? `https://doi.org/${s.doi}` : null);
+      const titleCell = href ? md`${md.link(href, s.title)}` : s.title;
       return [
-        s.title,
+        titleCell,
         analysis?.achievedOutcome ?? "—",
         analysis?.methodology ?? "—",
         analysis?.additionalResearchNeeded ?? "—",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BookOpen, CheckCircle2, FlaskConical, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { BookOpen, CheckCircle2, ExternalLink, FlaskConical, Search, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { trpc } from "@/lib/trpc";
 import { AppShell } from "../shared/app-shell";
@@ -115,6 +115,8 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
         selected: Boolean(s.selected),
         methodology: a?.methodology as string | undefined,
         additionalResearchNeeded: a?.additionalResearchNeeded as string | undefined,
+        url: (s.url as string | null) ?? null,
+        doi: (s.doi as string | null) ?? null,
       };
     });
     const knownExternalIds = new Set(sourceItems.map((s: any) => s.externalId).filter(Boolean));
@@ -128,6 +130,8 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
           selected: false,
           methodology: p.methodology,
           additionalResearchNeeded: p.additionalResearchNeeded,
+          url: (p.url as string | null) ?? p.entryId ?? null,
+          doi: (p.doi as string | null) ?? null,
         });
       }
     }
@@ -219,11 +223,21 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {mergedRows.map((row) => (
+                    {mergedRows.map((row) => {
+                      const href = row.url ?? (row.doi ? `https://doi.org/${row.doi}` : null);
+                      return (
                       <tr key={row.key} className="border-b last:border-0 align-top">
                         <td className="py-2 pr-4 align-top">
-                          <div className="font-semibold">{row.title}</div>
+                          {href ? (
+                            <a href={href} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline inline-flex items-center gap-1">
+                              {row.title}
+                              <ExternalLink className="size-3 shrink-0" />
+                            </a>
+                          ) : (
+                            <div className="font-semibold">{row.title}</div>
+                          )}
                           <div className="text-xs text-muted-foreground">{(row.authors ?? []).join(", ")}</div>
+                          {href && <div className="text-xs text-muted-foreground truncate max-w-[28ch]">{href}</div>}
                         </td>
                         <td className="py-2 pr-4 align-top">{row.methodology ? row.methodology.slice(0, 300) + (row.methodology.length > 300 ? "…" : "") : "—"}</td>
                         <td className="py-2 pr-4 align-top">{row.additionalResearchNeeded ? row.additionalResearchNeeded.slice(0, 300) + (row.additionalResearchNeeded.length > 300 ? "…" : "") : "—"}</td>
@@ -235,7 +249,8 @@ export function ResearchWorkspace({ projectId, fixtureMode }: Props) {
                           ) : null}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
