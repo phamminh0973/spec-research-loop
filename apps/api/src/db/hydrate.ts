@@ -1,24 +1,20 @@
 /**
- * Startup persistence bootstrap.
+ * Startup persistence bootstrap for Drizzle + SQLite.
  *
  * Call `bootstrapPersistence()` once, before the server starts accepting
- * requests. When `DATABASE_URL` is unset this is a fast no-op (every
- * store's `.hydrate()` checks `getPool()` itself and returns immediately),
- * so it is always safe to call unconditionally — dev-without-Postgres and
- * test runs are unaffected.
+ * requests. With the Drizzle `migrate` API, simply obtaining the DB via
+ * `getDb()` triggers the pending migrations (see `src/db/client.ts`).
+ * Idempotent and safe for `:memory:`.
+ *
+ * Docs: https://orm.drizzle.team/docs/get-started/node-sqlite-new
  */
 
-import { closePool, getPool, isPersistenceEnabled } from "./client.js";
-import { ensureStoreSchema } from "./persisted-map.js";
-import { ALL_PERSISTED_STORES } from "../store/project-store.js";
-import { hydrateProjectsStore } from "../routers/projects.js";
+import { closeDb, getDb, isPersistenceEnabled } from "./client.js";
 
 export async function bootstrapPersistence(): Promise<void> {
-  const pool = getPool();
-  if (!pool) return; // DATABASE_URL not set — pure in-memory mode.
-
-  await ensureStoreSchema(pool);
-  await Promise.all([hydrateProjectsStore(), ...ALL_PERSISTED_STORES.map((s) => s.hydrate())]);
+  // getDb() lazily creates the DatabaseSync and runs `migrate(...)` — that
+  // ensures `store_entities` exists before the server handles requests.
+  getDb();
 }
 
-export { closePool, isPersistenceEnabled };
+export { closeDb, closeDb as closePool, getDb, getDb as getPool, isPersistenceEnabled };

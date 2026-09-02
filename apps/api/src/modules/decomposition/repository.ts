@@ -9,6 +9,7 @@ import {
   type PersistedNodeStatus,
   type SpecGraphView,
 } from "@specloop/schemas";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import {
   SpecGraphEditValidationError,
@@ -25,7 +26,8 @@ import type {
   UpdateNodeCommand,
 } from "./ports.js";
 import { calculateDeterministicWarnings } from "./status-rules.js";
-import { specGraphsByProject } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
+import { interpretations, projects, specGraphs } from "../../db/schema.js";
 
 function isAiGeneratedStatus(
   status: PersistedNodeStatus
@@ -48,12 +50,32 @@ function warningPriority(
   }
 }
 
+function ensureProjectExists(projectId: string): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.insert(projects)
+    .values({
+      id: projectId,
+      title: "Test Project",
+      domain: null,
+      rawIdea: "placeholder",
+      resourceConstraints: "[]",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
+function parseGraphRow(row: typeof specGraphs.$inferSelect): SpecGraphView {
+  return SpecGraphViewSchema.parse(JSON.parse(row.data as string));
+}
+
 /**
  * P0 process-scoped graph repository. It is intentionally small and
  * replaceable: the module boundary is production-safe, while PostgreSQL
  * remains a later persistence adapter rather than being silently presented
- * as implemented. Backing data lives in the shared project store so the
- * graph survives across module instances within the same process.
+ * as implemented. Backing data lives in SQLite via Drizzle.
  */
 export class InMemorySpecGraphStore implements SpecGraphStore {
   async saveGeneratedGraph(graph: DecompositionOutput): Promise<void> {
@@ -120,12 +142,41 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
       statusHistory,
     });
 
-    specGraphsByProject.set(parsed.projectId, view);
+    ensureProjectExists(parsed.projectId);
+    // Keep FK to interpretations — set interpretationId to latest confirmed interpretation via subquery
+    const db = getDb();
+    const latestConfirmed = db
+      .select({ id: interpretations.id })
+      .from(interpretations)
+      .where(and(eq(interpretations.projectId, parsed.projectId), eq(interpretations.status, "USER_CONFIRMED")))
+      .orderBy(desc(interpretations.createdAt))
+      .get();
+
+    const interpretationId = latestConfirmed?.id ?? null;
+
+    db.insert(specGraphs)
+      .values({
+        projectId: parsed.projectId,
+        interpretationId,
+        data: JSON.stringify(view),
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [specGraphs.projectId],
+        set: {
+          interpretationId,
+          data: JSON.stringify(view),
+          updatedAt: now,
+        },
+      })
+      .run();
   }
 
   async getByProject(projectId: string): Promise<SpecGraphView | null> {
-    const view = specGraphsByProject.get(projectId);
-    return view ? this.clone(view) : null;
+    const db = getDb();
+    const row = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+    return row ? this.clone(parseGraphRow(row)) : null;
   }
 
   async updateNode(command: UpdateNodeCommand): Promise<SpecGraphView> {
@@ -269,9 +320,10 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
   }
 
   private requireGraph(projectId: string): SpecGraphView {
-    const view = specGraphsByProject.get(projectId);
-    if (!view) throw new SpecGraphNotFoundError(projectId);
-    return this.clone(view);
+    const db = getDb();
+    const row = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+    if (!row) throw new SpecGraphNotFoundError(projectId);
+    return this.clone(parseGraphRow(row));
   }
 
   private commit(view: SpecGraphView): SpecGraphView {
@@ -362,7 +414,32 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
       warnings,
       statusHistory,
     });
-    specGraphsByProject.set(parsed.projectId, parsed);
+    const db = getDb();
+    // Upsert with latest interpretationId
+    const latestConfirmed = db
+      .select({ id: interpretations.id })
+      .from(interpretations)
+      .where(and(eq(interpretations.projectId, parsed.projectId), eq(interpretations.status, "USER_CONFIRMED")))
+      .orderBy(desc(interpretations.createdAt))
+      .get();
+    const interpretationId = (latestConfirmed as any)?.id ?? null;
+    db.insert(specGraphs)
+      .values({
+        projectId: parsed.projectId,
+        interpretationId,
+        data: JSON.stringify(parsed),
+        createdAt: new Date().toISOString(),
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [specGraphs.projectId],
+        set: {
+          interpretationId,
+          data: JSON.stringify(parsed),
+          updatedAt: now,
+        },
+      })
+      .run();
     return this.clone(parsed);
   }
 
@@ -370,3 +447,5 @@ export class InMemorySpecGraphStore implements SpecGraphStore {
     return SpecGraphViewSchema.parse(structuredClone(view));
   }
 }
+
+

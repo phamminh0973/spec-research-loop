@@ -1,11 +1,11 @@
 # SpecLoop API service image.
 #
 # Builds and runs `apps/api` for `docker compose up`. Persistence is
-# opt-in via `DATABASE_URL` (see apps/api/src/db) — docker-compose.yml
-# sets it to point at the `db` service automatically. Not yet verified
-# with a real `docker compose up` run end-to-end in this environment.
+# via Drizzle ORM + SQLite (`node:sqlite` DatabaseSync, see
+# apps/api/src/db) — file-backed when DATABASE_PATH is set, otherwise
+# in-memory (`:memory:`). Requires Node 22.5+ for `node:sqlite`.
 
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 WORKDIR /app
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -23,7 +23,7 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 RUN pnpm --filter @specloop/schemas run build && pnpm --filter @specloop/api run build
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app /app

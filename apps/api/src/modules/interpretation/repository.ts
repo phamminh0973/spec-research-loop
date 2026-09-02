@@ -6,11 +6,14 @@ import {
   type InterpretationOutput,
   type InterpretationRecord,
 } from "@specloop/schemas";
+import { and, desc, eq, sql } from "drizzle-orm";
 
+import { getDb } from "../../db/client.js";
 import {
-  interpretationDecisionsByProject,
-  interpretationsByProject,
-} from "../../store/project-store.js";
+  interpretationDecisions,
+  interpretations,
+  projects,
+} from "../../db/schema.js";
 
 export class InterpretationLifecycleError extends Error {
   constructor(message: string) {
@@ -54,6 +57,31 @@ export interface InterpretationRepository {
   listDecisions(projectId: string): Promise<InterpretationDecision[]>;
 }
 
+function ensureProjectExists(projectId: string): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.insert(projects)
+    .values({
+      id: projectId,
+      title: "Test Project",
+      domain: null,
+      rawIdea: "placeholder",
+      resourceConstraints: "[]",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
+function parseInterpretationRow(row: typeof interpretations.$inferSelect): InterpretationRecord {
+  return InterpretationRecordSchema.parse(JSON.parse(row.data as string));
+}
+
+function parseDecisionRow(row: typeof interpretationDecisions.$inferSelect): InterpretationDecision {
+  return InterpretationDecisionSchema.parse(JSON.parse(row.data as string));
+}
+
 export class InMemoryInterpretationRepository implements InterpretationRepository {
   async saveInitialProposal(
     record: InterpretationRecord
@@ -64,7 +92,10 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
         "A generated interpretation must begin as PROPOSED."
       );
     }
-    if (this.projectRecords(parsed.projectId).size > 0) {
+    ensureProjectExists(parsed.projectId);
+    const db = getDb();
+    const existing = db.select().from(interpretations).where(eq(interpretations.projectId, parsed.projectId)).all();
+    if (existing.length > 0) {
       throw new InterpretationLifecycleError(
         "An existing interpretation must be revised or regenerated explicitly."
       );
@@ -82,14 +113,16 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
         "A regenerated interpretation must begin as PROPOSED."
       );
     }
-    if (this.projectRecords(parsed.projectId).size === 0) {
+    const db = getDb();
+    const existing = db.select().from(interpretations).where(eq(interpretations.projectId, parsed.projectId)).all();
+    if (existing.length === 0) {
       throw new InterpretationLifecycleError(
         "Regenerate requires an existing interpretation."
       );
     }
 
     this.supersedeActive(parsed.projectId);
-    const saved = this.persist(parsed);
+    const saved = await this.persist(parsed);
     this.recordDecision({
       projectId: parsed.projectId,
       interpretationId: parsed.interpretationId,
@@ -115,7 +148,7 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
 
     const output = InterpretationOutputSchema.parse(command.output);
     this.supersedeActive(command.projectId);
-    const revised = this.persist({
+    const revised = await this.persist({
       ...source,
       interpretationId: crypto.randomUUID(),
       output,
@@ -147,7 +180,7 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     }
 
     this.supersedeActive(command.projectId, selected.interpretationId);
-    const confirmed = this.persist({
+    const confirmed = await this.persist({
       ...selected,
       status: "USER_CONFIRMED",
       confirmedAt: new Date().toISOString(),
@@ -166,79 +199,133 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
     projectId: string,
     interpretationId: string
   ): Promise<InterpretationRecord | null> {
-    const record = this.projectRecords(projectId).get(interpretationId);
-    return record ? this.cloneRecord(record) : null;
+    const db = getDb();
+    const row = db
+      .select()
+      .from(interpretations)
+      .where(and(eq(interpretations.projectId, projectId), eq(interpretations.id, interpretationId)))
+      .get();
+    return row ? this.cloneRecord(parseInterpretationRow(row)) : null;
   }
 
   async getLatestByProject(
     projectId: string
   ): Promise<InterpretationRecord | null> {
-    const records = [...this.projectRecords(projectId).values()];
-    const active = records.filter((record) => record.status !== "SUPERSEDED");
-    const latest = (active.length > 0 ? active : records).at(-1);
-    return latest ? this.cloneRecord(latest) : null;
+    const db = getDb();
+    // Prefer active (not superseded) ordered by createdAt desc
+    const active = db
+      .select()
+      .from(interpretations)
+      .where(and(eq(interpretations.projectId, projectId), sql`${interpretations.status} != 'SUPERSEDED'`))
+      .orderBy(desc(interpretations.createdAt))
+      .get();
+    if (active) return this.cloneRecord(parseInterpretationRow(active));
+    const fallback = db
+      .select()
+      .from(interpretations)
+      .where(eq(interpretations.projectId, projectId))
+      .orderBy(desc(interpretations.createdAt))
+      .get();
+    return fallback ? this.cloneRecord(parseInterpretationRow(fallback)) : null;
   }
 
   async getConfirmedByProject(
     projectId: string
   ): Promise<InterpretationRecord | null> {
-    const record = [...this.projectRecords(projectId).values()].find(
-      (candidate) => candidate.status === "USER_CONFIRMED"
-    );
-    return record ? this.cloneRecord(record) : null;
+    const db = getDb();
+    const row = db
+      .select()
+      .from(interpretations)
+      .where(and(eq(interpretations.projectId, projectId), eq(interpretations.status, "USER_CONFIRMED")))
+      .orderBy(desc(interpretations.createdAt))
+      .get();
+    return row ? this.cloneRecord(parseInterpretationRow(row)) : null;
   }
 
   async listDecisions(projectId: string): Promise<InterpretationDecision[]> {
-    return structuredClone(interpretationDecisionsByProject.get(projectId) ?? []);
-  }
-
-  private projectRecords(projectId: string): Map<string, InterpretationRecord> {
-    const existing = interpretationsByProject.get(projectId);
-    if (existing) return existing;
-    const created = new Map<string, InterpretationRecord>();
-    interpretationsByProject.set(projectId, created);
-    return created;
+    const db = getDb();
+    const rows = db.select().from(interpretationDecisions).where(eq(interpretationDecisions.projectId, projectId)).all();
+    return rows.map(parseDecisionRow).map((d) => structuredClone(d));
   }
 
   private requireRecord(
     projectId: string,
     interpretationId: string
   ): InterpretationRecord {
-    const record = this.projectRecords(projectId).get(interpretationId);
-    if (!record) {
+    const db = getDb();
+    const row = db
+      .select()
+      .from(interpretations)
+      .where(and(eq(interpretations.projectId, projectId), eq(interpretations.id, interpretationId)))
+      .get();
+    if (!row) {
       throw new InterpretationLifecycleError(
         `Interpretation ${interpretationId} was not found in project ${projectId}.`
       );
     }
-    return record;
+    return parseInterpretationRow(row);
   }
 
   private supersedeActive(projectId: string, exceptId?: string): void {
-    const records = this.projectRecords(projectId);
-    for (const [id, record] of records) {
-      if (id === exceptId || record.status === "SUPERSEDED") continue;
-      records.set(
-        id,
-        InterpretationRecordSchema.parse({
-          ...record,
+    const db = getDb();
+    const now = new Date().toISOString();
+    // Single UPDATE per spec: status='SUPERSEDED' WHERE projectId=? AND id != ? AND status != 'SUPERSEDED'
+    // Also patch JSON data to keep it consistent.
+    if (exceptId) {
+      db.update(interpretations)
+        .set({
           status: "SUPERSEDED",
-          confirmedAt: null,
+          data: sql`json_set(${interpretations.data}, '$.status', 'SUPERSEDED', '$.confirmedAt', null)`,
+          updatedAt: now,
         })
-      );
+        .where(
+          and(
+            eq(interpretations.projectId, projectId),
+            sql`${interpretations.id} != ${exceptId}`,
+            sql`${interpretations.status} != 'SUPERSEDED'`
+          )
+        )
+        .run();
+    } else {
+      db.update(interpretations)
+        .set({
+          status: "SUPERSEDED",
+          data: sql`json_set(${interpretations.data}, '$.status', 'SUPERSEDED', '$.confirmedAt', null)`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(interpretations.projectId, projectId),
+            sql`${interpretations.status} != 'SUPERSEDED'`
+          )
+        )
+        .run();
     }
-    // `records` is the same inner Map instance returned by `projectRecords`;
-    // mutating it via its own `.set()` never calls the *outer*
-    // `interpretationsByProject.set()`, so a write-through persistence
-    // layer (see db/persisted-map.ts) would miss this change without an
-    // explicit re-set here.
-    interpretationsByProject.set(projectId, records);
   }
 
-  private persist(record: InterpretationRecord): InterpretationRecord {
+  private async persist(record: InterpretationRecord): Promise<InterpretationRecord> {
     const parsed = InterpretationRecordSchema.parse(record);
-    const records = this.projectRecords(parsed.projectId);
-    records.set(parsed.interpretationId, parsed);
-    interpretationsByProject.set(parsed.projectId, records); // see note in supersedeActive
+    ensureProjectExists(parsed.projectId);
+    const db = getDb();
+    db.insert(interpretations)
+      .values({
+        id: parsed.interpretationId,
+        projectId: parsed.projectId,
+        status: parsed.status,
+        data: JSON.stringify(parsed),
+        createdAt: parsed.createdAt,
+        updatedAt: new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: [interpretations.id],
+        set: {
+          projectId: parsed.projectId,
+          status: parsed.status,
+          data: JSON.stringify(parsed),
+          updatedAt: new Date().toISOString(),
+        },
+      })
+      .run();
     return this.cloneRecord(parsed);
   }
 
@@ -250,12 +337,16 @@ export class InMemoryInterpretationRepository implements InterpretationRepositor
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     });
-    const projectDecisions =
-      interpretationDecisionsByProject.get(input.projectId) ?? [];
-    interpretationDecisionsByProject.set(input.projectId, [
-      ...projectDecisions,
-      decision,
-    ]);
+    const db = getDb();
+    db.insert(interpretationDecisions)
+      .values({
+        id: decision.id,
+        projectId: decision.projectId,
+        interpretationId: decision.interpretationId,
+        data: JSON.stringify(decision),
+        createdAt: decision.createdAt,
+      })
+      .run();
   }
 
   private cloneRecord(record: InterpretationRecord): InterpretationRecord {

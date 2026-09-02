@@ -1,47 +1,21 @@
-# db, api, web are exercised locally (see README); worker was removed
-# below because apps/worker does not exist yet — see the note there.
+# api, web are exercised locally. SQLite is file-backed via DATABASE_PATH volume.
+# No external Postgres service needed — Drizzle ORM uses node:sqlite (DatabaseSync).
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-spec_research_loop}
-      POSTGRES_USER: ${POSTGRES_USER:-spec_research}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U ${POSTGRES_USER:-spec_research} -d ${POSTGRES_DB:-spec_research_loop}
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   api:
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-spec_research}:${POSTGRES_PASSWORD:-local-only-change-me}@db:5432/${POSTGRES_DB:-spec_research_loop}
+      DATABASE_PATH: /app/data/specloop.db
       STORAGE_PATH: /app/storage
       API_PORT: ${API_PORT:-4000}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:
+      - sqlite_data:/app/data
       - ./storage:/app/storage
-    depends_on:
-      db:
-        condition: service_healthy
-
-  # A `worker` service (for background jobs — e.g. batched PDF ingestion)
-  # was scaffolded here but `apps/worker` was never implemented, so
-  # `docker compose up` failed outright trying to build a nonexistent
-  # context. Removed rather than stubbed: a stub service that does
-  # nothing would be more misleading than an honest gap. Add it back
-  # (with a real `apps/worker` app) when that work starts.
 
   web:
     build:
@@ -58,4 +32,4 @@ services:
       - api
 
 volumes:
-  postgres_data:
+  sqlite_data:

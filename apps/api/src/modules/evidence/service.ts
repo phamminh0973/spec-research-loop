@@ -16,25 +16,41 @@ import {
   EvidenceRequirementSchema,
   EvidenceSpanSchema,
   GenerateEvidenceRequirementOutputSchema,
+  AtomicClaimSchema,
+  SourceDocumentSchema,
+  SpecGraphViewSchema,
   type EvidenceRequirement,
   type EvidenceSpan,
   type GenerateEvidenceRequirementOutput,
 } from "@specloop/schemas";
+import { eq, and, sql } from "drizzle-orm";
 import { EVIDENCE_REQUIREMENT_SYSTEM_PROMPT } from "./prompt.js";
 import { structuredCall } from "../../llm/structured-call.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
 import {
-  atomicClaimsByProject,
-  evidenceRequirementsByProject,
-  evidenceSpansByProject,
-  appendToProjectList,
-  parseOrThrow,
-  sourcesByProject,
-  specGraphsByProject,
-} from "../../store/project-store.js";
+  atomicClaims,
+  evidenceRequirements,
+  evidenceSpans,
+  sources,
+  specGraphs,
+} from "../../db/schema.js";
 
 // ---------------------------------------------------------------------------
 // Document spans (source provenance — not claim–evidence links)
 // ---------------------------------------------------------------------------
+
+function fetchSources(projectId: string) {
+  const db = getDb();
+  const rows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+}
+
+function fetchSpecGraph(projectId: string) {
+  const db = getDb();
+  const row = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  return row ? parseOrThrow(SpecGraphViewSchema, JSON.parse(row.data as string), "SpecGraphView") : null;
+}
 
 export function createSpan(params: {
   projectId: string;
@@ -47,8 +63,9 @@ export function createSpan(params: {
 }): EvidenceSpan {
   const { projectId, sourceId, page, startOffset, endOffset, exactText, entryType } = params;
 
-  const sources = sourcesByProject.get(projectId) ?? [];
-  if (!sources.some((s) => s.id === sourceId)) {
+  const db = getDb();
+  const sourceRow = db.select().from(sources).where(and(eq(sources.projectId, projectId), eq(sources.id, sourceId))).get();
+  if (!sourceRow) {
     throw new Error(`Source ${sourceId} not found in project ${projectId}.`);
   }
 
@@ -78,7 +95,15 @@ export function createSpan(params: {
     },
     "EvidenceSpan",
   );
-  appendToProjectList(evidenceSpansByProject, projectId, span);
+  db.insert(evidenceSpans)
+    .values({
+      id: span.id,
+      projectId,
+      sourceId,
+      data: JSON.stringify(span),
+      createdAt: span.createdAt,
+    })
+    .run();
   return span;
 }
 
@@ -88,9 +113,11 @@ export function listSpans(params: {
   limit?: number;
 }): { items: EvidenceSpan[] } {
   const { projectId, sourceId, limit = 100 } = params;
-  const all = (evidenceSpansByProject.get(projectId) ?? []).filter(
-    (s) => !sourceId || s.sourceId === sourceId,
-  );
+  const db = getDb();
+  const rows = sourceId
+    ? db.select().from(evidenceSpans).where(and(eq(evidenceSpans.projectId, projectId), eq(evidenceSpans.sourceId, sourceId))).all()
+    : db.select().from(evidenceSpans).where(eq(evidenceSpans.projectId, projectId)).all();
+  const all = rows.map((r) => parseOrThrow(EvidenceSpanSchema, JSON.parse(r.data as string), "EvidenceSpan"));
   return { items: all.slice(0, limit) };
 }
 
@@ -112,9 +139,10 @@ export type ClaimContext = {
 };
 
 export function resolveClaimContext(projectId: string, claimId: string): ClaimContext {
-  const claims = atomicClaimsByProject.get(projectId) ?? [];
-  const ac = claims.find((c) => c.id === claimId);
-  if (ac) {
+  const db = getDb();
+  const claimRow = db.select().from(atomicClaims).where(and(eq(atomicClaims.projectId, projectId), eq(atomicClaims.id, claimId))).get();
+  if (claimRow) {
+    const ac = parseOrThrow(AtomicClaimSchema, JSON.parse(claimRow.data as string), "AtomicClaim");
     return {
       id: ac.id,
       projectId: ac.projectId,
@@ -128,7 +156,7 @@ export function resolveClaimContext(projectId: string, claimId: string): ClaimCo
       type: ac.type,
     };
   }
-  const graph = specGraphsByProject.get(projectId);
+  const graph = fetchSpecGraph(projectId);
   const node = graph?.nodes.find((n) => n.id === claimId);
   if (node) {
     return {
@@ -152,9 +180,11 @@ export function listEvidenceRequirements(params: {
   claimId?: string;
 }): { items: EvidenceRequirement[] } {
   const { projectId, claimId } = params;
-  const all = (evidenceRequirementsByProject.get(projectId) ?? []).filter(
-    (r) => !claimId || r.claimId === claimId,
-  );
+  const db = getDb();
+  const rows = claimId
+    ? db.select().from(evidenceRequirements).where(and(eq(evidenceRequirements.projectId, projectId), eq(evidenceRequirements.claimId, claimId))).all()
+    : db.select().from(evidenceRequirements).where(eq(evidenceRequirements.projectId, projectId)).all();
+  const all = rows.map((r) => parseOrThrow(EvidenceRequirementSchema, JSON.parse(r.data as string), "EvidenceRequirement"));
   return { items: all };
 }
 
@@ -212,20 +242,62 @@ export function ensureEvidenceRequirementsForClaims(params: {
   claimIds?: string[];
 }): EvidenceRequirement[] {
   const { projectId, claimIds } = params;
-  const ids = claimIds ?? (atomicClaimsByProject.get(projectId) ?? []).map((c) => c.id);
-  const existingByClaim = new Map(
-    (evidenceRequirementsByProject.get(projectId) ?? []).map((r) => [r.claimId, r]),
-  );
+  const db = getDb();
+  const allClaimRows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all();
+  let targetClaimRows = allClaimRows;
+  if (claimIds) {
+    const idSet = new Set(claimIds);
+    targetClaimRows = allClaimRows.filter((r) => idSet.has(r.id));
+  }
+
+  // LEFT JOIN evidence_requirements to find which claims already have requirements
+  const joined = db
+    .select({
+      claimId: atomicClaims.id,
+      requirementData: evidenceRequirements.data,
+    })
+    .from(atomicClaims)
+    .leftJoin(evidenceRequirements, eq(evidenceRequirements.claimId, atomicClaims.id))
+    .where(eq(atomicClaims.projectId, projectId))
+    .all();
+
+  const reqByClaim = new Map<string, EvidenceRequirement>();
+  for (const row of joined) {
+    if (row.requirementData) {
+      const req = parseOrThrow(EvidenceRequirementSchema, JSON.parse(row.requirementData as string), "EvidenceRequirement");
+      reqByClaim.set(row.claimId, req);
+    }
+  }
+
+  const ids = claimIds ?? targetClaimRows.map((r) => r.id);
   const created: EvidenceRequirement[] = [];
-  for (const claimId of ids) {
-    if (existingByClaim.has(claimId)) {
-      created.push(existingByClaim.get(claimId)!);
+  // Also need to handle spec-graph claimIds not in atomicClaims; ensure they are considered
+  const idsToProcess = claimIds ?? ids;
+  for (const claimId of idsToProcess) {
+    if (reqByClaim.has(claimId)) {
+      created.push(reqByClaim.get(claimId)!);
+      continue;
+    }
+    // Check if already has requirement but not in join due to project filter mismatch (spec graph nodes)
+    const existingRow = db.select().from(evidenceRequirements).where(and(eq(evidenceRequirements.projectId, projectId), eq(evidenceRequirements.claimId, claimId))).get();
+    if (existingRow) {
+      const existing = parseOrThrow(EvidenceRequirementSchema, JSON.parse(existingRow.data as string), "EvidenceRequirement");
+      created.push(existing);
       continue;
     }
     try {
       const ctx = resolveClaimContext(projectId, claimId);
       const req = buildDeterministicEvidenceRequirement(projectId, ctx);
-      appendToProjectList(evidenceRequirementsByProject, projectId, req);
+      db.insert(evidenceRequirements)
+        .values({
+          id: req.id,
+          projectId,
+          claimId: req.claimId,
+          data: JSON.stringify(req),
+          createdAt: req.createdAt,
+          updatedAt: req.updatedAt,
+        })
+        .run();
       created.push(req);
     } catch {
       // skip claims that cannot be resolved (e.g. deleted)
@@ -241,12 +313,13 @@ export async function generateEvidenceRequirementsForClaims(params: {
   model: string;
 }): Promise<EvidenceRequirement[]> {
   const { projectId, claimIds, client, model } = params;
-  const ids = claimIds ?? (atomicClaimsByProject.get(projectId) ?? []).map((c) => c.id);
+  const db = getDb();
+  const ids = claimIds ?? db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all().map((r) => r.id);
   const results: EvidenceRequirement[] = [];
   for (const claimId of ids) {
-    const existing = (evidenceRequirementsByProject.get(projectId) ?? []).find((r) => r.claimId === claimId);
-    if (existing) {
-      results.push(existing);
+    const existingRow = db.select().from(evidenceRequirements).where(and(eq(evidenceRequirements.projectId, projectId), eq(evidenceRequirements.claimId, claimId))).get();
+    if (existingRow) {
+      results.push(parseOrThrow(EvidenceRequirementSchema, JSON.parse(existingRow.data as string), "EvidenceRequirement"));
       continue;
     }
     const req = await generateEvidenceRequirement({ projectId, claimId, client, model });
@@ -303,6 +376,16 @@ export async function generateEvidenceRequirement(params: {
     },
     "EvidenceRequirement",
   );
-  appendToProjectList(evidenceRequirementsByProject, projectId, requirement);
+  const db = getDb();
+  db.insert(evidenceRequirements)
+    .values({
+      id: requirement.id,
+      projectId,
+      claimId: requirement.claimId,
+      data: JSON.stringify(requirement),
+      createdAt: requirement.createdAt,
+      updatedAt: requirement.updatedAt,
+    })
+    .run();
   return requirement;
 }

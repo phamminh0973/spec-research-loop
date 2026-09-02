@@ -21,6 +21,13 @@ import {
   JudgeCallOutputSchema,
   JudgePanelResultSchema,
   JudgeReportSchema,
+  GapProposalOutputSchema,
+  SourceDocumentSchema,
+  SpecGraphViewSchema,
+  AtomicClaimSchema,
+  ContributionSchema,
+  EvidenceRequirementSchema,
+  ExperimentPlanSchema,
   type Consensus,
   type Finding,
   type FindingSeverity,
@@ -29,6 +36,7 @@ import {
   type JudgeReport,
   ALL_JUDGE_NAMES,
 } from "@specloop/schemas";
+import { eq, and, sql, desc } from "drizzle-orm";
 import {
   CONFERENCE_READINESS_JUDGE_SYSTEM_PROMPT,
   CONTRIBUTION_JUDGE_SYSTEM_PROMPT,
@@ -40,24 +48,32 @@ import {
   structuredCall,
   type UntrustedContent,
 } from "../../llm/structured-call.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
 import {
-  atomicClaimsByProject,
-  contributionsByProject,
-  evidenceRequirementsByProject,
-  experimentPlansByProject,
-  gapProposalsByProject,
-  judgePanelsByProject,
-  parseOrThrow,
-  sourcesByProject,
-  specGraphsByProject,
-} from "../../store/project-store.js";
+  atomicClaims,
+  contributions,
+  evidenceRequirements,
+  experimentPlans,
+  gapProposals,
+  judgePanels,
+  projects,
+  sources,
+  specGraphs,
+} from "../../db/schema.js";
 
 // ---------------------------------------------------------------------------
 // Context builders — one per Judge, scoped to only what that Judge needs.
 // ---------------------------------------------------------------------------
 
+function fetchSpecGraph(projectId: string) {
+  const db = getDb();
+  const row = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  return row ? parseOrThrow(SpecGraphViewSchema, JSON.parse(row.data as string), "SpecGraphView") : null;
+}
+
 function nodesByType(projectId: string, type: string) {
-  const graph = specGraphsByProject.get(projectId);
+  const graph = fetchSpecGraph(projectId);
   return (graph?.nodes ?? []).filter((n) => n.type === type);
 }
 
@@ -71,13 +87,56 @@ function renderNodes(
     .join("\n");
 }
 
+function fetchGapProposal(projectId: string) {
+  const db = getDb();
+  const row = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).limit(1).get();
+  if (!row) return null;
+  return parseOrThrow(GapProposalOutputSchema, JSON.parse(row.data as string), "GapProposalOutput");
+}
+
+function fetchSources(projectId: string) {
+  const db = getDb();
+  const rows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+}
+
+function fetchAtomicClaims(projectId: string) {
+  const db = getDb();
+  const rows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim"));
+}
+
+function fetchContributions(projectId: string) {
+  const db = getDb();
+  const rows = db.select().from(contributions).where(eq(contributions.projectId, projectId)).all();
+  return rows.map((r) => {
+    try {
+      return JSON.parse(r.data as string);
+    } catch {
+      return null;
+    }
+  }).filter(Boolean) as any[];
+}
+
+function fetchExperimentPlans(projectId: string) {
+  const db = getDb();
+  const rows = db.select().from(experimentPlans).where(eq(experimentPlans.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(ExperimentPlanSchema, JSON.parse(r.data as string), "ExperimentPlan"));
+}
+
+function fetchEvidenceRequirements(projectId: string) {
+  const db = getDb();
+  const rows = db.select().from(evidenceRequirements).where(eq(evidenceRequirements.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(EvidenceRequirementSchema, JSON.parse(r.data as string), "EvidenceRequirement"));
+}
+
 /** Judge 1 — Gap: problem/research-question/gap nodes, gap proposal, selected corpus. */
 export function buildGapJudgeContext(projectId: string): UntrustedContent[] {
   const problems = nodesByType(projectId, "PROBLEM");
   const questions = nodesByType(projectId, "RESEARCH_QUESTION");
   const gapNodes = nodesByType(projectId, "GAP");
-  const proposal = gapProposalsByProject.get(projectId);
-  const corpus = (sourcesByProject.get(projectId) ?? []).filter((s) => s.selected);
+  const proposal = fetchGapProposal(projectId);
+  const corpus = fetchSources(projectId).filter((s) => s.selected);
 
   const blocks: UntrustedContent[] = [
     {
@@ -124,8 +183,8 @@ export function buildGapJudgeContext(projectId: string): UntrustedContent[] {
 /** Judge 2 — Contribution: contribution nodes/records, atomic claims, chosen gap. */
 export function buildContributionJudgeContext(projectId: string): UntrustedContent[] {
   const contributionNodes = nodesByType(projectId, "CONTRIBUTION");
-  const contributions = contributionsByProject.get(projectId) ?? [];
-  const claims = atomicClaimsByProject.get(projectId) ?? [];
+  const contributionsList = fetchContributions(projectId);
+  const claims = fetchAtomicClaims(projectId);
 
   return [
     {
@@ -135,9 +194,9 @@ export function buildContributionJudgeContext(projectId: string): UntrustedConte
     {
       label: "Generated contributions",
       text:
-        contributions.length === 0
+        contributionsList.length === 0
           ? "(none generated yet)"
-          : contributions
+          : contributionsList
               .map((c) => `- ${c.text} (linked claims: ${c.claimIds.length})`)
               .join("\n"),
     },
@@ -160,8 +219,8 @@ export function buildContributionJudgeContext(projectId: string): UntrustedConte
 
 /** Judge 3 — Experiment: atomic claims + experiment plans (baselines/metrics/ablations/estimates). */
 export function buildExperimentJudgeContext(projectId: string): UntrustedContent[] {
-  const claims = atomicClaimsByProject.get(projectId) ?? [];
-  const plans = experimentPlansByProject.get(projectId) ?? [];
+  const claims = fetchAtomicClaims(projectId);
+  const plans = fetchExperimentPlans(projectId);
 
   return [
     {
@@ -198,10 +257,60 @@ export function buildExperimentJudgeContext(projectId: string): UntrustedContent
 
 /** Judge 4 — Evidence: does each claim have a verifiable metric threshold? */
 export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[] {
-  const claims = atomicClaimsByProject.get(projectId) ?? [];
-  const requirements = evidenceRequirementsByProject.get(projectId) ?? [];
-  const reqByClaim = new Map(requirements.map((r) => [r.claimId, r]));
+  const db = getDb();
+  // Use LEFT JOIN between atomic_claims and evidence_requirements on claimId to find missing in one query
+  const joined = db
+    .select({
+      claimData: atomicClaims.data,
+      requirementData: evidenceRequirements.data,
+    })
+    .from(atomicClaims)
+    .leftJoin(evidenceRequirements, eq(evidenceRequirements.claimId, atomicClaims.id))
+    .where(eq(atomicClaims.projectId, projectId))
+    .all();
+
+  const claimsWithReq: { claim: any; req: any | null }[] = joined.map((row) => {
+    const claim = parseOrThrow(AtomicClaimSchema, JSON.parse(row.claimData as string), "AtomicClaim");
+    const req = row.requirementData ? parseOrThrow(EvidenceRequirementSchema, JSON.parse(row.requirementData as string), "EvidenceRequirement") : null;
+    return { claim, req };
+  });
+
+  // Fallback if join returned nothing but we still want claim nodes
   const claimNodes = nodesByType(projectId, "CLAIM");
+
+  if (joined.length === 0) {
+    // No atomic claims via join, try direct fetch for text rendering (still join attempt was empty)
+    const claims = fetchAtomicClaims(projectId);
+    const reqByClaim = new Map(fetchEvidenceRequirements(projectId).map((r) => [r.claimId, r]));
+    return [
+      {
+        label: "Claim nodes",
+        text: renderNodes(claimNodes, "(no CLAIM node yet)"),
+      },
+      {
+        label: "Atomic claims with their EvidenceRequirements (what the metric value must satisfy to be verified)",
+        text:
+          claims.length === 0
+            ? "(no atomic claims generated yet)"
+            : claims
+                .map((claim) => {
+                  const req = reqByClaim.get(claim.id);
+                  if (!req) {
+                    return `- claim ${claim.id} [${claim.type}]: ${claim.text}\n  metric=${claim.metric} expectedDirection=${claim.expectedDirection} falsifiesIf=${claim.falsificationCondition}\n  EvidenceRequirement: (none) — claim has no verifiable criterion`;
+                  }
+                  return (
+                    `- claim ${claim.id} [${claim.type}]: ${claim.text}\n` +
+                    `  claim metric=${claim.metric} expectedDirection=${claim.expectedDirection} baseline=${claim.baseline} datasetDomain=${claim.datasetDomain} scope=${claim.scope} falsifiesIf=${claim.falsificationCondition}\n` +
+                    `  EvidenceRequirement: metric=${req.metric} operator=${req.operator} threshold=${req.threshold}\n` +
+                    `    successCriterion=${req.successCriterion}\n` +
+                    `    falsificationCriterion=${req.falsificationCriterion}\n` +
+                    `    measurementMethod=${req.measurementMethod ?? "(none)"} requiredObservations=${req.requiredObservations.join(", ") || "(none)"}`
+                  );
+                })
+                .join("\n\n"),
+      },
+    ];
+  }
 
   return [
     {
@@ -211,11 +320,10 @@ export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[]
     {
       label: "Atomic claims with their EvidenceRequirements (what the metric value must satisfy to be verified)",
       text:
-        claims.length === 0
+        claimsWithReq.length === 0
           ? "(no atomic claims generated yet)"
-          : claims
-              .map((claim) => {
-                const req = reqByClaim.get(claim.id);
+          : claimsWithReq
+              .map(({ claim, req }) => {
                 if (!req) {
                   return `- claim ${claim.id} [${claim.type}]: ${claim.text}\n  metric=${claim.metric} expectedDirection=${claim.expectedDirection} falsifiesIf=${claim.falsificationCondition}\n  EvidenceRequirement: (none) — claim has no verifiable criterion`;
                 }
@@ -237,10 +345,10 @@ export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[]
 export function buildConferenceReadinessJudgeContext(projectId: string): UntrustedContent[] {
   const problems = nodesByType(projectId, "PROBLEM");
   const gapNodes = nodesByType(projectId, "GAP");
-  const contributions = contributionsByProject.get(projectId) ?? [];
-  const claims = atomicClaimsByProject.get(projectId) ?? [];
-  const plans = experimentPlansByProject.get(projectId) ?? [];
-  const requirements = evidenceRequirementsByProject.get(projectId) ?? [];
+  const contributionsList = fetchContributions(projectId);
+  const claims = fetchAtomicClaims(projectId);
+  const plans = fetchExperimentPlans(projectId);
+  const requirements = fetchEvidenceRequirements(projectId);
 
   return [
     {
@@ -248,7 +356,7 @@ export function buildConferenceReadinessJudgeContext(projectId: string): Untrust
       text:
         `Problem:\n${renderNodes(problems, "(none)")}\n\n` +
         `Gap:\n${renderNodes(gapNodes, "(none)")}\n\n` +
-        `Contributions (${contributions.length}):\n${contributions.map((c) => `- ${c.text}`).join("\n") || "(none)"}\n\n` +
+        `Contributions (${contributionsList.length}):\n${contributionsList.map((c) => `- ${c.text}`).join("\n") || "(none)"}\n\n` +
         `Claims (${claims.length}):\n${claims.map((c) => `- [${c.type}] ${c.text}`).join("\n") || "(none)"}\n\n` +
         `Experiment plans: ${plans.length}\n` +
         `EvidenceRequirements: ${requirements.length} total for ${claims.length} claims (${requirements.length === 0 ? "none have a verifiable criterion yet" : `${requirements.length} claims have a metric/threshold criterion`}).`,
@@ -363,6 +471,23 @@ export function computeConsensus(reports: JudgeReport[]): Consensus {
   };
 }
 
+function ensureProjectExistsForJudge(projectId: string): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.insert(projects)
+    .values({
+      id: projectId,
+      title: "Test Project",
+      domain: null,
+      rawIdea: "placeholder",
+      resourceConstraints: "[]",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
 /**
  * Run all five Judges independently (in parallel) and persist the panel
  * result. Requires a decomposition graph to exist — there is nothing
@@ -375,7 +500,7 @@ export async function runJudgePanel(params: {
 }): Promise<JudgePanelResult> {
   const { projectId, client, model } = params;
 
-  if (!specGraphsByProject.get(projectId)) {
+  if (!fetchSpecGraph(projectId)) {
     throw new Error(
       "Generate a decomposition graph before running the Judge panel " +
         "(decomposition.generate).",
@@ -401,6 +526,19 @@ export async function runJudgePanel(params: {
     "JudgePanelResult",
   );
 
-  judgePanelsByProject.set(projectId, result);
+  ensureProjectExistsForJudge(projectId);
+  const db = getDb();
+  // Need experimentPlanId FK — pick latest experiment plan if exists else null
+  const latestPlan = db.select().from(experimentPlans).where(eq(experimentPlans.projectId, projectId)).orderBy(desc(experimentPlans.createdAt)).limit(1).get();
+  const experimentPlanId = latestPlan?.id ?? null;
+  db.insert(judgePanels)
+    .values({
+      id: result.id,
+      projectId,
+      experimentPlanId,
+      data: JSON.stringify(result),
+      createdAt: now,
+    })
+    .run();
   return result;
 }

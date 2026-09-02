@@ -12,14 +12,30 @@ import {
   recordFindingResolution,
   rerunJudge,
 } from "./service.js";
-import {
-  judgePanelsByProject,
-  resetProjectStore,
-  researchSpecsByProject,
-} from "../../store/project-store.js";
+import { resetProjectStore } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
+import { judgePanels, projects, researchSpecs } from "../../db/schema.js";
+import { eq } from "drizzle-orm";
 
 const PROJECT_ID = "00000000-0000-4000-8000-0000000000aa";
 const FINDING_ID = "00000000-0000-4000-8000-0000000000f1";
+
+function ensureProject(): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.insert(projects)
+    .values({
+      id: PROJECT_ID,
+      title: "Test Project",
+      domain: null,
+      rawIdea: "placeholder",
+      resourceConstraints: "[]",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
 
 function report(judge: JudgeReport["judge"], findings: JudgeReport["findings"]): JudgeReport {
   return { judge, summary: `${judge} summary`, findings };
@@ -45,13 +61,23 @@ function seedPanel(overrides?: Partial<JudgeReport>): JudgePanelResult {
     report("CONFERENCE_READINESS", []),
   ];
   const panel: JudgePanelResult = {
-    id: "panel-1",
+    id: "11111111-1111-4111-8111-111111111111",
     projectId: PROJECT_ID,
     judges: reports,
     consensus: computeConsensus(reports),
     createdAt: "2026-01-01T00:00:00.000Z",
   };
-  judgePanelsByProject.set(PROJECT_ID, panel);
+  ensureProject();
+  const db = getDb();
+  db.insert(judgePanels)
+    .values({
+      id: panel.id,
+      projectId: PROJECT_ID,
+      experimentPlanId: null,
+      data: JSON.stringify(panel),
+      createdAt: panel.createdAt,
+    })
+    .run();
   return panel;
 }
 
@@ -86,8 +112,18 @@ function seedSpecVersion(version: number, claimEvidenceContent: string): Researc
       content: id === "CLAIM_EVIDENCE_MATRIX" ? claimEvidenceContent : `content for ${id}`,
     })),
   };
-  const existing = researchSpecsByProject.get(PROJECT_ID) ?? [];
-  researchSpecsByProject.set(PROJECT_ID, [...existing, spec]);
+  ensureProject();
+  const db = getDb();
+  db.insert(researchSpecs)
+    .values({
+      id: spec.id,
+      projectId: PROJECT_ID,
+      judgePanelId: null,
+      version: String(spec.version),
+      data: JSON.stringify(spec),
+      createdAt: spec.createdAt,
+    })
+    .run();
   return spec;
 }
 
@@ -218,7 +254,7 @@ describe("finalizeResearchSpec", () => {
     seedPanel({
       findings: [
         {
-          id: "crit-1",
+          id: "22222222-2222-4222-8222-222222222222",
           judge: "EVIDENCE",
           targetSection: "Claim 1",
           severity: "CRITICAL",

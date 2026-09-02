@@ -45,12 +45,17 @@ export const env = createEnv({
     LLM_MAX_RETRIES: z.coerce.number().int().positive().default(2),
 
     // ------------------------------------------------------------------
-    // Persistence (apps/api/src/db) — optional. When unset, every store
-    // in `src/store/project-store.ts` runs purely in-memory, which is
-    // exactly the mode all vitest suites run in. When set, the same
-    // stores also persist to Postgres and hydrate from it at startup.
+    // Persistence (apps/api/src/db) — Drizzle ORM + SQLite.
+    // When `DATABASE_PATH` is set, SQLite is file-backed at that path.
+    // When unset, an in-memory SQLite database (`:memory:`) is used —
+    // every store still persists via Drizzle, just without durability
+    // across restarts (which is exactly the mode all vitest suites run
+    // in). `DATABASE_URL` is kept as a deprecated alias for backwards
+    // compatibility but `DATABASE_PATH` takes precedence.
     // ------------------------------------------------------------------
-    DATABASE_URL: z.string().url().optional(),
+    DATABASE_PATH: z.string().min(1).optional(),
+    DATABASE_URL: z.string().optional(),
+    DB_FILE_NAME: z.string().min(1).optional(),
   },
   runtimeEnv: process.env,
   // Treat `VAR=` (empty string) as unset so Zod defaults/optionals apply

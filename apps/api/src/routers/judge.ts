@@ -18,9 +18,11 @@ import {
   RunJudgePanelInputSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
+import { eq, desc } from "drizzle-orm";
 import { publicProcedure, router } from "../trpc/trpc.js";
 import { runJudgePanel } from "../modules/judge/service.js";
-import { judgePanelsByProject } from "../store/project-store.js";
+import { getDb } from "../db/client.js";
+import { judgePanels } from "../db/schema.js";
 
 export const judgeRouter = router({
   /**
@@ -58,6 +60,9 @@ export const judgeRouter = router({
     .input(GetJudgePanelInputSchema)
     .output(JudgePanelResultSchema.nullable())
     .query(({ input }) => {
-      return judgePanelsByProject.get(input.projectId) ?? null;
+      const db = getDb();
+      const row = db.select().from(judgePanels).where(eq(judgePanels.projectId, input.projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+      if (!row) return null;
+      return JSON.parse(row.data as string) as import("@specloop/schemas").JudgePanelResult;
     }),
 });

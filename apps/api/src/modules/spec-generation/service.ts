@@ -17,6 +17,15 @@
 import {
   ResearchSpecSchema,
   SPEC_SECTION_ORDER,
+  InterpretationRecordSchema,
+  SpecGraphViewSchema,
+  SourceDocumentSchema,
+  GapProposalOutputSchema,
+  AtomicClaimSchema,
+  EvidenceRequirementSchema,
+  ExperimentPlanSchema,
+  JudgePanelResultSchema,
+  FindingResolutionSchema,
   type AtomicClaim,
   type Contribution,
   type EvidenceRequirement,
@@ -31,21 +40,24 @@ import {
   type SpecNode,
   type SpecSection,
 } from "@specloop/schemas";
+import { eq, desc, asc, sql } from "drizzle-orm";
 import { MarkdownDocument, md } from "build-md";
 import { interpretationRepository } from "../interpretation/index.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
 import {
-  atomicClaimsByProject,
-  contributionsByProject,
-  evidenceRequirementsByProject,
-  experimentPlansByProject,
-  findingResolutionsByProject,
-  gapProposalsByProject,
-  interpretationDecisionsByProject,
-  parseOrThrow,
-  researchSpecsByProject,
-  sourcesByProject,
-  specGraphsByProject,
-} from "../../store/project-store.js";
+  atomicClaims,
+  contributions,
+  evidenceRequirements,
+  experimentPlans,
+  findingResolutions,
+  gapProposals,
+  interpretationDecisions,
+  judgePanels,
+  researchSpecs,
+  sources,
+  specGraphs,
+} from "../../db/schema.js";
 
 const PLACEHOLDER_PREFIX = "(chưa có dữ liệu)";
 
@@ -465,31 +477,44 @@ export async function generateResearchSpec(params: {
     params.getConfirmedInterpretation ??
     ((id: string) => interpretationRepository.getConfirmedByProject(id));
 
-  const graph = specGraphsByProject.get(projectId);
-  if (!graph) {
+  const db = getDb();
+  const graphRow = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  if (!graphRow) {
     throw new Error(
       "Generate a decomposition graph before assembling the research spec " +
         "(decomposition.generate).",
     );
   }
+  const graph = parseOrThrow(SpecGraphViewSchema, JSON.parse(graphRow.data as string), "SpecGraphView");
 
   const [interpretation] = await Promise.all([getConfirmedInterpretation(projectId)]);
+
+  // Parallel direct selects for each table
+  const sourcesRows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
+  const gapRow = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).limit(1).get();
+  const contribRows = db.select().from(contributions).where(eq(contributions.projectId, projectId)).all();
+  const claimRows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all();
+  const reqRows = db.select().from(evidenceRequirements).where(eq(evidenceRequirements.projectId, projectId)).all();
+  const planRows = db.select().from(experimentPlans).where(eq(experimentPlans.projectId, projectId)).all();
+  const decisionRows = db.select().from(interpretationDecisions).where(eq(interpretationDecisions.projectId, projectId)).all();
+  const findingRows = db.select().from(findingResolutions).where(eq(findingResolutions.projectId, projectId)).all();
+  const researchSpecRows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).all();
 
   const sections = assembleSections({
     interpretation,
     graphNodes: graph.nodes,
-    sources: sourcesByProject.get(projectId) ?? [],
-    gapProposal: gapProposalsByProject.get(projectId) ?? null,
-    contributions: contributionsByProject.get(projectId) ?? [],
-    claims: atomicClaimsByProject.get(projectId) ?? [],
-    requirements: evidenceRequirementsByProject.get(projectId) ?? [],
-    plans: experimentPlansByProject.get(projectId) ?? [],
-    decisions: interpretationDecisionsByProject.get(projectId) ?? [],
+    sources: sourcesRows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument")),
+    gapProposal: gapRow ? parseOrThrow(GapProposalOutputSchema, JSON.parse(gapRow.data as string), "GapProposalOutput") : null,
+    contributions: contribRows.map((r) => JSON.parse(r.data as string) as Contribution),
+    claims: claimRows.map((r) => parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim")),
+    requirements: reqRows.map((r) => parseOrThrow(EvidenceRequirementSchema, JSON.parse(r.data as string), "EvidenceRequirement")),
+    plans: planRows.map((r) => parseOrThrow(ExperimentPlanSchema, JSON.parse(r.data as string), "ExperimentPlan")),
+    decisions: decisionRows.map((r) => JSON.parse(r.data as string) as InterpretationDecision),
     statusHistory: graph.statusHistory,
-    findingResolutions: findingResolutionsByProject.get(projectId) ?? [],
+    findingResolutions: findingRows.map((r) => JSON.parse(r.data as string) as FindingResolution),
   });
 
-  const existing = researchSpecsByProject.get(projectId) ?? [];
+  const existing = researchSpecRows.map((r) => parseOrThrow(ResearchSpecSchema, JSON.parse(r.data as string), "ResearchSpec"));
   const spec: ResearchSpec = parseOrThrow(
     ResearchSpecSchema,
     {
@@ -504,17 +529,35 @@ export async function generateResearchSpec(params: {
     "ResearchSpec",
   );
 
-  researchSpecsByProject.set(projectId, [...existing, spec]);
+  // Need judgePanelId FK — pick latest judge panel if exists
+  const latestPanel = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+  const judgePanelId = latestPanel?.id ?? null;
+
+  db.insert(researchSpecs)
+    .values({
+      id: spec.id,
+      projectId,
+      judgePanelId,
+      version: String(spec.version),
+      data: JSON.stringify(spec),
+      createdAt: spec.createdAt,
+    })
+    .run();
   return spec;
 }
 
 /** Latest version for a project, or null if none has been generated yet. */
 export function getLatestResearchSpec(projectId: string): ResearchSpec | null {
-  const versions = researchSpecsByProject.get(projectId) ?? [];
-  return versions.at(-1) ?? null;
+  const db = getDb();
+  const rows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).orderBy(desc(researchSpecs.createdAt)).all();
+  if (rows.length === 0) return null;
+  const latest = rows[0]!;
+  return parseOrThrow(ResearchSpecSchema, JSON.parse(latest.data as string), "ResearchSpec");
 }
 
 /** All versions for a project, oldest first — used by the Bước 10 version/diff view. */
 export function listResearchSpecVersions(projectId: string): ResearchSpec[] {
-  return researchSpecsByProject.get(projectId) ?? [];
+  const db = getDb();
+  const rows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).orderBy(asc(researchSpecs.createdAt)).all();
+  return rows.map((r) => parseOrThrow(ResearchSpecSchema, JSON.parse(r.data as string), "ResearchSpec"));
 }

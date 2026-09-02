@@ -1,15 +1,10 @@
 /**
- * Projects router (skeleton).
+ * Projects router — now one table per entity with FKs.
  *
- * The full project lifecycle is delivered through US-01…US-06 in the backlog.
- * This router exposes the minimum typed surface so the web app can prove
- * end-to-end type safety against the backend today:
- *
- *   - `projects.list`  → paginated list of project summaries
- *   - `projects.create`→ create a new project from a raw idea
- *
- * Persistence is intentionally in-memory in P0; the PostgreSQL repository is
- * introduced when the project module is implemented.
+ * Each project is stored in the dedicated `projects` table. All access is via
+ * Drizzle ORM directly, no generic store. Other tables FK to `projects.id`
+ * so each workflow step is linked to its project and, via additional FKs,
+ * to the previous step's result.
  */
 
 import {
@@ -20,8 +15,10 @@ import {
   UuidSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
+import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
-import { PersistedMap } from "../db/persisted-map.js";
+import { getDb } from "../db/client.js";
+import { projects } from "../db/schema.js";
 import { protectedProcedure, publicProcedure, router } from "../trpc/trpc.js";
 
 export interface ProjectRecord {
@@ -34,11 +31,53 @@ export interface ProjectRecord {
   updatedAt: string;
 }
 
-const projects = new PersistedMap<ProjectRecord>({ storeKey: "projectsById" });
+function rowToRecord(row: typeof projects.$inferSelect): ProjectRecord {
+  return {
+    id: row.id,
+    title: row.title,
+    domain: row.domain,
+    rawIdea: row.rawIdea,
+    resourceConstraints: JSON.parse(row.resourceConstraints as string) as string[],
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
 
-/** For `db/hydrate.ts` — hydrates the same way every other store does. */
+function getProjectRow(id: string): ProjectRecord | undefined {
+  const db = getDb();
+  const row = db.select().from(projects).where(eq(projects.id, id)).get();
+  if (!row) return undefined;
+  return rowToRecord(row);
+}
+
+function setProjectRow(record: ProjectRecord): void {
+  const db = getDb();
+  db.insert(projects)
+    .values({
+      id: record.id,
+      title: record.title,
+      domain: record.domain,
+      rawIdea: record.rawIdea,
+      resourceConstraints: JSON.stringify(record.resourceConstraints),
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: [projects.id],
+      set: {
+        title: record.title,
+        domain: record.domain,
+        rawIdea: record.rawIdea,
+        resourceConstraints: JSON.stringify(record.resourceConstraints),
+        updatedAt: record.updatedAt,
+      },
+    })
+    .run();
+}
+
+/** For `db/hydrate.ts` — no-op now that Drizzle `migrate` handles table creation. */
 export async function hydrateProjectsStore(): Promise<void> {
-  await projects.hydrate();
+  // Intentionally empty — `getDb()` in `bootstrapPersistence` already ran `migrate`.
 }
 
 /**
@@ -48,7 +87,7 @@ export async function hydrateProjectsStore(): Promise<void> {
  * their own not-found handling.
  */
 export function getProjectById(id: string): ProjectRecord | undefined {
-  return projects.get(id);
+  return getProjectRow(id);
 }
 
 function toSummary(record: ProjectRecord) {
@@ -61,22 +100,22 @@ function toSummary(record: ProjectRecord) {
   });
 }
 
+function listAllProjects(): ProjectRecord[] {
+  const db = getDb();
+  const rows = db.select().from(projects).orderBy(desc(projects.createdAt)).all();
+  return rows.map(rowToRecord);
+}
+
 export const projectsRouter = router({
   list: publicProcedure
     .input(ListProjectsInputSchema)
     .output(ListProjectsOutputSchema)
     .query(({ input }) => {
-      const all = Array.from(projects.values()).sort((a, b) =>
-        b.createdAt.localeCompare(a.createdAt),
-      );
-      const startIndex = input.cursor
-        ? all.findIndex((p) => p.id === input.cursor) + 1
-        : 0;
+      const all = listAllProjects();
+      const startIndex = input.cursor ? all.findIndex((p) => p.id === input.cursor) + 1 : 0;
       const page = all.slice(startIndex, startIndex + input.limit);
       const nextCursor =
-        startIndex + input.limit < all.length
-          ? (page[page.length - 1]?.id ?? null)
-          : null;
+        startIndex + input.limit < all.length ? (page[page.length - 1]?.id ?? null) : null;
       return {
         items: page.map(toSummary),
         nextCursor,
@@ -99,7 +138,7 @@ export const projectsRouter = router({
         createdAt: now,
         updatedAt: now,
       };
-      projects.set(id, record);
+      setProjectRow(record);
       return toSummary(record);
     }),
 
@@ -107,7 +146,7 @@ export const projectsRouter = router({
     .input(z.object({ id: UuidSchema }))
     .output(ProjectSummarySchema.nullable())
     .query(({ input }) => {
-      const record = projects.get(input.id);
+      const record = getProjectRow(input.id);
       if (!record) {
         throw new TRPCError({
           code: "NOT_FOUND",

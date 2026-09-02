@@ -33,13 +33,15 @@ import {
   type ResearchSpec,
   type SpecSectionDiff,
 } from "@specloop/schemas";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { computeConsensus, runJudge } from "../judge/service.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
 import {
-  findingResolutionsByProject,
-  judgePanelsByProject,
-  parseOrThrow,
-  researchSpecsByProject,
-} from "../../store/project-store.js";
+  findingResolutions,
+  judgePanels,
+  researchSpecs,
+} from "../../db/schema.js";
 
 export class RevisionError extends Error {
   constructor(message: string) {
@@ -48,11 +50,30 @@ export class RevisionError extends Error {
   }
 }
 
+function fetchJudgePanel(projectId: string): JudgePanelResult | null {
+  const db = getDb();
+  const row = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+  if (!row) return null;
+  return parseOrThrow(JudgePanelResultSchema, JSON.parse(row.data as string), "JudgePanelResult");
+}
+
+function fetchResearchSpecs(projectId: string): ResearchSpec[] {
+  const db = getDb();
+  const rows = db.select().from(researchSpecs).where(eq(researchSpecs.projectId, projectId)).orderBy(asc(researchSpecs.createdAt)).all();
+  return rows.map((r) => parseOrThrow(ResearchSpecSchema, JSON.parse(r.data as string), "ResearchSpec"));
+}
+
+function fetchFindingResolutions(projectId: string): FindingResolution[] {
+  const db = getDb();
+  const rows = db.select().from(findingResolutions).where(eq(findingResolutions.projectId, projectId)).orderBy(asc(findingResolutions.createdAt)).all();
+  return rows.map((r) => parseOrThrow(FindingResolutionSchema, JSON.parse(r.data as string), "FindingResolution"));
+}
+
 function findFindingInLatestPanel(
   projectId: string,
   findingId: string,
 ): { panel: JudgePanelResult; finding: Finding } {
-  const panel = judgePanelsByProject.get(projectId);
+  const panel = fetchJudgePanel(projectId);
   if (!panel) {
     throw new RevisionError(
       "No Judge panel has been run yet for this project (judge.runPanel).",
@@ -96,13 +117,23 @@ export function recordFindingResolution(input: {
     "FindingResolution",
   );
 
-  const existing = findingResolutionsByProject.get(input.projectId) ?? [];
-  findingResolutionsByProject.set(input.projectId, [...existing, record]);
+  const db = getDb();
+  // Fetch panel id for FK
+  const panel = fetchJudgePanel(input.projectId)!;
+  db.insert(findingResolutions)
+    .values({
+      id: record.id,
+      projectId: input.projectId,
+      judgePanelId: panel.id,
+      data: JSON.stringify(record),
+      createdAt: record.createdAt,
+    })
+    .run();
   return record;
 }
 
 export function listFindingResolutions(projectId: string): FindingResolution[] {
-  return findingResolutionsByProject.get(projectId) ?? [];
+  return fetchFindingResolutions(projectId);
 }
 
 /**
@@ -118,7 +149,7 @@ export async function rerunJudge(params: {
   model: string;
 }): Promise<JudgePanelResult> {
   const { projectId, judge, client, model } = params;
-  const existingPanel = judgePanelsByProject.get(projectId);
+  const existingPanel = fetchJudgePanel(projectId);
   if (!existingPanel) {
     throw new RevisionError(
       "No Judge panel has been run yet for this project (judge.runPanel).",
@@ -143,7 +174,20 @@ export async function rerunJudge(params: {
     "JudgePanelResult",
   );
 
-  judgePanelsByProject.set(projectId, updatedPanel);
+  const db = getDb();
+  // Keep FK to latest experiment plan
+  // Find latest experiment plan id via judge panel's experimentPlanId or via direct lookup
+  const latestPanelRow = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+  const experimentPlanId = (latestPanelRow as any)?.experimentPlanId ?? null;
+  db.insert(judgePanels)
+    .values({
+      id: updatedPanel.id,
+      projectId,
+      experimentPlanId,
+      data: JSON.stringify(updatedPanel),
+      createdAt: updatedPanel.createdAt,
+    })
+    .run();
   return updatedPanel;
 }
 
@@ -178,7 +222,7 @@ export function diffResearchSpecVersions(params: {
   toVersion: number;
 }): DiffResearchSpecVersionsOutput {
   const { projectId, fromVersion, toVersion } = params;
-  const versions = researchSpecsByProject.get(projectId) ?? [];
+  const versions = fetchResearchSpecs(projectId);
   const fromSpec = versions.find((v) => v.version === fromVersion);
   const toSpec = versions.find((v) => v.version === toVersion);
 
@@ -203,18 +247,21 @@ export function finalizeResearchSpec(params: {
   version: number;
 }): ResearchSpec {
   const { projectId, version } = params;
-  const versions = researchSpecsByProject.get(projectId) ?? [];
+  const versions = fetchResearchSpecs(projectId);
   const index = versions.findIndex((v) => v.version === version);
   if (index === -1) {
     throw new RevisionError(`Research spec version ${version} not found.`);
   }
 
-  const panel = judgePanelsByProject.get(projectId);
-  if (!panel) {
+  // Use JOIN to check overallSeverity without separate lookups: SELECT judge_panels.data FROM judge_panels WHERE project_id = ?
+  const db = getDb();
+  const panelRow = db.select().from(judgePanels).where(eq(judgePanels.projectId, projectId)).orderBy(desc(judgePanels.createdAt)).limit(1).get();
+  if (!panelRow) {
     throw new RevisionError(
       "Run the Judge panel before finalizing a research spec (judge.runPanel).",
     );
   }
+  const panel = parseOrThrow(JudgePanelResultSchema, JSON.parse(panelRow.data as string), "JudgePanelResult");
   if (panel.consensus.severityCounts.CRITICAL > 0) {
     throw new RevisionError(
       "Cannot finalize: the latest Judge panel still has unresolved CRITICAL findings.",
@@ -231,8 +278,13 @@ export function finalizeResearchSpec(params: {
     "ResearchSpec",
   );
 
-  const updatedVersions = [...versions];
-  updatedVersions[index] = finalized;
-  researchSpecsByProject.set(projectId, updatedVersions);
+  // Update DB row
+  db.update(researchSpecs)
+    .set({
+      data: JSON.stringify(finalized),
+    })
+    .where(and(eq(researchSpecs.projectId, projectId), eq(researchSpecs.id, finalized.id)))
+    .run();
+
   return finalized;
 }

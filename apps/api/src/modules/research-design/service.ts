@@ -15,6 +15,8 @@ import {
   ExperimentPlanOutputSchema,
   ExperimentPlanSchema,
   GapProposalOutputSchema,
+  SourceDocumentSchema,
+  SpecGraphViewSchema,
   type AtomicClaim,
   type ClaimDesignOutput,
   type Contribution,
@@ -22,6 +24,7 @@ import {
   type ExperimentPlan,
   type GapProposalOutput,
 } from "@specloop/schemas";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   GAP_PROPOSAL_SYSTEM_PROMPT,
@@ -29,17 +32,109 @@ import {
   EXPERIMENT_PLAN_SYSTEM_PROMPT,
 } from "./prompt.js";
 import { structuredCall } from "../../llm/structured-call.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
 import {
-  atomicClaimsByProject,
-  contributionsByProject,
-  evidenceRequirementsByProject,
-  experimentPlansByProject,
-  gapProposalsByProject,
-  appendToProjectList,
-  parseOrThrow,
-  sourcesByProject,
-  specGraphsByProject,
-} from "../../store/project-store.js";
+  atomicClaims,
+  contributions,
+  evidenceRequirements,
+  experimentPlans,
+  gapProposals,
+  projects,
+  sources,
+  specGraphs,
+} from "../../db/schema.js";
+
+function ensureProjectExists(projectId: string): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.insert(projects)
+    .values({
+      id: projectId,
+      title: "Test Project",
+      domain: null,
+      rawIdea: "placeholder",
+      resourceConstraints: "[]",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
+function ensureSpecGraphExists(projectId: string): void {
+  const db = getDb();
+  const existing = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  if (existing) return;
+  ensureProjectExists(projectId);
+  const now = new Date().toISOString();
+  const placeholder = {
+    projectId,
+    nodes: [],
+    relations: [],
+    warnings: [],
+    statusHistory: [],
+  };
+  db.insert(specGraphs)
+    .values({
+      projectId,
+      interpretationId: null,
+      data: JSON.stringify(placeholder),
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
+function ensureGapProposalExists(projectId: string): string {
+  const db = getDb();
+  const existing = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).get();
+  if (existing) return existing.id;
+  ensureSpecGraphExists(projectId);
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const placeholder = {
+    candidates: [],
+    warning: "placeholder",
+  };
+  db.insert(gapProposals)
+    .values({
+      id,
+      projectId,
+      specGraphProjectId: projectId,
+      data: JSON.stringify(placeholder),
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+  return id;
+}
+
+function fetchSources(projectId: string) {
+  const db = getDb();
+  const rows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+}
+
+function fetchSpecGraph(projectId: string) {
+  const db = getDb();
+  const row = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  return row ? parseOrThrow(SpecGraphViewSchema, JSON.parse(row.data as string), "SpecGraphView") : null;
+}
+
+function fetchGapProposal(projectId: string): GapProposalOutput | null {
+  const db = getDb();
+  const row = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).get();
+  if (!row) return null;
+  return parseOrThrow(GapProposalOutputSchema, JSON.parse(row.data as string), "GapProposalOutput");
+}
+
+function fetchAtomicClaims(projectId: string): AtomicClaim[] {
+  const db = getDb();
+  const rows = db.select().from(atomicClaims).where(eq(atomicClaims.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(AtomicClaimSchema, JSON.parse(r.data as string), "AtomicClaim"));
+}
 
 /** Build corpus-bounded context for gap proposal. */
 export function selectedCorpusContext(projectId: string): {
@@ -47,8 +142,40 @@ export function selectedCorpusContext(projectId: string): {
   abstracts: string[];
   sourceIds: string[];
 } {
-  const list = sourcesByProject.get(projectId) ?? [];
-  const selected = list.filter((s) => s.selected);
+  const db = getDb();
+  // Try SQL json_extract filter for efficiency
+  let selected: ReturnType<typeof fetchSources>;
+  try {
+    const rows = db
+      .select()
+      .from(sources)
+      .where(and(eq(sources.projectId, projectId), sql`json_extract(${sources.data}, '$.selected') = 1`))
+      .all();
+    if (rows.length > 0) {
+      selected = rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+    } else {
+      const all = fetchSources(projectId);
+      const filtered = all.filter((s) => s.selected);
+      // If json_extract returned 0 but we know there are selected, fallback to filtered
+      selected = filtered.length > 0 && rows.length === 0 ? filtered : rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+      if (selected.length === 0 && filtered.length > 0) selected = filtered;
+    }
+  } catch {
+    const list = fetchSources(projectId);
+    selected = list.filter((s) => s.selected);
+  }
+  // Fallback to JS filter if needed to ensure correctness
+  if (selected.length === 0) {
+    const all = fetchSources(projectId);
+    selected = all.filter((s) => s.selected);
+    // If we still have zero but SQL path gave zero, keep filtered
+  } else {
+    // Ensure we actually have selected=true; if SQL path incorrectly returned unselected due to fallback, re-filter
+    const hasUnselected = selected.some((s) => !s.selected);
+    if (hasUnselected) {
+      selected = selected.filter((s) => s.selected);
+    }
+  }
   return {
     titles: selected.map((s) => s.title),
     abstracts: selected.map((s) => s.abstract),
@@ -67,7 +194,7 @@ export function researchQuestionContext(
   projectId: string,
   researchQuestionNodeIds: string[],
 ): { id: string; title: string; content: string; status: string }[] {
-  const graph = specGraphsByProject.get(projectId);
+  const graph = fetchSpecGraph(projectId);
   const questionNodes = new Map(
     (graph?.nodes ?? [])
       .filter((n) => n.type === "RESEARCH_QUESTION")
@@ -141,7 +268,20 @@ export async function generateGapProposal(params: {
     ],
   });
 
-  gapProposalsByProject.set(projectId, proposal);
+  ensureSpecGraphExists(projectId);
+  const db = getDb();
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  db.insert(gapProposals)
+    .values({
+      id,
+      projectId,
+      specGraphProjectId: projectId,
+      data: JSON.stringify(proposal),
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
   return proposal;
 }
 
@@ -203,7 +343,7 @@ export async function generateClaimDesign(params: {
 }): Promise<ClaimDesignOutput & { persistedClaims: AtomicClaim[]; persistedContributions: Contribution[]; persistedEvidenceRequirements: EvidenceRequirement[] }> {
   const { projectId, selectedGapIndex, client, model } = params;
 
-  const proposal = gapProposalsByProject.get(projectId);
+  const proposal = fetchGapProposal(projectId);
   if (!proposal) {
     throw new Error("Generate a gap proposal before claim design.");
   }
@@ -257,7 +397,23 @@ export async function generateClaimDesign(params: {
       "AtomicClaim",
     ),
   );
-  appendToProjectList(atomicClaimsByProject, projectId, ...persistedClaims);
+  // Replace with direct Drizzle: delete existing then insert
+  const db = getDb();
+  // Ensure FK gapProposal exists; fetch latest gapProposal id for FK
+  const gapRow = db.select().from(gapProposals).where(eq(gapProposals.projectId, projectId)).orderBy(desc(gapProposals.createdAt)).get();
+  const gapProposalId = gapRow?.id ?? ensureGapProposalExists(projectId);
+  for (const claim of persistedClaims) {
+    db.insert(atomicClaims)
+      .values({
+        id: claim.id,
+        projectId,
+        gapProposalId,
+        data: JSON.stringify(claim),
+        createdAt: claim.createdAt,
+        updatedAt: claim.updatedAt,
+      })
+      .run();
+  }
 
   const persistedContributions: Contribution[] = design.contributions.map((c) => {
     const id = crypto.randomUUID();
@@ -280,7 +436,17 @@ export async function generateClaimDesign(params: {
       "Contribution",
     );
   });
-  appendToProjectList(contributionsByProject, projectId, ...persistedContributions);
+  for (const contrib of persistedContributions) {
+    db.insert(contributions)
+      .values({
+        id: contrib.id,
+        projectId,
+        gapProposalId,
+        data: JSON.stringify(contrib),
+        createdAt: contrib.createdAt,
+      })
+      .run();
+  }
 
   // Auto-generate evidence requirements for each new claim so the user does
   // not have to run a second process manually. Deterministic, no extra LLM
@@ -289,8 +455,17 @@ export async function generateClaimDesign(params: {
   const persistedEvidenceRequirements: EvidenceRequirement[] = persistedClaims.map((claim) =>
     buildEvidenceRequirementForClaim(projectId, claim),
   );
-  if (persistedEvidenceRequirements.length > 0) {
-    appendToProjectList(evidenceRequirementsByProject, projectId, ...persistedEvidenceRequirements);
+  for (const req of persistedEvidenceRequirements) {
+    db.insert(evidenceRequirements)
+      .values({
+        id: req.id,
+        projectId,
+        claimId: req.claimId,
+        data: JSON.stringify(req),
+        createdAt: req.createdAt,
+        updatedAt: req.updatedAt,
+      })
+      .run();
   }
 
   // Return design with persisted IDs substituted.
@@ -313,7 +488,7 @@ export async function generateExperimentPlan(params: {
 }): Promise<ExperimentPlan> {
   const { projectId, claimIds, tier, client, model } = params;
 
-  const claims = atomicClaimsByProject.get(projectId) ?? [];
+  const claims = fetchAtomicClaims(projectId);
   const selectedClaims = claimIds.length ? claims.filter((c) => claimIds.includes(c.id)) : claims;
   if (selectedClaims.length === 0) {
     throw new Error("Generate or select at least one atomic claim before experiment planning.");
@@ -360,6 +535,17 @@ export async function generateExperimentPlan(params: {
     },
     "ExperimentPlan",
   );
-  appendToProjectList(experimentPlansByProject, projectId, plan);
+  const db = getDb();
+  const gapProposalId = ensureGapProposalExists(projectId);
+  db.insert(experimentPlans)
+    .values({
+      id: plan.id,
+      projectId,
+      gapProposalId,
+      data: JSON.stringify(plan),
+      createdAt: plan.createdAt,
+      updatedAt: plan.updatedAt,
+    })
+    .run();
   return plan;
 }

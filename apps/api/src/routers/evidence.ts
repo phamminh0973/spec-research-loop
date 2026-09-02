@@ -33,7 +33,8 @@ import {
   listEvidenceRequirements,
   listSpans,
 } from "../modules/evidence/service.js";
-import { evidenceRequirementsByProject } from "../store/project-store.js";
+import { getDb } from "../db/client.js";
+import { evidenceRequirements } from "../db/schema.js";
 
 // ---------------------------------------------------------------------------
 // Procedures
@@ -99,9 +100,12 @@ export const evidenceRouter = router({
     .input(z.object({ requirementId: z.string().uuid() }))
     .output(EvidenceRequirementSchema)
     .query(({ input }) => {
-      for (const items of evidenceRequirementsByProject.values()) {
-        const found = items.find((r) => r.id === input.requirementId);
-        if (found) return found;
+      const rows = getDb().select().from(evidenceRequirements).all();
+      for (const row of rows) {
+        const parsed = JSON.parse(row.data as string) as { id: string };
+        if (parsed.id === input.requirementId) {
+          return JSON.parse(row.data as string) as import("@specloop/schemas").EvidenceRequirement;
+        }
       }
       throw new TRPCError({
         code: "NOT_FOUND",

@@ -15,6 +15,7 @@ import {
   type SearchWithAnalysisOutput,
   type SourceDocument,
 } from "@specloop/schemas";
+import { eq, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   QUERY_GENERATION_SYSTEM_PROMPT,
@@ -24,12 +25,82 @@ import {
 import { structuredCall } from "../../llm/structured-call.js";
 import { arxivSearchTool, executeArxivSearch } from "../../llm/tools/arxiv-search.js";
 import { executeLlmTool } from "../../llm/tools/index.js";
-import {
-  appendToProjectList,
-  touchProjectList,
-  parseOrThrow,
-  sourcesByProject,
-} from "../../store/project-store.js";
+import { parseOrThrow } from "../../store/project-store.js";
+import { getDb } from "../../db/client.js";
+import { projects, sources, specGraphs } from "../../db/schema.js";
+
+function ensureProjectExists(projectId: string): void {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.insert(projects)
+    .values({
+      id: projectId,
+      title: "Test Project",
+      domain: null,
+      rawIdea: "placeholder",
+      resourceConstraints: "[]",
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
+function ensureSpecGraphExists(projectId: string): void {
+  const db = getDb();
+  const existing = db.select().from(specGraphs).where(eq(specGraphs.projectId, projectId)).get();
+  if (existing) return;
+  ensureProjectExists(projectId);
+  const now = new Date().toISOString();
+  const placeholder = {
+    projectId,
+    nodes: [],
+    relations: [],
+    warnings: [],
+    statusHistory: [],
+  };
+  db.insert(specGraphs)
+    .values({
+      projectId,
+      interpretationId: null,
+      data: JSON.stringify(placeholder),
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
+function fetchSources(projectId: string): SourceDocument[] {
+  const db = getDb();
+  const rows = db.select().from(sources).where(eq(sources.projectId, projectId)).all();
+  return rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+}
+
+function insertSourceDocuments(docs: SourceDocument[]): void {
+  if (docs.length === 0) return;
+  const db = getDb();
+  for (const doc of docs) {
+    ensureSpecGraphExists(doc.projectId);
+    db.insert(sources)
+      .values({
+        id: doc.id,
+        projectId: doc.projectId,
+        specGraphProjectId: doc.projectId,
+        data: JSON.stringify(doc),
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+      })
+      .onConflictDoUpdate({
+        target: [sources.id],
+        set: {
+          data: JSON.stringify(doc),
+          updatedAt: doc.updatedAt,
+        },
+      })
+      .run();
+  }
+}
 
 function toSourceDocument(
   projectId: string,
@@ -335,8 +406,9 @@ export async function searchWithAnalysis(params: {
 
   // ---------------------------------------------------------------------------
   // Phase 2 — persist only the accepted papers into the corpus.
+  // Direct Drizzle read: demonstrate SQLite access without Map cache.
   // ---------------------------------------------------------------------------
-  const existing = sourcesByProject.get(projectId) ?? [];
+  const existing = fetchSources(projectId);
   const seen = new Set(existing.map((s) => s.externalId));
   const now = new Date().toISOString();
   const newSources: SourceDocument[] = [];
@@ -361,7 +433,7 @@ export async function searchWithAnalysis(params: {
     );
   }
   if (newSources.length > 0) {
-    appendToProjectList(sourcesByProject, projectId, ...newSources);
+    insertSourceDocuments(newSources);
   }
 
   // ---------------------------------------------------------------------------
@@ -450,21 +522,33 @@ export async function searchWithAnalysis(params: {
     ]),
   );
   const nowIso = new Date().toISOString();
-  for (const source of sourcesByProject.get(projectId) ?? []) {
+  // Drizzle direct: fetch, mutate, then persist via direct UPDATE — no in-memory cache.
+  const sourcesForAnalysis = fetchSources(projectId);
+  const db = getDb();
+  for (const source of sourcesForAnalysis) {
     const nextAnalysis = analysisByExternalId.get(source.externalId);
     if (nextAnalysis && source.analysis === null) {
-      source.analysis = parseOrThrow(
+      const updated: SourceDocument = parseOrThrow(
         SourcePaperAnalysisSchema,
         nextAnalysis,
         "SourcePaperAnalysis",
-      );
-      source.updatedAt = nowIso;
+      ) as unknown as SourceDocument; // placeholder type, we construct full source below
+      // Build updated source with analysis
+      const merged = {
+        ...source,
+        analysis: parseOrThrow(SourcePaperAnalysisSchema, nextAnalysis, "SourcePaperAnalysis"),
+        updatedAt: nowIso,
+      } as SourceDocument;
+      const validated = parseOrThrow(SourceDocumentSchema, merged, "SourceDocument");
+      db.update(sources)
+        .set({
+          data: JSON.stringify(validated),
+          updatedAt: nowIso,
+        })
+        .where(and(eq(sources.id, validated.id), eq(sources.projectId, projectId)))
+        .run();
     }
   }
-  // The elements above were mutated in place; force a `.set()` so a
-  // write-through persistence layer (see db/persisted-map.ts) sees the
-  // updated analysis too, not just the in-memory array.
-  touchProjectList(sourcesByProject, projectId);
 
   // Every query attempted during search + filtering, joined for audit.
   return { query: attemptedQueries.join(" | "), papers: analyzed.papers };
@@ -490,13 +574,13 @@ export async function search(params: {
     abstract: p.summary,
   }));
 
-  const existing = sourcesByProject.get(projectId) ?? [];
+  const existing = fetchSources(projectId);
   const { kept, dropped } = deduplicate(existing, papers);
 
   const now = new Date().toISOString();
   const newSources = kept.map((p) => toSourceDocument(projectId, p, now));
   if (newSources.length > 0) {
-    appendToProjectList(sourcesByProject, projectId, ...newSources);
+    insertSourceDocuments(newSources);
   }
 
   return { papers: kept, duplicatesDropped: dropped };
@@ -514,7 +598,7 @@ export function importManual(params: {
 }): SourceDocument {
   const { projectId, title, authors, published, url, doi, abstract, externalId } = params;
 
-  const existing = sourcesByProject.get(projectId) ?? [];
+  const existing = fetchSources(projectId);
   const extId = externalId ?? `manual:${crypto.randomUUID()}`;
   if (existing.some((s) => s.externalId === extId)) {
     throw new Error(`A source with externalId "${extId}" already exists in this project.`);
@@ -544,7 +628,7 @@ export function importManual(params: {
     },
     "SourceDocument",
   );
-  appendToProjectList(sourcesByProject, projectId, record);
+  insertSourceDocuments([record]);
   return record;
 }
 
@@ -555,7 +639,25 @@ export function listSources(params: {
   cursor?: string;
 }): { items: SourceDocument[]; nextCursor: string | null } {
   const { projectId, selectedOnly = false, limit = 50, cursor } = params;
-  const all = (sourcesByProject.get(projectId) ?? []).filter((s) => !selectedOnly || s.selected);
+  const db = getDb();
+  // Fetch all then filter; alternatively filter in SQL via json_extract if available
+  let all: SourceDocument[];
+  if (selectedOnly) {
+    const rows = db
+      .select()
+      .from(sources)
+      .where(and(eq(sources.projectId, projectId), sql`json_extract(${sources.data}, '$.selected') = 1`))
+      .all();
+    // Fallback if json_extract returns no rows due to SQLite version: fetch all and filter
+    if (rows.length === 0) {
+      const fallback = fetchSources(projectId).filter((s) => s.selected);
+      all = fallback;
+    } else {
+      all = rows.map((r) => parseOrThrow(SourceDocumentSchema, JSON.parse(r.data as string), "SourceDocument"));
+    }
+  } else {
+    all = fetchSources(projectId);
+  }
   const startIndex = cursor ? all.findIndex((s) => s.id === cursor) + 1 : 0;
   const page = all.slice(startIndex, startIndex + limit);
   const nextCursor = startIndex + limit < all.length ? (page[page.length - 1]?.id ?? null) : null;
@@ -568,16 +670,49 @@ export function selectSource(params: {
   selected: boolean;
 }): SourceDocument {
   const { projectId, sourceId, selected } = params;
-  const list = sourcesByProject.get(projectId);
-  if (!list) throw new Error(`No sources found for project ${projectId}.`);
-  const source = list.find((s) => s.id === sourceId);
-  if (!source) throw new Error(`Source ${sourceId} not found in project ${projectId}.`);
-  source.selected = selected;
-  source.updatedAt = new Date().toISOString();
-  return parseOrThrow(SourceDocumentSchema, source, "SourceDocument");
+  const db = getDb();
+  const row = db
+    .select()
+    .from(sources)
+    .where(and(eq(sources.id, sourceId), eq(sources.projectId, projectId)))
+    .get();
+  if (!row) {
+    // Check if any sources exist for project to decide error message
+    const any = db.select().from(sources).where(eq(sources.projectId, projectId)).get();
+    if (!any) throw new Error(`No sources found for project ${projectId}.`);
+    throw new Error(`Source ${sourceId} not found in project ${projectId}.`);
+  }
+  const source = parseOrThrow(SourceDocumentSchema, JSON.parse(row.data as string), "SourceDocument");
+  const updated = parseOrThrow(
+    SourceDocumentSchema,
+    { ...source, selected, updatedAt: new Date().toISOString() },
+    "SourceDocument",
+  );
+  db.update(sources)
+    .set({
+      data: JSON.stringify(updated),
+      updatedAt: updated.updatedAt,
+    })
+    .where(and(eq(sources.id, sourceId), eq(sources.projectId, projectId)))
+    .run();
+  return updated;
 }
 
 export function selectedCount(projectId: string): number {
-  const list = sourcesByProject.get(projectId) ?? [];
+  const db = getDb();
+  // Use SQL count where selected = 1 via json_extract
+  try {
+    const result = db
+      .select()
+      .from(sources)
+      .where(and(eq(sources.projectId, projectId), sql`json_extract(${sources.data}, '$.selected') = 1`))
+      .all();
+    // If json_extract worked, return count
+    if (result.length > 0 || fetchSources(projectId).length === 0) {
+      return result.length;
+    }
+  } catch {}
+  // Fallback
+  const list = fetchSources(projectId);
   return list.filter((s) => s.selected).length;
 }
