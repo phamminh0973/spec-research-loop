@@ -328,7 +328,7 @@ describe("spec-generation section builders", () => {
         projectId: PROJECT_ID,
         nodeId: NODE_ID,
         fromStatus: "PROPOSED",
-        toStatus: "CONFIRMED",
+        toStatus: "USER_CONFIRMED",
         actor: "USER",
         authority: "USER",
         reason: "User confirmed via UI",

@@ -221,7 +221,7 @@ describe("decomposition tRPC router", () => {
 
     const deleted = await caller.decomposition.deleteRelation({
       projectId,
-      relationId: withRelation.relations[0]?.id,
+      relationId: withRelation.relations[0]!.id,
     });
     expect(deleted.relations).toEqual([]);
     expect(deleted.statusHistory).toEqual(confirmed.statusHistory);

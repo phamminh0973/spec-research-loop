@@ -180,7 +180,7 @@ describe("Step 1 to Step 2 integration", () => {
 
     const withoutRelation = await caller.decomposition.deleteRelation({
       projectId: project.id,
-      relationId: createdRelation?.id,
+      relationId: createdRelation!.id,
     });
     expect(withoutRelation.relations).not.toContainEqual(
       expect.objectContaining({ id: createdRelation?.id })
