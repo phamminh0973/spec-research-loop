@@ -19,8 +19,8 @@
 
 import type {
   AtomicClaim,
-  ClaimEvidenceLink,
   Contribution,
+  EvidenceRequirement,
   EvidenceSpan,
   ExperimentPlan,
   FindingResolution,
@@ -71,8 +71,8 @@ export const sourcesByProject = new PersistedMap<SourceDocument[]>({
 export const evidenceSpansByProject = new PersistedMap<EvidenceSpan[]>({
   storeKey: "evidenceSpansByProject",
 });
-export const claimEvidenceLinksByProject = new PersistedMap<ClaimEvidenceLink[]>({
-  storeKey: "claimEvidenceLinksByProject",
+export const evidenceRequirementsByProject = new PersistedMap<EvidenceRequirement[]>({
+  storeKey: "evidenceRequirementsByProject",
 });
 export const atomicClaimsByProject = new PersistedMap<AtomicClaim[]>({
   storeKey: "atomicClaimsByProject",
@@ -153,7 +153,7 @@ export const interpretationDecisionsByProject = new PersistedMap<InterpretationD
 export const ALL_PERSISTED_STORES: { hydrate(): Promise<void> }[] = [
   sourcesByProject,
   evidenceSpansByProject,
-  claimEvidenceLinksByProject,
+  evidenceRequirementsByProject,
   atomicClaimsByProject,
   contributionsByProject,
   experimentPlansByProject,
@@ -170,7 +170,7 @@ export const ALL_PERSISTED_STORES: { hydrate(): Promise<void> }[] = [
 export function resetProjectStore(): void {
   sourcesByProject.clear();
   evidenceSpansByProject.clear();
-  claimEvidenceLinksByProject.clear();
+  evidenceRequirementsByProject.clear();
   atomicClaimsByProject.clear();
   contributionsByProject.clear();
   experimentPlansByProject.clear();

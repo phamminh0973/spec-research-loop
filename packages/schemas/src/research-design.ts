@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { IsoTimestampSchema, UuidSchema } from "./common";
+import { EvidenceRequirementSchema } from "./evidence";
 
 /**
  * A corpus-bounded gap candidate (AIT-06). Always carries a novelty-risk
@@ -90,6 +91,22 @@ export const ClaimDesignOutputSchema = z.object({
   ),
 });
 export type ClaimDesignOutput = z.infer<typeof ClaimDesignOutputSchema>;
+
+/**
+ * Merged response for the combined Generate contributions & claims + evidence
+ * step. Claims are generated from the selected gap (AIT-07) and evidence
+ * requirements — what the metric value must satisfy for the claim to be
+ * verified — are auto-generated deterministically so the user does not have
+ * to run a second process manually. The LLM-backed
+ * `evidence.generateEvidenceForClaim` remains available for per-claim
+ * regeneration.
+ */
+export const GenerateClaimDesignWithEvidenceOutputSchema = ClaimDesignOutputSchema.extend({
+  evidenceRequirements: z.array(EvidenceRequirementSchema).default([]),
+});
+export type GenerateClaimDesignWithEvidenceOutput = z.infer<
+  typeof GenerateClaimDesignWithEvidenceOutputSchema
+>;
 
 /**
  * Resource estimate for an experiment plan. Inputs are labeled assumed or

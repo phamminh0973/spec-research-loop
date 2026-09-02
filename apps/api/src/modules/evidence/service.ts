@@ -1,53 +1,40 @@
 /**
- * Evidence service.
+ * Evidence service — new meaning: what the metric value must satisfy for a
+ * claim to be considered verified.
  *
- * Pure business logic for evidence spans, links, integrity checks and reviews.
- * Mirrors service pattern: validation, deterministic checks, LLM structured calls.
+ * Each `EvidenceRequirement` captures a verifiable criterion for one
+ * {@link AtomicClaim} (or spec `CLAIM` node): metric, operator, threshold,
+ * success/falsification criteria and measurement method. Document spans
+ * (`EvidenceSpan`) are retained for source provenance; the verifiable
+ * criterion lives entirely in `EvidenceRequirement` and is auto-generated
+ * deterministically when claims are created (research-design generates it),
+ * with an LLM-backed regeneration path available per claim.
  */
 
 import {
-  ClaimEvidenceLinkSchema,
   EvidenceEntryTypeSchema,
-  EvidenceReviewOutputSchema,
+  EvidenceRequirementSchema,
   EvidenceSpanSchema,
-  type ClaimEvidenceLink,
-  type EvidenceReviewOutput,
+  GenerateEvidenceRequirementOutputSchema,
+  type EvidenceRequirement,
   type EvidenceSpan,
+  type GenerateEvidenceRequirementOutput,
 } from "@specloop/schemas";
-import { EVIDENCE_REVIEW_SYSTEM_PROMPT } from "./prompt.js";
+import { EVIDENCE_REQUIREMENT_SYSTEM_PROMPT } from "./prompt.js";
 import { structuredCall } from "../../llm/structured-call.js";
 import {
-  claimEvidenceLinksByProject,
+  atomicClaimsByProject,
+  evidenceRequirementsByProject,
   evidenceSpansByProject,
   appendToProjectList,
-  touchProjectList,
   parseOrThrow,
   sourcesByProject,
+  specGraphsByProject,
 } from "../../store/project-store.js";
 
-type IntegrityStatus = ClaimEvidenceLink["integrityStatus"];
-
-function computeIntegrity(
-  link: { claimNodeId: string; evidenceSpanId: string },
-  span: EvidenceSpan | undefined,
-): IntegrityStatus {
-  if (!span) return "MISSING_SOURCE";
-  if (span.entryType === "EXACT") {
-    if (span.page == null || span.startOffset == null || span.endOffset == null) {
-      return "INVALID_OFFSET";
-    }
-    if (span.endOffset < span.startOffset) {
-      return "INVALID_OFFSET";
-    }
-    if (span.exactText.length === 0) {
-      return "EXACT_TEXT_MISMATCH";
-    }
-  }
-  if (link.evidenceSpanId !== span.id) {
-    return "INVALID_LINK";
-  }
-  return "VALID";
-}
+// ---------------------------------------------------------------------------
+// Document spans (source provenance — not claim–evidence links)
+// ---------------------------------------------------------------------------
 
 export function createSpan(params: {
   projectId: string;
@@ -107,117 +94,215 @@ export function listSpans(params: {
   return { items: all.slice(0, limit) };
 }
 
-export function createLink(params: {
+// ---------------------------------------------------------------------------
+// Evidence requirements — the new "evidence" meaning
+// ---------------------------------------------------------------------------
+
+export type ClaimContext = {
+  id: string;
   projectId: string;
-  claimNodeId: string;
-  evidenceSpanId: string;
-}): ClaimEvidenceLink {
-  const { projectId, claimNodeId, evidenceSpanId } = params;
+  text: string;
+  metric: string;
+  expectedDirection: string;
+  falsificationCondition: string;
+  baseline: string;
+  datasetDomain: string;
+  scope: string;
+  type?: string;
+};
 
-  const spans = evidenceSpansByProject.get(projectId) ?? [];
-  const span = spans.find((s) => s.id === evidenceSpanId);
-  if (!span) {
-    throw new Error(`Evidence span ${evidenceSpanId} not found in project ${projectId}.`);
+export function resolveClaimContext(projectId: string, claimId: string): ClaimContext {
+  const claims = atomicClaimsByProject.get(projectId) ?? [];
+  const ac = claims.find((c) => c.id === claimId);
+  if (ac) {
+    return {
+      id: ac.id,
+      projectId: ac.projectId,
+      text: ac.text,
+      metric: ac.metric,
+      expectedDirection: ac.expectedDirection,
+      falsificationCondition: ac.falsificationCondition,
+      baseline: ac.baseline,
+      datasetDomain: ac.datasetDomain,
+      scope: ac.scope,
+      type: ac.type,
+    };
   }
-
-  const now = new Date().toISOString();
-  const link: ClaimEvidenceLink = parseOrThrow(
-    ClaimEvidenceLinkSchema,
-    {
-      id: crypto.randomUUID(),
-      projectId,
-      claimNodeId,
-      evidenceSpanId,
-      integrityStatus: "VALID",
-      review: null,
-      createdAt: now,
-      updatedAt: now,
-    },
-    "ClaimEvidenceLink",
-  );
-  link.integrityStatus = computeIntegrity(link, span);
-  appendToProjectList(claimEvidenceLinksByProject, projectId, link);
-  return link;
+  const graph = specGraphsByProject.get(projectId);
+  const node = graph?.nodes.find((n) => n.id === claimId);
+  if (node) {
+    return {
+      id: node.id,
+      projectId: node.projectId,
+      text: node.content,
+      metric: "as described in claim",
+      expectedDirection: "as described in claim",
+      falsificationCondition: "negation of claim content",
+      baseline: "baseline stated in claim if any",
+      datasetDomain: "dataset/domain stated in claim if any",
+      scope: node.title,
+      type: node.type,
+    };
+  }
+  throw new Error(`Claim ${claimId} not found in project ${projectId}.`);
 }
 
-export function listLinks(params: {
+export function listEvidenceRequirements(params: {
   projectId: string;
-  claimNodeId?: string;
-}): { items: ClaimEvidenceLink[] } {
-  const { projectId, claimNodeId } = params;
-  const all = (claimEvidenceLinksByProject.get(projectId) ?? []).filter(
-    (l) => !claimNodeId || l.claimNodeId === claimNodeId,
+  claimId?: string;
+}): { items: EvidenceRequirement[] } {
+  const { projectId, claimId } = params;
+  const all = (evidenceRequirementsByProject.get(projectId) ?? []).filter(
+    (r) => !claimId || r.claimId === claimId,
   );
   return { items: all };
 }
 
-export function runIntegrityChecks(projectId: string): { results: { linkId: string; integrityStatus: IntegrityStatus }[] } {
-  const links = claimEvidenceLinksByProject.get(projectId) ?? [];
-  const spans = evidenceSpansByProject.get(projectId) ?? [];
-  const spanById = new Map(spans.map((s) => [s.id, s]));
-
-  const results = links.map((link) => {
-    const span = spanById.get(link.evidenceSpanId);
-    link.integrityStatus = computeIntegrity(link, span);
-    link.updatedAt = new Date().toISOString();
-    return { linkId: link.id, integrityStatus: link.integrityStatus };
-  });
-  // Every `link` above was mutated in place; force a `.set()` so a
-  // write-through persistence layer (see db/persisted-map.ts) sees the
-  // recomputed integrity statuses too.
-  touchProjectList(claimEvidenceLinksByProject, projectId);
-  return { results };
+function inferOperator(expectedDirection: string): EvidenceRequirement["operator"] {
+  const lower = expectedDirection.toLowerCase();
+  if (lower.includes("statistically") || lower.includes("p <") || lower.includes("p<") || lower.includes("significant")) {
+    return "STATISTICALLY_SIGNIFICANT";
+  }
+  if (lower.includes("range") || lower.includes("between") || lower.includes("interval")) {
+    return "IN_RANGE";
+  }
+  if (lower.includes("greater than") && !lower.includes("or equal")) return "GT";
+  if (lower.includes("less than") && !lower.includes("or equal")) return "LT";
+  if (lower.includes("increase") || lower.includes("improv") || lower.includes("higher") || lower.includes("greater") || lower.includes("exceed") || lower.includes(">=") || lower.includes("at least")) {
+    return "GTE";
+  }
+  if (lower.includes("decrease") || lower.includes("reduce") || lower.includes("lower") || lower.includes("less") || lower.includes("<=")) {
+    return "LTE";
+  }
+  if (lower.includes("equal") || lower.includes("no difference") || lower.includes("==")) return "EQ";
+  return "GTE";
 }
 
-export async function runReview(params: {
-  linkId: string;
-  client: any;
-  model: string;
-}): Promise<ClaimEvidenceLink> {
-  const { linkId, client, model } = params;
+export function buildDeterministicEvidenceRequirement(
+  projectId: string,
+  ctx: ClaimContext,
+): EvidenceRequirement {
+  const operator = inferOperator(ctx.expectedDirection);
+  const threshold = `Not (${ctx.falsificationCondition}) — satisfies ${ctx.expectedDirection} on ${ctx.metric}`;
+  const successCriterion = `Claim "${ctx.text}" is verified if ${ctx.metric} measured on ${ctx.datasetDomain} in scope "${ctx.scope}" vs baseline ${ctx.baseline} shows ${ctx.expectedDirection} and does not satisfy falsification condition: ${ctx.falsificationCondition}.`;
+  const measurementMethod = `Measure ${ctx.metric} on ${ctx.datasetDomain} against baseline ${ctx.baseline} within scope ${ctx.scope}.`;
+  const now = new Date().toISOString();
+  return parseOrThrow(
+    EvidenceRequirementSchema,
+    {
+      id: crypto.randomUUID(),
+      projectId,
+      claimId: ctx.id,
+      metric: ctx.metric,
+      operator,
+      threshold: threshold.slice(0, 500),
+      successCriterion: successCriterion.slice(0, 2000),
+      falsificationCriterion: ctx.falsificationCondition,
+      measurementMethod: measurementMethod.slice(0, 2000),
+      requiredObservations: [ctx.metric],
+      createdAt: now,
+      updatedAt: now,
+    },
+    "EvidenceRequirement",
+  );
+}
 
-  let link: ClaimEvidenceLink | undefined;
-  let projectId: string | undefined;
-  for (const [pid, list] of claimEvidenceLinksByProject.entries()) {
-    const found = list.find((l) => l.id === linkId);
-    if (found) {
-      link = found;
-      projectId = pid;
-      break;
+export function ensureEvidenceRequirementsForClaims(params: {
+  projectId: string;
+  claimIds?: string[];
+}): EvidenceRequirement[] {
+  const { projectId, claimIds } = params;
+  const ids = claimIds ?? (atomicClaimsByProject.get(projectId) ?? []).map((c) => c.id);
+  const existingByClaim = new Map(
+    (evidenceRequirementsByProject.get(projectId) ?? []).map((r) => [r.claimId, r]),
+  );
+  const created: EvidenceRequirement[] = [];
+  for (const claimId of ids) {
+    if (existingByClaim.has(claimId)) {
+      created.push(existingByClaim.get(claimId)!);
+      continue;
+    }
+    try {
+      const ctx = resolveClaimContext(projectId, claimId);
+      const req = buildDeterministicEvidenceRequirement(projectId, ctx);
+      appendToProjectList(evidenceRequirementsByProject, projectId, req);
+      created.push(req);
+    } catch {
+      // skip claims that cannot be resolved (e.g. deleted)
     }
   }
-  if (!link || !projectId) {
-    throw new Error(`Claim–evidence link ${linkId} not found.`);
-  }
+  return created;
+}
 
-  const spans = evidenceSpansByProject.get(projectId) ?? [];
-  const span = spans.find((s) => s.id === link.evidenceSpanId);
-  if (!span) {
-    throw new Error(`Evidence span ${link.evidenceSpanId} not found for link ${link.id}.`);
+export async function generateEvidenceRequirementsForClaims(params: {
+  projectId: string;
+  claimIds?: string[];
+  client: any;
+  model: string;
+}): Promise<EvidenceRequirement[]> {
+  const { projectId, claimIds, client, model } = params;
+  const ids = claimIds ?? (atomicClaimsByProject.get(projectId) ?? []).map((c) => c.id);
+  const results: EvidenceRequirement[] = [];
+  for (const claimId of ids) {
+    const existing = (evidenceRequirementsByProject.get(projectId) ?? []).find((r) => r.claimId === claimId);
+    if (existing) {
+      results.push(existing);
+      continue;
+    }
+    const req = await generateEvidenceRequirement({ projectId, claimId, client, model });
+    results.push(req);
   }
+  return results;
+}
 
-  const review = await structuredCall<EvidenceReviewOutput>({
+export async function generateEvidenceRequirement(params: {
+  projectId: string;
+  claimId: string;
+  client: any;
+  model: string;
+}): Promise<EvidenceRequirement> {
+  const { projectId, claimId, client, model } = params;
+  const ctx = resolveClaimContext(projectId, claimId);
+
+  const claimText =
+    `Claim ${ctx.id} [${ctx.type ?? "CLAIM"}]: ${ctx.text}\n` +
+    `metric: ${ctx.metric}\n` +
+    `expectedDirection: ${ctx.expectedDirection}\n` +
+    `falsificationCondition: ${ctx.falsificationCondition}\n` +
+    `baseline: ${ctx.baseline}\n` +
+    `datasetDomain: ${ctx.datasetDomain}\n` +
+    `scope: ${ctx.scope}`;
+
+  const out = await structuredCall<GenerateEvidenceRequirementOutput>({
     client,
     model,
-    systemPrompt: EVIDENCE_REVIEW_SYSTEM_PROMPT,
+    systemPrompt: EVIDENCE_REQUIREMENT_SYSTEM_PROMPT,
     userPrompt:
-      "Review the following claim against the evidence span. Return one allowed verdict and a concise reason.",
-    untrusted: [
-      { label: "Claim (node id)", text: link.claimNodeId },
-      { label: "Evidence span exact text", text: span.exactText },
-    ],
-    outputSchema: EvidenceReviewOutputSchema,
-    schemaName: "evidence_review_output",
+      "Derive the verifiable evidence criterion for the claim below: what measured metric value must the evidence satisfy for the claim to be considered verified. Return threshold/operator/success and falsification criteria.",
+    untrusted: [{ label: "Claim to operationalise", text: claimText }],
+    outputSchema: GenerateEvidenceRequirementOutputSchema,
+    schemaName: "generate_evidence_requirement_output",
   });
 
-  link.review = {
-    verdict: review.verdict,
-    reason: review.reason,
-    unsupportedAspects: review.unsupportedAspects,
-  };
-  link.updatedAt = new Date().toISOString();
-  // `link` is mutated in place above; force a `.set()` so a write-through
-  // persistence layer (see db/persisted-map.ts) sees the updated review.
-  touchProjectList(claimEvidenceLinksByProject, projectId);
-  return parseOrThrow(ClaimEvidenceLinkSchema, link, "ClaimEvidenceLink");
+  const now = new Date().toISOString();
+  const requirement = parseOrThrow(
+    EvidenceRequirementSchema,
+    {
+      id: crypto.randomUUID(),
+      projectId,
+      claimId: ctx.id,
+      metric: out.metric,
+      operator: out.operator,
+      threshold: out.threshold,
+      successCriterion: out.successCriterion,
+      falsificationCriterion: out.falsificationCriterion,
+      measurementMethod: out.measurementMethod,
+      requiredObservations: out.requiredObservations ?? [],
+      createdAt: now,
+      updatedAt: now,
+    },
+    "EvidenceRequirement",
+  );
+  appendToProjectList(evidenceRequirementsByProject, projectId, requirement);
+  return requirement;
 }

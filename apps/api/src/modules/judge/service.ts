@@ -42,9 +42,8 @@ import {
 } from "../../llm/structured-call.js";
 import {
   atomicClaimsByProject,
-  claimEvidenceLinksByProject,
   contributionsByProject,
-  evidenceSpansByProject,
+  evidenceRequirementsByProject,
   experimentPlansByProject,
   gapProposalsByProject,
   judgePanelsByProject,
@@ -197,12 +196,11 @@ export function buildExperimentJudgeContext(projectId: string): UntrustedContent
   ];
 }
 
-/** Judge 4 — Evidence: claim–evidence links with integrity status + review verdict. */
+/** Judge 4 — Evidence: does each claim have a verifiable metric threshold? */
 export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[] {
-  const links = claimEvidenceLinksByProject.get(projectId) ?? [];
-  const spans = new Map(
-    (evidenceSpansByProject.get(projectId) ?? []).map((s) => [s.id, s]),
-  );
+  const claims = atomicClaimsByProject.get(projectId) ?? [];
+  const requirements = evidenceRequirementsByProject.get(projectId) ?? [];
+  const reqByClaim = new Map(requirements.map((r) => [r.claimId, r]));
   const claimNodes = nodesByType(projectId, "CLAIM");
 
   return [
@@ -211,26 +209,26 @@ export function buildEvidenceJudgeContext(projectId: string): UntrustedContent[]
       text: renderNodes(claimNodes, "(no CLAIM node yet)"),
     },
     {
-      label: "Claim–evidence links with computed integrity status and any AI review verdict",
+      label: "Atomic claims with their EvidenceRequirements (what the metric value must satisfy to be verified)",
       text:
-        links.length === 0
-          ? "(no evidence linked to any claim yet)"
-          : links
-              .map((link) => {
-                const span = spans.get(link.evidenceSpanId);
-                const evidenceText = span
-                  ? `"${span.exactText}" [${span.entryType}, page ${span.page ?? "n/a"}]`
-                  : "(evidence span not found)";
-                const review = link.review
-                  ? `verdict=${link.review.verdict}, reason=${link.review.reason}`
-                  : "(not yet reviewed)";
+        claims.length === 0
+          ? "(no atomic claims generated yet)"
+          : claims
+              .map((claim) => {
+                const req = reqByClaim.get(claim.id);
+                if (!req) {
+                  return `- claim ${claim.id} [${claim.type}]: ${claim.text}\n  metric=${claim.metric} expectedDirection=${claim.expectedDirection} falsifiesIf=${claim.falsificationCondition}\n  EvidenceRequirement: (none) — claim has no verifiable criterion`;
+                }
                 return (
-                  `- claimNodeId=${link.claimNodeId} integrityStatus=${link.integrityStatus}\n` +
-                  `  evidence: ${evidenceText}\n` +
-                  `  review: ${review}`
+                  `- claim ${claim.id} [${claim.type}]: ${claim.text}\n` +
+                  `  claim metric=${claim.metric} expectedDirection=${claim.expectedDirection} baseline=${claim.baseline} datasetDomain=${claim.datasetDomain} scope=${claim.scope} falsifiesIf=${claim.falsificationCondition}\n` +
+                  `  EvidenceRequirement: metric=${req.metric} operator=${req.operator} threshold=${req.threshold}\n` +
+                  `    successCriterion=${req.successCriterion}\n` +
+                  `    falsificationCriterion=${req.falsificationCriterion}\n` +
+                  `    measurementMethod=${req.measurementMethod ?? "(none)"} requiredObservations=${req.requiredObservations.join(", ") || "(none)"}`
                 );
               })
-              .join("\n"),
+              .join("\n\n"),
     },
   ];
 }
@@ -242,8 +240,7 @@ export function buildConferenceReadinessJudgeContext(projectId: string): Untrust
   const contributions = contributionsByProject.get(projectId) ?? [];
   const claims = atomicClaimsByProject.get(projectId) ?? [];
   const plans = experimentPlansByProject.get(projectId) ?? [];
-  const links = claimEvidenceLinksByProject.get(projectId) ?? [];
-  const validLinks = links.filter((l) => l.integrityStatus === "VALID").length;
+  const requirements = evidenceRequirementsByProject.get(projectId) ?? [];
 
   return [
     {
@@ -254,7 +251,7 @@ export function buildConferenceReadinessJudgeContext(projectId: string): Untrust
         `Contributions (${contributions.length}):\n${contributions.map((c) => `- ${c.text}`).join("\n") || "(none)"}\n\n` +
         `Claims (${claims.length}):\n${claims.map((c) => `- [${c.type}] ${c.text}`).join("\n") || "(none)"}\n\n` +
         `Experiment plans: ${plans.length}\n` +
-        `Claim–evidence links: ${links.length} total, ${validLinks} with VALID integrity status.`,
+        `EvidenceRequirements: ${requirements.length} total for ${claims.length} claims (${requirements.length === 0 ? "none have a verifiable criterion yet" : `${requirements.length} claims have a metric/threshold criterion`}).`,
     },
   ];
 }

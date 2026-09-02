@@ -11,14 +11,16 @@ import {
   AtomicClaimSchema,
   ClaimDesignOutputSchema,
   ClaimTypeSchema,
+  EvidenceRequirementSchema,
   ExperimentPlanOutputSchema,
   ExperimentPlanSchema,
   GapProposalOutputSchema,
   type AtomicClaim,
   type ClaimDesignOutput,
+  type Contribution,
+  type EvidenceRequirement,
   type ExperimentPlan,
   type GapProposalOutput,
-  type Contribution,
 } from "@specloop/schemas";
 import { z } from "zod";
 import {
@@ -30,6 +32,7 @@ import { structuredCall } from "../../llm/structured-call.js";
 import {
   atomicClaimsByProject,
   contributionsByProject,
+  evidenceRequirementsByProject,
   experimentPlansByProject,
   gapProposalsByProject,
   appendToProjectList,
@@ -142,13 +145,62 @@ export async function generateGapProposal(params: {
   return proposal;
 }
 
+function inferEvidenceOperator(expectedDirection: string): EvidenceRequirement["operator"] {
+  const lower = expectedDirection.toLowerCase();
+  if (lower.includes("statistically") || lower.includes("p <") || lower.includes("p<") || lower.includes("significant")) {
+    return "STATISTICALLY_SIGNIFICANT";
+  }
+  if (lower.includes("range") || lower.includes("between") || lower.includes("interval")) {
+    return "IN_RANGE";
+  }
+  if (lower.includes("greater than") && !lower.includes("or equal")) return "GT";
+  if (lower.includes("less than") && !lower.includes("or equal")) return "LT";
+  if (lower.includes("increase") || lower.includes("improv") || lower.includes("higher") || lower.includes("greater") || lower.includes("exceed") || lower.includes(">=") || lower.includes("at least")) {
+    return "GTE";
+  }
+  if (lower.includes("decrease") || lower.includes("reduce") || lower.includes("lower") || lower.includes("less") || lower.includes("<=")) {
+    return "LTE";
+  }
+  if (lower.includes("equal") || lower.includes("no difference") || lower.includes("==")) return "EQ";
+  return "GTE";
+}
+
+function buildEvidenceRequirementForClaim(
+  projectId: string,
+  claim: AtomicClaim,
+): EvidenceRequirement {
+  const operator = inferEvidenceOperator(claim.expectedDirection);
+  const threshold = `Not (${claim.falsificationCondition}) — satisfies ${claim.expectedDirection} on ${claim.metric}`;
+  const successCriterion = `Claim "${claim.text}" is verified if ${claim.metric} measured on ${claim.datasetDomain} in scope "${claim.scope}" vs baseline ${claim.baseline} shows ${claim.expectedDirection} and does not satisfy falsification condition: ${claim.falsificationCondition}.`;
+  const measurementMethod = `Measure ${claim.metric} on ${claim.datasetDomain} against baseline ${claim.baseline} within scope ${claim.scope}.`;
+  const now = new Date().toISOString();
+  return parseOrThrow(
+    EvidenceRequirementSchema,
+    {
+      id: crypto.randomUUID(),
+      projectId,
+      claimId: claim.id,
+      metric: claim.metric,
+      operator,
+      threshold: threshold.slice(0, 500),
+      successCriterion: successCriterion.slice(0, 2000),
+      falsificationCriterion: claim.falsificationCondition,
+      measurementMethod: measurementMethod.slice(0, 2000),
+      requiredObservations: [claim.metric],
+      createdAt: now,
+      updatedAt: now,
+    },
+    "EvidenceRequirement",
+  );
+}
+
 /** AIT-07: generate contributions and atomic claims from a selected gap. */
 export async function generateClaimDesign(params: {
   projectId: string;
   selectedGapIndex: number;
   client: any;
   model: string;
-}): Promise<ClaimDesignOutput & { persistedClaims: AtomicClaim[]; persistedContributions: Contribution[] }> {
+}): Promise<ClaimDesignOutput & { persistedClaims: AtomicClaim[]; persistedContributions: Contribution[]; persistedEvidenceRequirements: EvidenceRequirement[] }> {
   const { projectId, selectedGapIndex, client, model } = params;
 
   const proposal = gapProposalsByProject.get(projectId);
@@ -230,12 +282,24 @@ export async function generateClaimDesign(params: {
   });
   appendToProjectList(contributionsByProject, projectId, ...persistedContributions);
 
+  // Auto-generate evidence requirements for each new claim so the user does
+  // not have to run a second process manually. Deterministic, no extra LLM
+  // call — the LLM-backed `evidence.generateEvidenceForClaim` remains
+  // available for per-claim regeneration.
+  const persistedEvidenceRequirements: EvidenceRequirement[] = persistedClaims.map((claim) =>
+    buildEvidenceRequirementForClaim(projectId, claim),
+  );
+  if (persistedEvidenceRequirements.length > 0) {
+    appendToProjectList(evidenceRequirementsByProject, projectId, ...persistedEvidenceRequirements);
+  }
+
   // Return design with persisted IDs substituted.
   return {
     contributions: persistedContributions.map((c) => ({ text: c.text, claimIds: c.claimIds })),
     claims: design.claims,
     persistedClaims,
     persistedContributions,
+    persistedEvidenceRequirements,
   };
 }
 

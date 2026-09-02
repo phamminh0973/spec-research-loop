@@ -1,47 +1,39 @@
 /**
- * Evidence router — UC-05 (Ground claims in evidence).
+ * Evidence router — new meaning: verifiable metric thresholds for claims.
  *
- * Implements FR-08/FR-09/FR-10/FR-13 and the evidence extraction &
- * verification flow from AI design §7:
+ * Implements the merged Generate contributions & claims + evidence step:
+ * each atomic claim auto-gets an `EvidenceRequirement` (metric, operator,
+ * threshold, success/falsification criteria) that states what the measured
+ * metric value must satisfy for the claim to be considered verified.
+ * The requirement is PROPOSED data until human-verified (BR-03) and is
+ * auto-generated deterministically when claims are created; the LLM-backed
+ * `generateEvidenceForClaim` remains for per-claim regeneration.
  *
- * ```text
- * Extraction:  user selects exact span → app stores page/offsets/exact text
- * Verification: deterministic checks (source exists, page/offset valid,
- *               exact text matches, link targets exist) → atomic AI review
- *               (AIT-05) with fixed rubric → human verification for gold.
- * ```
- *
- * Deterministic integrity is computed by the application, never the model.
- * The atomic AI review (AIT-05) is invoked through the LLM gateway and may
- * only return an allowed verdict + reason; it does not confer
- * `USER_CONFIRMED` or `SYSTEM_VERIFIED` authority (AI design §2.1).
+ * Document spans (`EvidenceSpan`) are retained for source provenance.
  *
  * Persistence is in-memory for P0 (see `src/store/project-store.ts`).
  */
 
 import {
-  ClaimEvidenceLinkSchema,
-  CreateClaimEvidenceLinkInputSchema,
   CreateEvidenceSpanInputSchema,
+  EvidenceRequirementSchema,
   EvidenceSpanSchema,
-  ListClaimEvidenceLinksInputSchema,
-  ListClaimEvidenceLinksOutputSchema,
+  GenerateEvidenceRequirementInputSchema,
+  ListEvidenceRequirementsInputSchema,
+  ListEvidenceRequirementsOutputSchema,
   ListEvidenceSpansInputSchema,
   ListEvidenceSpansOutputSchema,
-  RunIntegrityChecksInputSchema,
-  RunIntegrityChecksOutputSchema,
 } from "@specloop/schemas";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { publicProcedure, router } from "../trpc/trpc.js";
 import {
-  createLink,
   createSpan,
-  listLinks,
+  generateEvidenceRequirement,
+  listEvidenceRequirements,
   listSpans,
-  runIntegrityChecks,
-  runReview,
 } from "../modules/evidence/service.js";
+import { evidenceRequirementsByProject } from "../store/project-store.js";
 
 // ---------------------------------------------------------------------------
 // Procedures
@@ -71,38 +63,21 @@ export const evidenceRouter = router({
     .output(ListEvidenceSpansOutputSchema)
     .query(({ input }) => listSpans(input)),
 
-  createLink: publicProcedure
-    .input(CreateClaimEvidenceLinkInputSchema)
-    .output(ClaimEvidenceLinkSchema)
-    .mutation(({ input }) => {
-      try {
-        return createLink(input);
-      } catch (e) {
-        const msg = (e as Error).message;
-        if (msg.includes("not found")) {
-          throw new TRPCError({ code: "NOT_FOUND", message: msg });
-        }
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg });
-      }
-    }),
-
-  listLinks: publicProcedure
-    .input(ListClaimEvidenceLinksInputSchema)
-    .output(ListClaimEvidenceLinksOutputSchema)
-    .query(({ input }) => listLinks(input)),
-
-  runIntegrityChecks: publicProcedure
-    .input(RunIntegrityChecksInputSchema)
-    .output(RunIntegrityChecksOutputSchema)
-    .mutation(({ input }) => runIntegrityChecks(input.projectId)),
-
-  runReview: publicProcedure
-    .input(z.object({ linkId: z.string().uuid() }))
-    .output(ClaimEvidenceLinkSchema)
+  /**
+   * Generate (or LLM-regenerate) the evidence requirement for a claim —
+   * what the metric value must satisfy for the claim to be considered
+   * verified. Deterministic requirements are auto-created when claims are
+   * generated (research-design generates them); this endpoint allows
+   * per-claim LLM regeneration. Output is PROPOSED (BR-03).
+   */
+  generateEvidenceForClaim: publicProcedure
+    .input(GenerateEvidenceRequirementInputSchema)
+    .output(EvidenceRequirementSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        return await runReview({
-          linkId: input.linkId,
+        return await generateEvidenceRequirement({
+          projectId: input.projectId,
+          claimId: input.claimId,
           client: ctx.llm,
           model: ctx.llmConfig.defaultModel,
         });
@@ -113,5 +88,24 @@ export const evidenceRouter = router({
         }
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg });
       }
+    }),
+
+  listEvidenceRequirements: publicProcedure
+    .input(ListEvidenceRequirementsInputSchema)
+    .output(ListEvidenceRequirementsOutputSchema)
+    .query(({ input }) => listEvidenceRequirements(input)),
+
+  getEvidenceRequirement: publicProcedure
+    .input(z.object({ requirementId: z.string().uuid() }))
+    .output(EvidenceRequirementSchema)
+    .query(({ input }) => {
+      for (const items of evidenceRequirementsByProject.values()) {
+        const found = items.find((r) => r.id === input.requirementId);
+        if (found) return found;
+      }
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Evidence requirement ${input.requirementId} not found.`,
+      });
     }),
 });

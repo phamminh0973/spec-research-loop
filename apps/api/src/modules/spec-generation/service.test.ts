@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type {
   AtomicClaim,
-  ClaimEvidenceLink,
   Contribution,
-  EvidenceSpan,
+  EvidenceRequirement,
   ExperimentPlan,
   GapProposalOutput,
   InterpretationDecision,
@@ -159,7 +158,7 @@ describe("spec-generation section builders", () => {
     expect(result.content).toContain("2 claim liên kết");
   });
 
-  it("flags a claim with no evidence link explicitly rather than omitting it", () => {
+  it("flags a claim with no evidence requirement explicitly rather than omitting it", () => {
     const claims: AtomicClaim[] = [
       {
         id: "claim-1",
@@ -178,12 +177,12 @@ describe("spec-generation section builders", () => {
         updatedAt: "2026-01-01T00:00:00.000Z",
       } as AtomicClaim,
     ];
-    const result = buildClaimEvidenceMatrixSection(claims, [], []);
+    const result = buildClaimEvidenceMatrixSection(claims, []);
     expect(result.isPlaceholder).toBe(false);
-    expect(result.content).toContain("không có evidence");
+    expect(result.content).toContain("chưa có evidence requirement");
   });
 
-  it("renders integrity status and review verdict for a linked claim", () => {
+  it("renders metric, operator/threshold and success criterion for a claim with requirement", () => {
     const claims: AtomicClaim[] = [
       {
         id: "claim-1",
@@ -196,41 +195,33 @@ describe("spec-generation section builders", () => {
         metric: "unsupported claim rate",
         expectedDirection: "giảm",
         falsificationCondition: "không cải thiện ổn định",
-        evidenceRefs: ["span-1"],
+        evidenceRefs: [],
         experimentRefs: [],
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
       } as AtomicClaim,
     ];
-    const links: ClaimEvidenceLink[] = [
+    const requirements: EvidenceRequirement[] = [
       {
-        id: "link-1",
+        id: "req-1",
         projectId: PROJECT_ID,
-        claimNodeId: "claim-1",
-        evidenceSpanId: "span-1",
-        integrityStatus: "VALID",
-        review: { verdict: "SUPPORTS", reason: "khớp evidence" },
+        claimId: "claim-1",
+        metric: "unsupported claim rate",
+        operator: "LTE",
+        threshold: "Not (không cải thiện ổn định) — satisfies giảm on unsupported claim rate",
+        successCriterion: 'Claim "Phương pháp giảm unsupported claims." is verified if unsupported claim rate measured on arXiv cs.AI in scope "paper khoa học" vs baseline self-refine shows giảm and does not satisfy falsification condition: không cải thiện ổn định.',
+        falsificationCriterion: "không cải thiện ổn định",
+        measurementMethod: "Measure unsupported claim rate on arXiv cs.AI against baseline self-refine within scope paper khoa học.",
+        requiredObservations: ["unsupported claim rate"],
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
-      } as any,
-    ];
-    const spans: EvidenceSpan[] = [
-      {
-        id: "span-1",
-        projectId: PROJECT_ID,
-        sourceId: "s1",
-        exactText: "Kết quả trên validation cho thấy giảm 20%.",
-        entryType: "QUOTE",
-        page: 3,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      } as any,
+      } as EvidenceRequirement,
     ];
 
-    const result = buildClaimEvidenceMatrixSection(claims, links, spans);
-    expect(result.content).toContain("VALID");
-    expect(result.content).toContain("SUPPORTS");
-    expect(result.content).toContain("giảm 20%");
+    const result = buildClaimEvidenceMatrixSection(claims, requirements);
+    expect(result.content).toContain("unsupported claim rate");
+    expect(result.content).toContain("LTE");
+    expect(result.content).toContain("không cải thiện ổn định");
   });
 
   it("lists every ablation across all experiment plans", () => {
@@ -343,8 +334,7 @@ describe("spec-generation section builders", () => {
       gapProposal: null,
       contributions: [],
       claims: [],
-      links: [],
-      spans: [],
+      requirements: [],
       plans: [],
       decisions: [],
       statusHistory: [],

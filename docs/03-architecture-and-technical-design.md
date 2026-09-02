@@ -144,7 +144,7 @@ Each long-running step writes `job_runs` status; HTTP requests do not wait indef
 - **ResearchProject:** root for idea, constraints, workflow status and selected corpus.
 - **SpecGraph:** nodes, edges and node status history under a project.
 - **LiteratureCorpus:** normalized source documents, files/pages, queries and selections.
-- **EvidenceSet:** evidence spans and claim-evidence links with provenance.
+- **EvidenceSet:** evidence requirements (what the metric value must satisfy for a claim to be verified) and evidence spans for source provenance.
 - **ResearchDesign:** claims, experiments, baselines, metrics and estimates.
 - **ReviewCycle:** Judge runs/findings/groups and user decisions.
 - **SpecVersion:** immutable snapshot, changes and export state.
@@ -154,7 +154,7 @@ Each long-running step writes `job_runs` status; HTTP requests do not wait indef
 
 - Interpretation confirmation gates decomposition.
 - Relations reference existing nodes in the same project.
-- Evidence links reference existing source/span and target node.
+- Evidence requirements reference an existing claim and define a verifiable metric threshold (metric, operator, threshold, success/falsification criteria).
 - Factual claim must have allowed disposition before finalization.
 - Judges cannot consume each other's findings before aggregation.
 - Revision never overwrites the prior version.
@@ -177,8 +177,8 @@ erDiagram
     PROJECTS ||--o{ SEARCH_QUERIES : issues
     SEARCH_QUERIES ||--o{ SEARCH_RESULTS : returns
     SOURCE_FILES ||--o{ EVIDENCE_SPANS : contains
-    SPEC_NODES ||--o{ CLAIM_EVIDENCE_LINKS : claim
-    EVIDENCE_SPANS ||--o{ CLAIM_EVIDENCE_LINKS : evidence
+    PROJECTS ||--o{ EVIDENCE_REQUIREMENTS : defines
+    SPEC_NODES ||--o{ EVIDENCE_REQUIREMENTS : claim
     PROJECTS ||--o{ EXPERIMENT_PLANS : defines
     EXPERIMENT_PLANS ||--o{ EXPERIMENT_CLAIM_LINKS : tests
     SPEC_NODES ||--o{ EXPERIMENT_CLAIM_LINKS : claim
@@ -204,7 +204,7 @@ erDiagram
 | Project/workflow   | `users`, `projects`, `workflow_runs`, `workflow_steps`, `workflow_events`                                        | project scope, stage, actor, timestamps                            |
 | Spec structure     | `spec_nodes`, `spec_edges`, `node_status_history`                                                                | type/status enums, same-project relations, authority               |
 | Literature         | `source_documents`, `source_files`, `document_pages`, `search_queries`, `search_results`                         | normalized identifiers, provenance tier, page order                |
-| Evidence           | `evidence_spans`, `claim_evidence_links`                                                                         | source file/page, offsets, exact text, entry type, target validity |
+| Evidence           | `evidence_spans`, `evidence_requirements`                                                                          | claim, metric, operator, threshold, success/falsification criteria, measurement method |
 | Research design    | `experiment_plans`, `experiment_claim_links`, `baseline_definitions`, `metric_definitions`, `resource_estimates` | assumptions vs measurements, claim coverage                        |
 | Review             | `judge_runs`, `judge_findings`, `finding_groups`, `user_decisions`                                               | independence, target/type/severity, decision actor                 |
 | Version/operations | `spec_versions`, `spec_changes`, `prompt_templates`, `prompt_versions`, `model_calls`, `job_runs`, `audit_logs`  | immutable snapshot, prompt/model provenance, state transitions     |
@@ -244,8 +244,7 @@ erDiagram
 | Spec graph      | `nodes.list`, `nodes.create`, `nodes.update`, `edges.create`, `edges.delete` | Nodes/relations               | Query/mutation                 |
 | Literature      | `literature.search`, `sources.import`, `sources.list`                        | Search/manual import          | Mutation returning job/query   |
 | Files           | `sourceFiles.upload`, `sourceFiles.parse`                                    | Upload/parse PDF              | Mutation + job                 |
-| Evidence        | `evidenceSpans.create`, `claimEvidenceLinks.create`                          | Store/link evidence           | Mutation                       |
-| Integrity       | `integrityChecks.run`, `integrityChecks.byProject`                           | Deterministic/atomic checks   | Mutation returning job + query |
+| Evidence        | `evidenceSpans.create`, `evidenceRequirements.generate`, `evidenceRequirements.list` | Generate/list verifiable criteria (metric thresholds) | Mutation/query                 |
 | Research design | `researchDesign.generate`, `experimentPlans.create`                          | Gap/claim/experiment/estimate | Mutation returning job         |
 | Specification   | `specifications.generate`, `specifications.byProject`                        | Generate/read 14 sections     | Mutation returning job + query |
 | Judges          | `judgeRuns.create`, `judgeRuns.byId`                                         | Run/read three Judges         | Mutation returning job + query |

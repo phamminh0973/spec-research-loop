@@ -24,6 +24,7 @@ import {
   ClaimDesignOutputSchema,
   GapProposalOutputSchema,
   GenerateClaimDesignInputSchema,
+  GenerateClaimDesignWithEvidenceOutputSchema,
   GenerateExperimentPlanInputSchema,
   GenerateGapProposalInputSchema,
   ListAtomicClaimsInputSchema,
@@ -94,12 +95,15 @@ export const researchDesignRouter = router({
    * The user picks a gap candidate by index from the most recent proposal.
    * The LLM proposes contributions + falsifiable claims; the application
    * validates the output against the schema and the source-ID allowlist,
-   * then persists the claims/contributions as PROPOSED data. The user
-   * confirms/edits before they feed experiment planning (AI design §17).
+   * then persists the claims/contributions as PROPOSED data. Evidence
+   * requirements (what the metric value must satisfy for the claim to be
+   * verified) are auto-generated deterministically for each new claim so
+   * the user does not have to run a second process manually. The LLM-backed
+   * `evidence.generateEvidenceForClaim` remains for per-claim regeneration.
    */
   generateClaimDesign: publicProcedure
     .input(GenerateClaimDesignInputSchema)
-    .output(ClaimDesignOutputSchema)
+    .output(GenerateClaimDesignWithEvidenceOutputSchema)
     .mutation(async ({ input, ctx }) => {
       const proposal = gapProposalsByProject.get(input.projectId);
       if (!proposal) {
@@ -126,7 +130,8 @@ export const researchDesignRouter = router({
           client: ctx.llm,
           model: ctx.llmConfig.defaultModel,
         });
-        // Map to schema shape expected by the router output.
+        // Map to schema shape expected by the router output — now merged with
+        // evidenceRequirements so the frontend does not need a second manual step.
         return {
           contributions: result.persistedContributions.map((c) => ({
             text: c.text,
@@ -144,6 +149,7 @@ export const researchDesignRouter = router({
             evidenceRefs: c.evidenceRefs,
             experimentRefs: c.experimentRefs,
           })),
+          evidenceRequirements: result.persistedEvidenceRequirements,
         };
       } catch (err) {
         const message = (err as Error).message;

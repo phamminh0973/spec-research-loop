@@ -18,9 +18,8 @@ import {
   ResearchSpecSchema,
   SPEC_SECTION_ORDER,
   type AtomicClaim,
-  type ClaimEvidenceLink,
   type Contribution,
-  type EvidenceSpan,
+  type EvidenceRequirement,
   type ExperimentPlan,
   type FindingResolution,
   type GapProposalOutput,
@@ -36,9 +35,8 @@ import { MarkdownDocument, md } from "build-md";
 import { interpretationRepository } from "../interpretation/index.js";
 import {
   atomicClaimsByProject,
-  claimEvidenceLinksByProject,
   contributionsByProject,
-  evidenceSpansByProject,
+  evidenceRequirementsByProject,
   experimentPlansByProject,
   findingResolutionsByProject,
   gapProposalsByProject,
@@ -204,11 +202,10 @@ export function buildExpectedContributionsSection(contributions: Contribution[])
   return section("EXPECTED_CONTRIBUTIONS", "6. Expected contributions", doc.toString().trim(), false);
 }
 
-/** 7. Claim–evidence matrix — every claim's linked evidence, integrity status and review verdict. */
+/** 7. Claim–evidence matrix — every claim's verifiable evidence requirement (what the metric value must satisfy). */
 export function buildClaimEvidenceMatrixSection(
   claims: AtomicClaim[],
-  links: ClaimEvidenceLink[],
-  spans: EvidenceSpan[],
+  requirements: EvidenceRequirement[],
 ): SpecSection {
   const isPlaceholder = claims.length === 0;
   if (isPlaceholder) {
@@ -219,23 +216,24 @@ export function buildClaimEvidenceMatrixSection(
       true,
     );
   }
-  const spanById = new Map(spans.map((s) => [s.id, s]));
+  const reqByClaim = new Map(requirements.map((r) => [r.claimId, r]));
   const rows: string[][] = [];
   for (const claim of claims) {
-    const claimLinks = links.filter((l) => l.claimNodeId === claim.id);
-    if (claimLinks.length === 0) {
-      rows.push([claim.text, "(không có evidence)", "—", "—"]);
+    const req = reqByClaim.get(claim.id);
+    if (!req) {
+      rows.push([claim.text, claim.metric, "—", "—", "(chưa có evidence requirement — cần xác định metric/threshold)"]);
     } else {
-      for (const link of claimLinks) {
-        const span = spanById.get(link.evidenceSpanId);
-        const evidenceText = span ? span.exactText : "(evidence span not found)";
-        const verdict = link.review?.verdict ?? "(chưa review)";
-        rows.push([claim.text, evidenceText, link.integrityStatus, verdict]);
-      }
+      rows.push([
+        claim.text,
+        req.metric,
+        `${req.operator} ${req.threshold}`,
+        req.successCriterion,
+        req.falsificationCriterion,
+      ]);
     }
   }
   const doc = new MarkdownDocument().table(
-    ["Claim", "Evidence", "Integrity status", "Review verdict"],
+    ["Claim", "Metric", "Operator / Threshold", "Success criterion (verified if)", "Falsification (fails if)"],
     rows,
   );
   return section("CLAIM_EVIDENCE_MATRIX", "7. Claim–evidence matrix", doc.toString().trim(), false);
@@ -410,8 +408,7 @@ export function assembleSections(data: {
   gapProposal: GapProposalOutput | null;
   contributions: Contribution[];
   claims: AtomicClaim[];
-  links: ClaimEvidenceLink[];
-  spans: EvidenceSpan[];
+  requirements: EvidenceRequirement[];
   plans: ExperimentPlan[];
   decisions: InterpretationDecision[];
   statusHistory: NodeStatusHistory[];
@@ -429,7 +426,7 @@ export function assembleSections(data: {
     RESEARCH_GAP: buildResearchGapSection(nodesByType(data.graphNodes, "GAP"), data.gapProposal),
     PROPOSED_APPROACH: buildProposedApproachSection(data.contributions),
     EXPECTED_CONTRIBUTIONS: buildExpectedContributionsSection(data.contributions),
-    CLAIM_EVIDENCE_MATRIX: buildClaimEvidenceMatrixSection(data.claims, data.links, data.spans),
+    CLAIM_EVIDENCE_MATRIX: buildClaimEvidenceMatrixSection(data.claims, data.requirements),
     EXPERIMENTAL_PROTOCOL: buildExperimentalProtocolSection(data.plans),
     BASELINES_AND_METRICS: buildBaselinesAndMetricsSection(data.plans),
     ABLATION_PLAN: buildAblationPlanSection(data.plans),
@@ -485,8 +482,7 @@ export async function generateResearchSpec(params: {
     gapProposal: gapProposalsByProject.get(projectId) ?? null,
     contributions: contributionsByProject.get(projectId) ?? [],
     claims: atomicClaimsByProject.get(projectId) ?? [],
-    links: claimEvidenceLinksByProject.get(projectId) ?? [],
-    spans: evidenceSpansByProject.get(projectId) ?? [],
+    requirements: evidenceRequirementsByProject.get(projectId) ?? [],
     plans: experimentPlansByProject.get(projectId) ?? [],
     decisions: interpretationDecisionsByProject.get(projectId) ?? [],
     statusHistory: graph.statusHistory,

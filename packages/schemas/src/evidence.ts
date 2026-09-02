@@ -38,55 +38,6 @@ export const CreateEvidenceSpanInputSchema = z.object({
 });
 export type CreateEvidenceSpanInput = z.infer<typeof CreateEvidenceSpanInputSchema>;
 
-/**
- * Allowed verdicts for an atomic claim–evidence review (AIT-05). The
- * application enforces this enum; the model may not invent verdicts.
- */
-export const EvidenceVerdictSchema = z.enum([
-  "SUPPORTS",
-  "PARTIALLY_SUPPORTS",
-  "CONTRADICTS",
-  "INSUFFICIENT",
-  "IRRELEVANT",
-]);
-export type EvidenceVerdict = z.infer<typeof EvidenceVerdictSchema>;
-
-export const ClaimEvidenceLinkSchema = z.object({
-  id: UuidSchema,
-  projectId: UuidSchema,
-  /** Reference to a spec node of type `CLAIM` (or `PRIOR_WORK_FINDING`). */
-  claimNodeId: UuidSchema,
-  evidenceSpanId: UuidSchema,
-  /** Deterministic integrity status, computed by the application. */
-  integrityStatus: z.enum([
-    "VALID",
-    "INVALID_LINK",
-    "INVALID_OFFSET",
-    "EXACT_TEXT_MISMATCH",
-    "MISSING_SOURCE",
-  ]),
-  /** Atomic AI review result; null until AIT-05 runs. */
-  review: z
-    .object({
-      verdict: EvidenceVerdictSchema,
-      reason: z.string().min(1).max(2_000),
-      unsupportedAspects: z.array(z.string().min(1).max(500)).default([]),
-    })
-    .nullable(),
-  createdAt: IsoTimestampSchema,
-  updatedAt: IsoTimestampSchema,
-});
-export type ClaimEvidenceLink = z.infer<typeof ClaimEvidenceLinkSchema>;
-
-export const CreateClaimEvidenceLinkInputSchema = z.object({
-  projectId: UuidSchema,
-  claimNodeId: UuidSchema,
-  evidenceSpanId: UuidSchema,
-});
-export type CreateClaimEvidenceLinkInput = z.infer<
-  typeof CreateClaimEvidenceLinkInputSchema
->;
-
 export const ListEvidenceSpansInputSchema = z.object({
   projectId: UuidSchema,
   sourceId: UuidSchema.optional(),
@@ -99,54 +50,88 @@ export const ListEvidenceSpansOutputSchema = z.object({
 });
 export type ListEvidenceSpansOutput = z.infer<typeof ListEvidenceSpansOutputSchema>;
 
-export const ListClaimEvidenceLinksInputSchema = z.object({
-  projectId: UuidSchema,
-  claimNodeId: UuidSchema.optional(),
-});
-export type ListClaimEvidenceLinksInput = z.infer<
-  typeof ListClaimEvidenceLinksInputSchema
->;
-
-export const ListClaimEvidenceLinksOutputSchema = z.object({
-  items: z.array(ClaimEvidenceLinkSchema),
-});
-export type ListClaimEvidenceLinksOutput = z.infer<
-  typeof ListClaimEvidenceLinksOutputSchema
->;
-
-export const IntegrityCheckResultSchema = z.object({
-  linkId: UuidSchema,
-  integrityStatus: ClaimEvidenceLinkSchema.shape.integrityStatus,
-});
-export type IntegrityCheckResult = z.infer<typeof IntegrityCheckResultSchema>;
-
-export const RunIntegrityChecksInputSchema = z.object({
-  projectId: UuidSchema,
-});
-export type RunIntegrityChecksInput = z.infer<typeof RunIntegrityChecksInputSchema>;
-
-export const RunIntegrityChecksOutputSchema = z.object({
-  results: z.array(IntegrityCheckResultSchema),
-});
-export type RunIntegrityChecksOutput = z.infer<typeof RunIntegrityChecksOutputSchema>;
+/**
+ * Operator defining what a measured metric value must satisfy to verify a
+ * claim. `IN_RANGE` expects `threshold` to encode a numeric interval
+ * (e.g. "0.80 – 0.95" or "[2, 5]"), `STATISTICALLY_SIGNIFICANT` expects a
+ * p-value / CI condition.
+ */
+export const EvidenceOperatorSchema = z.enum([
+  "GT",
+  "GTE",
+  "LT",
+  "LTE",
+  "EQ",
+  "IN_RANGE",
+  "STATISTICALLY_SIGNIFICANT",
+]);
+export type EvidenceOperator = z.infer<typeof EvidenceOperatorSchema>;
 
 /**
- * Atomic claim–evidence review output (AIT-05). The verdict is constrained
- * to the allowed enum; the model may not invent verdicts (AI design §2.2).
+ * Persisted evidence requirement — what a metric value must satisfy for a
+ * claim to be considered verified. Derived from (and linked to) an
+ * {@link AtomicClaim} or a spec `CLAIM` node. This is *proposed* data until
+ * the user confirms/edits; it does not self-verify a claim (BR-03).
  */
-export const EvidenceReviewOutputSchema = z.object({
-  verdict: EvidenceVerdictSchema,
-  reason: z.string().min(1).max(500),
-  unsupportedAspects: z.array(z.string().min(1).max(500)).default([]),
-});
-export type EvidenceReviewOutput = z.infer<typeof EvidenceReviewOutputSchema>;
-
-export const RunEvidenceReviewInputSchema = z.object({
+export const EvidenceRequirementSchema = z.object({
+  id: UuidSchema,
   projectId: UuidSchema,
-  linkId: UuidSchema,
-  /** The claim text to review. */
-  claimText: z.string().min(1).max(2_000),
-  /** The evidence span exact text. */
-  evidenceText: z.string().min(1).max(10_000),
+  claimId: UuidSchema,
+  /** Metric name copied / normalised from the source claim. */
+  metric: z.string().trim().min(1).max(500),
+  operator: EvidenceOperatorSchema,
+  /** Threshold, interval or significance condition the metric must meet. */
+  threshold: z.string().trim().min(1).max(500),
+  /** Human-readable success criterion (e.g. "F1 ≥ 0.82 on held-out test"). */
+  successCriterion: z.string().trim().min(1).max(2_000),
+  /** Falsification condition (negation of success). */
+  falsificationCriterion: z.string().trim().min(1).max(2_000),
+  /** How the metric should be measured (dataset split, protocol hint). */
+  measurementMethod: z.string().trim().min(1).max(2_000).optional(),
+  /** Minimum observations / samples required to evaluate the criterion. */
+  requiredObservations: z.array(z.string().trim().min(1).max(500)).default([]),
+  createdAt: IsoTimestampSchema,
+  updatedAt: IsoTimestampSchema,
 });
-export type RunEvidenceReviewInput = z.infer<typeof RunEvidenceReviewInputSchema>;
+export type EvidenceRequirement = z.infer<typeof EvidenceRequirementSchema>;
+
+/**
+ * LLM output shape for evidence-requirement generation. The application
+ * assigns `id`/`projectId`/`claimId`/timestamps after validation — the model
+ * only produces the verifiable criterion.
+ */
+export const GenerateEvidenceRequirementOutputSchema = z.object({
+  metric: z.string().trim().min(1).max(500),
+  operator: EvidenceOperatorSchema,
+  threshold: z.string().trim().min(1).max(500),
+  successCriterion: z.string().trim().min(1).max(2_000),
+  falsificationCriterion: z.string().trim().min(1).max(2_000),
+  measurementMethod: z.string().trim().min(1).max(2_000).optional(),
+  requiredObservations: z.array(z.string().trim().min(1).max(500)).default([]),
+});
+export type GenerateEvidenceRequirementOutput = z.infer<
+  typeof GenerateEvidenceRequirementOutputSchema
+>;
+
+export const GenerateEvidenceRequirementInputSchema = z.object({
+  projectId: UuidSchema,
+  claimId: UuidSchema,
+});
+export type GenerateEvidenceRequirementInput = z.infer<
+  typeof GenerateEvidenceRequirementInputSchema
+>;
+
+export const ListEvidenceRequirementsInputSchema = z.object({
+  projectId: UuidSchema,
+  claimId: UuidSchema.optional(),
+});
+export type ListEvidenceRequirementsInput = z.infer<
+  typeof ListEvidenceRequirementsInputSchema
+>;
+
+export const ListEvidenceRequirementsOutputSchema = z.object({
+  items: z.array(EvidenceRequirementSchema),
+});
+export type ListEvidenceRequirementsOutput = z.infer<
+  typeof ListEvidenceRequirementsOutputSchema
+>;
