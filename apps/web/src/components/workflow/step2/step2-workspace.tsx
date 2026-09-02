@@ -349,7 +349,7 @@ export function Step2Workspace({
             targetValue={relationTarget}
             canCreate={canCreateRelation}
             pending={pending}
-            error={relationError}
+            error={relationError ?? null}
             onDraftChange={(next) => {
               setRelationDraft(next);
               setLocalRelationError(null);
