@@ -4,6 +4,7 @@ import type {
   SpecSection,
 } from "@specloop/schemas";
 import { MarkdownDocument } from "build-md";
+import { saveAs } from "file-saver";
 
 export type MarkdownSection = readonly [title: string, content: string];
 
@@ -109,15 +110,5 @@ export function buildResearchSpecMarkdown({
 
 export function downloadMarkdown(body: string, filename: string) {
   const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.style.display = "none";
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  saveAs(blob, filename);
 }
