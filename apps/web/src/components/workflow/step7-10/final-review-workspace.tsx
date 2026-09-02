@@ -408,7 +408,7 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
           <CardContent className="space-y-4">
             {fixtureMode ? (
               <>
-                <div className="grid gap-4 lg:grid-cols-3">
+                <div className="flex flex-col gap-4">
                   {fixtureJudges.map((judge) => (
                     <div key={judge.name} className="rounded-lg border p-4">
                       <div className="flex items-center justify-between gap-2">
@@ -449,14 +449,25 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
 
                 {panel && (
                   <>
-                    <div className="grid gap-4 lg:grid-cols-5">
+                    <div className="flex flex-col gap-4">
                       {panel.judges.map((report) => (
                         <div key={report.judge} className="rounded-lg border p-4 flex flex-col">
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="font-semibold text-sm">{report.judge}</h3>
-                            <Badge variant="outline" className="text-xs">
-                              {report.findings.length} finding{report.findings.length !== 1 ? "s" : ""}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => rerunJudge.mutate({ projectId, judge: report.judge })}
+                                disabled={rerunJudge.isPending}
+                              >
+                                {rerunJudge.isPending ? <RefreshCw className="mr-1 size-3 animate-spin" /> : <RefreshCw className="mr-1 size-3" />}
+                                Re-run
+                              </Button>
+                              <Badge variant="outline" className="text-xs">
+                                {report.findings.length} finding{report.findings.length !== 1 ? "s" : ""}
+                              </Badge>
+                            </div>
                           </div>
                           <p className="mt-2 text-xs text-muted-foreground line-clamp-3">{report.summary}</p>
                           <div className="mt-3 space-y-2">
@@ -481,16 +492,6 @@ export function FinalReviewWorkspace({ projectId, fixtureMode }: Props) {
                               ))
                             )}
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="mt-auto pt-2"
-                            onClick={() => rerunJudge.mutate({ projectId, judge: report.judge })}
-                            disabled={rerunJudge.isPending}
-                          >
-                            {rerunJudge.isPending ? <RefreshCw className="mr-1 size-3 animate-spin" /> : <RefreshCw className="mr-1 size-3" />}
-                            Re-run {report.judge}
-                          </Button>
                         </div>
                       ))}
                     </div>

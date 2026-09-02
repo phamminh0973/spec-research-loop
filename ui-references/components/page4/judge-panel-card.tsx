@@ -44,7 +44,7 @@ export function JudgePanelCard() {
       </div>
 
       {/* 5 judge cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="flex flex-col gap-3">
         {JUDGES.map((judge) => {
           const Icon = judge.icon
           return (
