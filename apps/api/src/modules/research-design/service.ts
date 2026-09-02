@@ -40,6 +40,7 @@ import {
 } from "../../db/schema.js";
 import { structuredCall } from "../../llm/structured-call.js";
 import { parseOrThrow } from "../../store/project-store.js";
+import { generateEvidenceRequirement } from "../evidence/service.js";
 import {
   CLAIM_DESIGN_SYSTEM_PROMPT,
   EXPERIMENT_PLAN_SYSTEM_PROMPT,
@@ -365,85 +366,6 @@ export async function generateGapProposal(params: {
   return proposal;
 }
 
-function inferEvidenceOperator(
-  expectedDirection: string
-): EvidenceRequirement["operator"] {
-  const lower = expectedDirection.toLowerCase();
-  if (
-    lower.includes("statistically") ||
-    lower.includes("p <") ||
-    lower.includes("p<") ||
-    lower.includes("significant")
-  ) {
-    return "STATISTICALLY_SIGNIFICANT";
-  }
-  if (
-    lower.includes("range") ||
-    lower.includes("between") ||
-    lower.includes("interval")
-  ) {
-    return "IN_RANGE";
-  }
-  if (lower.includes("greater than") && !lower.includes("or equal"))
-    return "GT";
-  if (lower.includes("less than") && !lower.includes("or equal")) return "LT";
-  if (
-    lower.includes("increase") ||
-    lower.includes("improv") ||
-    lower.includes("higher") ||
-    lower.includes("greater") ||
-    lower.includes("exceed") ||
-    lower.includes(">=") ||
-    lower.includes("at least")
-  ) {
-    return "GTE";
-  }
-  if (
-    lower.includes("decrease") ||
-    lower.includes("reduce") ||
-    lower.includes("lower") ||
-    lower.includes("less") ||
-    lower.includes("<=")
-  ) {
-    return "LTE";
-  }
-  if (
-    lower.includes("equal") ||
-    lower.includes("no difference") ||
-    lower.includes("==")
-  )
-    return "EQ";
-  return "GTE";
-}
-
-function buildEvidenceRequirementForClaim(
-  projectId: string,
-  claim: AtomicClaim
-): EvidenceRequirement {
-  const operator = inferEvidenceOperator(claim.expectedDirection);
-  const threshold = `Not (${claim.falsificationCondition}) — satisfies ${claim.expectedDirection} on ${claim.metric}`;
-  const successCriterion = `Claim "${claim.text}" is verified if ${claim.metric} measured on ${claim.datasetDomain} in scope "${claim.scope}" vs baseline ${claim.baseline} shows ${claim.expectedDirection} and does not satisfy falsification condition: ${claim.falsificationCondition}.`;
-  const measurementMethod = `Measure ${claim.metric} on ${claim.datasetDomain} against baseline ${claim.baseline} within scope ${claim.scope}.`;
-  const now = new Date().toISOString();
-  return parseOrThrow(
-    EvidenceRequirementSchema,
-    {
-      id: crypto.randomUUID(),
-      projectId,
-      claimId: claim.id,
-      metric: claim.metric,
-      operator,
-      threshold: threshold.slice(0, 500),
-      successCriterion: successCriterion.slice(0, 2000),
-      falsificationCriterion: claim.falsificationCondition,
-      measurementMethod: measurementMethod.slice(0, 2000),
-      requiredObservations: [claim.metric],
-      createdAt: now,
-      updatedAt: now,
-    },
-    "EvidenceRequirement"
-  );
-}
 
 /** AIT-07: generate contributions and atomic claims from a selected gap. */
 export async function generateClaimDesign(params: {
@@ -574,25 +496,18 @@ export async function generateClaimDesign(params: {
       .run();
   }
 
-  // Auto-generate evidence requirements for each new claim so the user does
-  // not have to run a second process manually. Deterministic, no extra LLM
-  // call — the LLM-backed `evidence.generateEvidenceForClaim` remains
-  // available for per-claim regeneration.
-  const persistedEvidenceRequirements: EvidenceRequirement[] =
-    persistedClaims.map((claim) =>
-      buildEvidenceRequirementForClaim(projectId, claim)
-    );
-  for (const req of persistedEvidenceRequirements) {
-    db.insert(evidenceRequirements)
-      .values({
-        id: req.id,
-        projectId,
-        claimId: req.claimId,
-        data: JSON.stringify(req),
-        createdAt: req.createdAt,
-        updatedAt: req.updatedAt,
-      })
-      .run();
+  // Auto-generate evidence requirements for each new claim using the LLM
+  // so the final claim–evidence matrix uses the LLM-generated requirement
+  // instead of the deterministic fallback.
+  const persistedEvidenceRequirements: EvidenceRequirement[] = [];
+  for (const claim of persistedClaims) {
+    const req = await generateEvidenceRequirement({
+      projectId,
+      claimId: claim.id,
+      client,
+      model,
+    });
+    persistedEvidenceRequirements.push(req);
   }
 
   // Return design with persisted IDs substituted.

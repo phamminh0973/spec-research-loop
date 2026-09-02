@@ -279,178 +279,7 @@ export function listEvidenceRequirements(params: {
   return { items: all };
 }
 
-function inferOperator(
-  expectedDirection: string
-): EvidenceRequirement["operator"] {
-  const lower = expectedDirection.toLowerCase();
-  if (
-    lower.includes("statistically") ||
-    lower.includes("p <") ||
-    lower.includes("p<") ||
-    lower.includes("significant")
-  ) {
-    return "STATISTICALLY_SIGNIFICANT";
-  }
-  if (
-    lower.includes("range") ||
-    lower.includes("between") ||
-    lower.includes("interval")
-  ) {
-    return "IN_RANGE";
-  }
-  if (lower.includes("greater than") && !lower.includes("or equal"))
-    return "GT";
-  if (lower.includes("less than") && !lower.includes("or equal")) return "LT";
-  if (
-    lower.includes("increase") ||
-    lower.includes("improv") ||
-    lower.includes("higher") ||
-    lower.includes("greater") ||
-    lower.includes("exceed") ||
-    lower.includes(">=") ||
-    lower.includes("at least")
-  ) {
-    return "GTE";
-  }
-  if (
-    lower.includes("decrease") ||
-    lower.includes("reduce") ||
-    lower.includes("lower") ||
-    lower.includes("less") ||
-    lower.includes("<=")
-  ) {
-    return "LTE";
-  }
-  if (
-    lower.includes("equal") ||
-    lower.includes("no difference") ||
-    lower.includes("==")
-  )
-    return "EQ";
-  return "GTE";
-}
 
-export function buildDeterministicEvidenceRequirement(
-  projectId: string,
-  ctx: ClaimContext
-): EvidenceRequirement {
-  const operator = inferOperator(ctx.expectedDirection);
-  const threshold = `Not (${ctx.falsificationCondition}) — satisfies ${ctx.expectedDirection} on ${ctx.metric}`;
-  const successCriterion = `Claim "${ctx.text}" is verified if ${ctx.metric} measured on ${ctx.datasetDomain} in scope "${ctx.scope}" vs baseline ${ctx.baseline} shows ${ctx.expectedDirection} and does not satisfy falsification condition: ${ctx.falsificationCondition}.`;
-  const measurementMethod = `Measure ${ctx.metric} on ${ctx.datasetDomain} against baseline ${ctx.baseline} within scope ${ctx.scope}.`;
-  const now = new Date().toISOString();
-  return parseOrThrow(
-    EvidenceRequirementSchema,
-    {
-      id: crypto.randomUUID(),
-      projectId,
-      claimId: ctx.id,
-      metric: ctx.metric,
-      operator,
-      threshold: threshold.slice(0, 500),
-      successCriterion: successCriterion.slice(0, 2000),
-      falsificationCriterion: ctx.falsificationCondition,
-      measurementMethod: measurementMethod.slice(0, 2000),
-      requiredObservations: [ctx.metric],
-      createdAt: now,
-      updatedAt: now,
-    },
-    "EvidenceRequirement"
-  );
-}
-
-export function ensureEvidenceRequirementsForClaims(params: {
-  projectId: string;
-  claimIds?: string[];
-}): EvidenceRequirement[] {
-  const { projectId, claimIds } = params;
-  const db = getDb();
-  const allClaimRows = db
-    .select()
-    .from(atomicClaims)
-    .where(eq(atomicClaims.projectId, projectId))
-    .all();
-  let targetClaimRows = allClaimRows;
-  if (claimIds) {
-    const idSet = new Set(claimIds);
-    targetClaimRows = allClaimRows.filter((r) => idSet.has(r.id));
-  }
-
-  // LEFT JOIN evidence_requirements to find which claims already have requirements
-  const joined = db
-    .select({
-      claimId: atomicClaims.id,
-      requirementData: evidenceRequirements.data,
-    })
-    .from(atomicClaims)
-    .leftJoin(
-      evidenceRequirements,
-      eq(evidenceRequirements.claimId, atomicClaims.id)
-    )
-    .where(eq(atomicClaims.projectId, projectId))
-    .all();
-
-  const reqByClaim = new Map<string, EvidenceRequirement>();
-  for (const row of joined) {
-    if (row.requirementData) {
-      const req = parseOrThrow(
-        EvidenceRequirementSchema,
-        JSON.parse(row.requirementData as string),
-        "EvidenceRequirement"
-      );
-      reqByClaim.set(row.claimId, req);
-    }
-  }
-
-  const ids = claimIds ?? targetClaimRows.map((r) => r.id);
-  const created: EvidenceRequirement[] = [];
-  // Also need to handle spec-graph claimIds not in atomicClaims; ensure they are considered
-  const idsToProcess = claimIds ?? ids;
-  for (const claimId of idsToProcess) {
-    if (reqByClaim.has(claimId)) {
-      created.push(reqByClaim.get(claimId)!);
-      continue;
-    }
-    // Check if already has requirement but not in join due to project filter mismatch (spec graph nodes)
-    const existingRow = db
-      .select()
-      .from(evidenceRequirements)
-      .where(
-        and(
-          eq(evidenceRequirements.projectId, projectId),
-          eq(evidenceRequirements.claimId, claimId)
-        )
-      )
-      .get();
-    if (existingRow) {
-      const existing = parseOrThrow(
-        EvidenceRequirementSchema,
-        JSON.parse(existingRow.data as string),
-        "EvidenceRequirement"
-      );
-      created.push(existing);
-      continue;
-    }
-    try {
-      const ctx = resolveClaimContext(projectId, claimId);
-      const req = buildDeterministicEvidenceRequirement(projectId, ctx);
-      db.insert(evidenceRequirements)
-        .values({
-          id: req.id,
-          projectId,
-          claimId: req.claimId,
-          data: JSON.stringify(req),
-          createdAt: req.createdAt,
-          updatedAt: req.updatedAt,
-        })
-        .run();
-      created.push(req);
-    } catch {
-      // skip claims that cannot be resolved (e.g. deleted)
-    }
-  }
-  return created;
-}
 
 export async function generateEvidenceRequirementsForClaims(params: {
   projectId: string;
@@ -529,6 +358,13 @@ export async function generateEvidenceRequirement(params: {
     outputSchema: GenerateEvidenceRequirementOutputSchema,
     schemaName: "generate_evidence_requirement_output",
   });
+
+  // Enforce concrete numeric threshold
+  if (!/\d/.test(out.threshold) || !/\d/.test(out.successCriterion)) {
+    throw new Error(
+      `Evidence requirement threshold must be concrete numeric value; got threshold="${out.threshold}", successCriterion="${out.successCriterion}".`
+    );
+  }
 
   const now = new Date().toISOString();
   const requirement = parseOrThrow(

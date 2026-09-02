@@ -217,9 +217,9 @@ describe("spec-generation section builders", () => {
         metric: "unsupported claim rate",
         operator: "LTE",
         threshold:
-          "Not (không cải thiện ổn định) — satisfies giảm on unsupported claim rate",
+          "[threshold] (falsification: không cải thiện ổn định)",
         successCriterion:
-          'Claim "Phương pháp giảm unsupported claims." is verified if unsupported claim rate measured on arXiv cs.AI in scope "paper khoa học" vs baseline self-refine shows giảm and does not satisfy falsification condition: không cải thiện ổn định.',
+          'unsupported claim rate ≤ [threshold] on arXiv cs.AI vs baseline self-refine',
         falsificationCriterion: "không cải thiện ổn định",
         measurementMethod:
           "Measure unsupported claim rate on arXiv cs.AI against baseline self-refine within scope paper khoa học.",
@@ -231,7 +231,7 @@ describe("spec-generation section builders", () => {
 
     const result = buildClaimEvidenceMatrixSection(claims, requirements);
     expect(result.content).toContain("unsupported claim rate");
-    expect(result.content).toContain("LTE");
+    expect(result.content).toContain("≤");
     expect(result.content).toContain("không cải thiện ổn định");
   });
 

@@ -39,6 +39,7 @@ import {
   SpecGraphViewSchema,
   type SpecNode,
   type SpecSection,
+  operatorToSign,
 } from "@specloop/schemas";
 import { MarkdownDocument, md } from "build-md";
 import { asc, desc, eq } from "drizzle-orm";
@@ -282,10 +283,11 @@ export function buildClaimEvidenceMatrixSection(
         "(chưa có evidence requirement — cần xác định metric/threshold)",
       ]);
     } else {
+      const sign = operatorToSign[req.operator];
       rows.push([
         claim.text,
         req.metric,
-        `${req.operator} ${req.threshold}`,
+        `${sign} ${req.threshold}`,
         req.successCriterion,
         req.falsificationCriterion,
       ]);

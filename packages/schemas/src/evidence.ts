@@ -141,3 +141,14 @@ export const ListEvidenceRequirementsOutputSchema = z.object({
 export type ListEvidenceRequirementsOutput = z.infer<
   typeof ListEvidenceRequirementsOutputSchema
 >;
+
+/** Map EvidenceOperator to its mathematical sign representation. */
+export const operatorToSign: Record<EvidenceOperator, string> = {
+  GT: ">",
+  GTE: "≥",
+  LT: "<",
+  LTE: "≤",
+  EQ: "=",
+  IN_RANGE: "∈",
+  STATISTICALLY_SIGNIFICANT: "p<",
+};
