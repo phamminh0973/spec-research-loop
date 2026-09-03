@@ -154,7 +154,7 @@ function fetchContributions(projectId: string): Contribution[] {
     .where(eq(contributions.projectId, projectId))
     .all();
   return rows.map((r) =>
-    parseOrThrow(ContributionSchema, r.data, "Contribution")
+    parseOrThrow(ContributionSchema, JSON.parse(r.data as string), "Contribution")
   );
 }
 
