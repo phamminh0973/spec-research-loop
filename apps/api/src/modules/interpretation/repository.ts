@@ -12,7 +12,6 @@ import { getDb } from "../../db/client.js";
 import {
   interpretationDecisions,
   interpretations,
-  projects,
 } from "../../db/schema.js";
 
 export class InterpretationLifecycleError extends Error {
@@ -57,23 +56,6 @@ export interface InterpretationRepository {
   listDecisions(projectId: string): Promise<InterpretationDecision[]>;
 }
 
-function ensureProjectExists(projectId: string): void {
-  const db = getDb();
-  const now = new Date().toISOString();
-  db.insert(projects)
-    .values({
-      id: projectId,
-      title: "Test Project",
-      domain: null,
-      rawIdea: "placeholder",
-      resourceConstraints: "[]",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .run();
-}
-
 function parseInterpretationRow(
   row: typeof interpretations.$inferSelect
 ): InterpretationRecord {
@@ -98,7 +80,6 @@ export class InMemoryInterpretationRepository
         "A generated interpretation must begin as PROPOSED."
       );
     }
-    ensureProjectExists(parsed.projectId);
     const db = getDb();
     const existing = db
       .select()
@@ -345,7 +326,6 @@ export class InMemoryInterpretationRepository
     record: InterpretationRecord
   ): Promise<InterpretationRecord> {
     const parsed = InterpretationRecordSchema.parse(record);
-    ensureProjectExists(parsed.projectId);
     const db = getDb();
     db.insert(interpretations)
       .values({

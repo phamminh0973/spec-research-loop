@@ -34,7 +34,6 @@ import {
   evidenceRequirements,
   experimentPlans,
   gapProposals,
-  projects,
   sources,
   specGraphs,
 } from "../../db/schema.js";
@@ -46,81 +45,6 @@ import {
   EXPERIMENT_PLAN_SYSTEM_PROMPT,
   GAP_PROPOSAL_SYSTEM_PROMPT,
 } from "./prompt.js";
-
-function ensureProjectExists(projectId: string): void {
-  const db = getDb();
-  const now = new Date().toISOString();
-  db.insert(projects)
-    .values({
-      id: projectId,
-      title: "Test Project",
-      domain: null,
-      rawIdea: "placeholder",
-      resourceConstraints: "[]",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .run();
-}
-
-function ensureSpecGraphExists(projectId: string): void {
-  const db = getDb();
-  const existing = db
-    .select()
-    .from(specGraphs)
-    .where(eq(specGraphs.projectId, projectId))
-    .get();
-  if (existing) return;
-  ensureProjectExists(projectId);
-  const now = new Date().toISOString();
-  const placeholder = {
-    projectId,
-    nodes: [],
-    relations: [],
-    warnings: [],
-    statusHistory: [],
-  };
-  db.insert(specGraphs)
-    .values({
-      projectId,
-      interpretationId: null,
-      data: JSON.stringify(placeholder),
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .run();
-}
-
-function ensureGapProposalExists(projectId: string): string {
-  const db = getDb();
-  const existing = db
-    .select()
-    .from(gapProposals)
-    .where(eq(gapProposals.projectId, projectId))
-    .orderBy(desc(gapProposals.createdAt))
-    .get();
-  if (existing) return existing.id;
-  ensureSpecGraphExists(projectId);
-  const now = new Date().toISOString();
-  const id = crypto.randomUUID();
-  const placeholder = {
-    candidates: [],
-    warning: "placeholder",
-  };
-  db.insert(gapProposals)
-    .values({
-      id,
-      projectId,
-      specGraphProjectId: projectId,
-      data: JSON.stringify(placeholder),
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
-  return id;
-}
 
 function fetchSources(projectId: string) {
   const db = getDb();
@@ -349,7 +273,11 @@ export async function generateGapProposal(params: {
     ],
   });
 
-  ensureSpecGraphExists(projectId);
+  if (!fetchSpecGraph(projectId)) {
+    throw new Error(
+      "Spec graph must exist before generating a gap proposal."
+    );
+  }
   const db = getDb();
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
@@ -445,7 +373,12 @@ export async function generateClaimDesign(params: {
     .where(eq(gapProposals.projectId, projectId))
     .orderBy(desc(gapProposals.createdAt))
     .get();
-  const gapProposalId = gapRow?.id ?? ensureGapProposalExists(projectId);
+  if (!gapRow) {
+    throw new Error(
+      "Gap proposal must exist before designing claims."
+    );
+  }
+  const gapProposalId = gapRow.id;
   for (const claim of persistedClaims) {
     db.insert(atomicClaims)
       .values({
@@ -585,7 +518,18 @@ export async function generateExperimentPlan(params: {
     "ExperimentPlan"
   );
   const db = getDb();
-  const gapProposalId = ensureGapProposalExists(projectId);
+  const gapRow = db
+    .select()
+    .from(gapProposals)
+    .where(eq(gapProposals.projectId, projectId))
+    .orderBy(desc(gapProposals.createdAt))
+    .get();
+  if (!gapRow) {
+    throw new Error(
+      "Gap proposal must exist before planning experiments."
+    );
+  }
+  const gapProposalId = gapRow.id;
   db.insert(experimentPlans)
     .values({
       id: plan.id,

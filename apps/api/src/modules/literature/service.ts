@@ -19,7 +19,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type OpenAI from "openai";
 import { z } from "zod";
 import { getDb } from "../../db/client.js";
-import { projects, sources, specGraphs } from "../../db/schema.js";
+import { sources } from "../../db/schema.js";
 import { structuredCall } from "../../llm/structured-call.js";
 import {
   ArxivSearchInputSchema,
@@ -33,52 +33,6 @@ import {
   QUERY_GENERATION_SYSTEM_PROMPT,
   RELEVANCE_FILTER_SYSTEM_PROMPT,
 } from "./prompt.js";
-
-function ensureProjectExists(projectId: string): void {
-  const db = getDb();
-  const now = new Date().toISOString();
-  db.insert(projects)
-    .values({
-      id: projectId,
-      title: "Test Project",
-      domain: null,
-      rawIdea: "placeholder",
-      resourceConstraints: "[]",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .run();
-}
-
-function ensureSpecGraphExists(projectId: string): void {
-  const db = getDb();
-  const existing = db
-    .select()
-    .from(specGraphs)
-    .where(eq(specGraphs.projectId, projectId))
-    .get();
-  if (existing) return;
-  ensureProjectExists(projectId);
-  const now = new Date().toISOString();
-  const placeholder = {
-    projectId,
-    nodes: [],
-    relations: [],
-    warnings: [],
-    statusHistory: [],
-  };
-  db.insert(specGraphs)
-    .values({
-      projectId,
-      interpretationId: null,
-      data: JSON.stringify(placeholder),
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .run();
-}
 
 function fetchSources(projectId: string): SourceDocument[] {
   const db = getDb();
@@ -100,7 +54,6 @@ function insertSourceDocuments(docs: SourceDocument[]): void {
   if (docs.length === 0) return;
   const db = getDb();
   for (const doc of docs) {
-    ensureSpecGraphExists(doc.projectId);
     db.insert(sources)
       .values({
         id: doc.id,

@@ -49,7 +49,6 @@ import {
   experimentPlans,
   gapProposals,
   judgePanels,
-  projects,
   sources,
   specGraphs,
 } from "../../db/schema.js";
@@ -579,23 +578,6 @@ export function computeConsensus(reports: JudgeReport[]): Consensus {
   };
 }
 
-function ensureProjectExistsForJudge(projectId: string): void {
-  const db = getDb();
-  const now = new Date().toISOString();
-  db.insert(projects)
-    .values({
-      id: projectId,
-      title: "Test Project",
-      domain: null,
-      rawIdea: "placeholder",
-      resourceConstraints: "[]",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .run();
-}
-
 /**
  * Run all five Judges independently (in parallel) and persist the panel
  * result. Requires a decomposition graph to exist — there is nothing
@@ -636,7 +618,6 @@ export async function runJudgePanel(params: {
     "JudgePanelResult"
   );
 
-  ensureProjectExistsForJudge(projectId);
   const db = getDb();
   // Need experimentPlanId FK — pick latest experiment plan if exists else null
   const latestPlan = db
