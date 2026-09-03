@@ -210,12 +210,10 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                     Interpretation chỉ là proposal cho đến khi bạn xác nhận.
                   </li>
                   <li>
-                    Hệ thống không được tự gán <code>USER_CONFIRMED</code> từ
-                    output AI.
+                    Hệ thống không được tự động xác nhận từ output AI.
                   </li>
                   <li>
-                    Decomposition sẽ nhận <code>projectId</code> và tự kiểm tra
-                    gate ở server.
+                    Decomposition chỉ được thực hiện sau khi bạn xác nhận interpretation.
                   </li>
                 </ul>
               </CardContent>
@@ -251,7 +249,7 @@ export function NewProjectWorkspace({ fixtureMode }: { fixtureMode: boolean }) {
                   <p className="text-sm text-muted-foreground text-justify">
                     simple interpretation, technical interpretation,
                     assumptions, objectives và ambiguities — đúng theo schema
-                    AIT-01 hiện có.
+                    hiện có.
                   </p>
                 </div>
                 <div className="rounded-lg bg-muted p-4 border-border border-2">
@@ -605,7 +603,7 @@ export function UnderstandingWorkspace({
                     Chưa có interpretation proposal
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Nhấn Generate để bắt đầu lifecycle AIT-01.
+                    Nhấn Generate để bắt đầu tạo proposal.
                   </p>
                 </div>
               )}
@@ -654,8 +652,8 @@ export function UnderstandingWorkspace({
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {confirmed
-                      ? "Phiên bản hiện tại đã USER_CONFIRMED."
-                      : "Chưa confirm thì Step 2 vẫn bị chặn theo BR-01."}
+                      ? "Phiên bản hiện tại đã được xác nhận."
+                      : "Chưa confirm thì Step 2 vẫn bị chặn."}
                   </p>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-4">
@@ -714,13 +712,12 @@ export function UnderstandingWorkspace({
                 </Link>
               ) : (
                 <span className="text-sm text-muted-foreground">
-                  Step 2 locked by BR-01
+                  Step 2 sẽ mở sau khi xác nhận interpretation
                 </span>
               )}
             </div>
             <div className="mt-4 text-sm text-muted-foreground">
-              <strong>Authority:</strong> AI chỉ tạo PROPOSED; Confirm là hành
-              động của user qua API lifecycle.
+              <strong>Lưu ý:</strong> AI chỉ tạo đề xuất; Xác nhận là hành động của bạn.
             </div>
           </CardContent>
         </SectionCard>

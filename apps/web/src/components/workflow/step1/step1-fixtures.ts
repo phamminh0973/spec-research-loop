@@ -9,7 +9,7 @@ export const LOCAL_INTERPRETATION_PROPOSAL: InterpretationRecord = {
     simpleInterpretation:
       "Đây là dữ liệu fixture để kiểm tra vòng review. Nó mô phỏng cách hệ thống diễn giải một ý tưởng trước khi người dùng xác nhận.",
     technicalInterpretation:
-      "Fixture này mô phỏng một interpretation record có output đơn giản, output kỹ thuật, assumptions, objectives và ambiguities theo contract AIT-01.",
+      "Fixture này mô phỏng một interpretation record có output đơn giản, output kỹ thuật, assumptions, objectives và ambiguities theo contract hiện hành.",
     assumptions: [
       "Người dùng sẽ kiểm tra nội dung trước khi chuyển sang decomposition.",
     ],

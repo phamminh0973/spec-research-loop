@@ -119,11 +119,10 @@ export function Step2Overview({
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
-                BR-01 GATE
+                Yêu cầu xác nhận
               </p>
               <p className="text-muted-foreground mt-1 text-sm">
-                Server chỉ nhận projectId và tự đọc interpretation
-                USER_CONFIRMED trước khi generate.
+                System chỉ tạo card sau khi interpretation được xác nhận.
               </p>
             </div>
             <Button onClick={onGenerate} disabled={pending}>

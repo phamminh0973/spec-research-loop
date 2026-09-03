@@ -45,7 +45,7 @@ export function NodeReviewList({
       <div className="rounded-xl border border-dashed p-8 text-center">
         <h3 className="text-foreground font-semibold">Chưa có typed cards</h3>
         <p className="text-muted-foreground mt-1 text-sm">
-          Generate sau khi server xác nhận BR-01, hoặc mở fixture để smoke-test
+          Generate sau khi interpretation được xác nhận, hoặc mở fixture để smoke-test
           local.
         </p>
       </div>
