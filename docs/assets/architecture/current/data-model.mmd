@@ -1,0 +1,14 @@
+erDiagram
+    PROJECTS ||--o{ INTERPRETATIONS : has
+    INTERPRETATIONS ||--o{ INTERPRETATION_DECISIONS : records
+    PROJECTS ||--|| SPEC_GRAPHS : owns
+    SPEC_GRAPHS ||--o{ SOURCES : enables
+    SOURCES ||--o{ EVIDENCE_SPANS : contains
+    SPEC_GRAPHS ||--o{ GAP_PROPOSALS : enables
+    GAP_PROPOSALS ||--o{ ATOMIC_CLAIMS : produces
+    GAP_PROPOSALS ||--o{ CONTRIBUTIONS : produces
+    ATOMIC_CLAIMS ||--o{ EVIDENCE_REQUIREMENTS : requires
+    GAP_PROPOSALS ||--o{ EXPERIMENT_PLANS : produces
+    EXPERIMENT_PLANS ||--o{ JUDGE_PANELS : reviewed_by
+    JUDGE_PANELS ||--o{ RESEARCH_SPECS : informs
+    JUDGE_PANELS ||--o{ FINDING_RESOLUTIONS : receives

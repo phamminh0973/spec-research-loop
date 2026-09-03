@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 330" role="img" aria-labelledby="title desc">
+  <title id="title">Backend component model</title>
+  <desc id="desc">The transport router validates and invokes application services. Services use Zod contracts, Drizzle persistence, the structured LLM gateway, and external adapters.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#64748b"/></marker></defs>
+  <style>.box{fill:#eef2ff;stroke:#4f46e5;stroke-width:2}.store{fill:#ecfdf5;stroke:#059669;stroke-width:2}.ext{fill:#fff7ed;stroke:#ea580c;stroke-width:2}.text{font:15px Arial,sans-serif;fill:#172033}.label{font:12px Arial,sans-serif;fill:#475569}.line{stroke:#64748b;stroke-width:2;marker-end:url(#arrow)}</style>
+  <rect width="1120" height="330" fill="#ffffff"/>
+  <rect class="box" x="35" y="120" width="145" height="70" rx="6"/><text class="text" x="107" y="161" text-anchor="middle">Transport router</text>
+  <rect class="box" x="230" y="35" width="145" height="70" rx="6"/><text class="text" x="302" y="76" text-anchor="middle">Zod contract</text>
+  <rect class="box" x="230" y="205" width="145" height="70" rx="6"/><text class="text" x="302" y="246" text-anchor="middle">App service</text>
+  <rect class="box" x="430" y="35" width="185" height="70" rx="6"/><text class="text" x="522" y="76" text-anchor="middle">Drizzle query</text>
+  <rect class="store" x="680" y="35" width="145" height="70" rx="6"/><text class="text" x="752" y="76" text-anchor="middle">SQLite</text>
+  <rect class="box" x="430" y="205" width="185" height="70" rx="6"/><text class="text" x="522" y="246" text-anchor="middle">Structured LLM gateway</text>
+  <rect class="ext" x="680" y="205" width="145" height="70" rx="6"/><text class="text" x="752" y="246" text-anchor="middle">External adapter</text>
+  <path class="line" d="M180 145 C205 100 210 75 230 75" fill="none"/><path class="line" d="M180 165 C205 210 210 240 230 240" fill="none"/>
+  <path class="line" d="M302 105 V205"/><path class="line" d="M375 225 C400 180 405 80 430 70" fill="none"/><path class="line" d="M615 70 H680"/>
+  <path class="line" d="M375 250 H430"/><path class="line" d="M615 240 H680"/>
+  <text class="label" x="194" y="122">validate</text><text class="label" x="390" y="133">persist</text><text class="label" x="390" y="263">call</text>
+</svg>

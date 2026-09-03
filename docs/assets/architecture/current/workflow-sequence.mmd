@@ -1,0 +1,58 @@
+sequenceDiagram
+    actor User
+    participant Web
+    participant API
+    participant LLM
+    participant Arxiv
+    participant DB as SQLite
+
+    User->>Web: Tạo project
+    Web->>API: projects.create
+    API->>DB: Insert project
+
+    User->>Web: Yêu cầu interpretation
+    Web->>API: interpretation.generate
+    API->>LLM: Structured interpretation request
+    LLM-->>API: JSON proposal
+    API->>DB: Persist PROPOSED interpretation
+
+    User->>API: interpretation.confirm
+    API->>DB: Persist USER_CONFIRMED
+
+    User->>API: decomposition.generate
+    API->>LLM: Structured decomposition request
+    LLM-->>API: Nodes and relations
+    API->>DB: Persist graph and status history
+
+    User->>API: literature.searchWithAnalysis
+    API->>LLM: Request search tool call
+    LLM-->>API: search_arxiv arguments
+    API->>Arxiv: Execute validated search
+    Arxiv-->>API: Paper metadata
+    API->>LLM: Relevance and analysis request
+    API->>DB: Persist sources
+
+    User->>API: Select corpus and generate design
+    API->>LLM: Gap, claim and experiment requests
+    API->>DB: Persist research design
+
+    User->>API: specGeneration.generate
+    API->>DB: Read workflow data
+    API->>DB: Persist new 14-section version
+
+    User->>API: judge.runPanel
+    par Five independent calls
+        API->>LLM: Gap Judge
+        API->>LLM: Contribution Judge
+        API->>LLM: Experiment Judge
+        API->>LLM: Evidence Judge
+        API->>LLM: Conference Readiness Judge
+    end
+    API->>API: Compute deterministic consensus
+    API->>DB: Persist Judge panel
+
+    User->>API: Resolve finding / rerun / diff
+    API->>DB: Persist resolution and versions
+
+    User->>API: revision.finalize
+    API->>DB: Persist FINALIZED status

@@ -59,7 +59,7 @@ Không gán tên cá nhân trong tài liệu khi chưa có quyết định nhóm
 
 - [Project proposal](docs/01-project-proposal.md)
 - [Product requirements](docs/02-product-requirements.md)
-- [Architecture and technical design](docs/03-architecture-and-technical-design.md)
+- [System architecture](docs/03-architecture.md)
 - [AI system design](docs/04-ai-system-design.md)
 - [Product backlog](docs/05-product-backlog.md)
 - [Four-week delivery plan](docs/06-delivery-plan.md)

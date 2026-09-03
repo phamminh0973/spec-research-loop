@@ -1,0 +1,16 @@
+flowchart LR
+    ROUTER[Transport router]
+    SERVICE[Application service]
+    CONTRACT[Zod contract]
+    STORE[Repository / Drizzle query]
+    DB[(SQLite)]
+    LLM[Structured LLM gateway]
+    EXT[External adapter]
+
+    ROUTER --> CONTRACT
+    ROUTER --> SERVICE
+    SERVICE --> CONTRACT
+    SERVICE --> STORE
+    STORE --> DB
+    SERVICE --> LLM
+    SERVICE --> EXT

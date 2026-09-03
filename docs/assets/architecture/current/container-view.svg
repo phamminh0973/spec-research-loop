@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 650" role="img" aria-labelledby="title desc">
+  <title id="title">SpecLoop container view</title>
+  <desc id="desc">The browser contains Next.js pages, workflow components, TanStack Query, and the tRPC client. The API process contains Fastify, the tRPC adapter, request context, the root router, modules, the LLM gateway, and the arXiv executor.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#64748b"/></marker></defs>
+  <style>
+    .group{fill:#f8fafc;stroke:#94a3b8;stroke-width:2}.box{fill:#eef2ff;stroke:#4f46e5;stroke-width:2}.store{fill:#ecfdf5;stroke:#059669;stroke-width:2}.ext{fill:#fff7ed;stroke:#ea580c;stroke-width:2}.text{font:15px Arial,sans-serif;fill:#172033}.head{font:bold 18px Arial,sans-serif;fill:#0f172a}.label{font:12px Arial,sans-serif;fill:#475569}.line{stroke:#64748b;stroke-width:2;marker-end:url(#arrow)}
+  </style>
+  <rect width="1180" height="650" fill="#ffffff"/>
+  <rect class="group" x="30" y="25" width="1120" height="180" rx="8"/><text class="head" x="55" y="58">Browser</text>
+  <rect class="box" x="65" y="90" width="190" height="65" rx="6"/><text class="text" x="160" y="128" text-anchor="middle">Next.js pages</text>
+  <rect class="box" x="300" y="90" width="190" height="65" rx="6"/><text class="text" x="395" y="128" text-anchor="middle">Workflow components</text>
+  <rect class="box" x="535" y="90" width="190" height="65" rx="6"/><text class="text" x="630" y="128" text-anchor="middle">TanStack Query</text>
+  <rect class="box" x="770" y="90" width="190" height="65" rx="6"/><text class="text" x="865" y="128" text-anchor="middle">tRPC React client</text>
+  <path class="line" d="M255 122 H300"/><path class="line" d="M490 122 H535"/><path class="line" d="M725 122 H770"/>
+  <rect class="group" x="30" y="245" width="1120" height="235" rx="8"/><text class="head" x="55" y="278">Node.js API process</text>
+  <rect class="box" x="65" y="310" width="140" height="65" rx="6"/><text class="text" x="135" y="348" text-anchor="middle">Fastify</text>
+  <rect class="box" x="230" y="310" width="170" height="65" rx="6"/><text class="text" x="315" y="348" text-anchor="middle">tRPC adapter</text>
+  <rect class="box" x="425" y="310" width="170" height="65" rx="6"/><text class="text" x="510" y="348" text-anchor="middle">Request context</text>
+  <rect class="box" x="620" y="310" width="170" height="65" rx="6"/><text class="text" x="705" y="348" text-anchor="middle">Root AppRouter</text>
+  <rect class="box" x="815" y="310" width="170" height="65" rx="6"/><text class="text" x="900" y="348" text-anchor="middle">App modules</text>
+  <path class="line" d="M205 342 H230"/><path class="line" d="M400 342 H425"/><path class="line" d="M595 342 H620"/><path class="line" d="M790 342 H815"/>
+  <rect class="box" x="230" y="395" width="210" height="60" rx="6"/><text class="text" x="335" y="430" text-anchor="middle">LLM gateway</text>
+  <rect class="box" x="465" y="395" width="210" height="60" rx="6"/><text class="text" x="570" y="430" text-anchor="middle">arXiv executor</text>
+  <path class="line" d="M900 375 C900 405 440 385 440 425" fill="none"/><path class="line" d="M900 375 C900 420 675 390 675 425" fill="none"/>
+  <rect class="store" x="65" y="545" width="180" height="65" rx="6"/><text class="text" x="155" y="583" text-anchor="middle">SQLite</text>
+  <rect class="ext" x="350" y="545" width="230" height="65" rx="6"/><text class="text" x="465" y="583" text-anchor="middle">LLM endpoint</text>
+  <rect class="ext" x="685" y="545" width="180" height="65" rx="6"/><text class="text" x="775" y="583" text-anchor="middle">arXiv API</text>
+  <path class="line" d="M900 375 C1020 430 245 500 245 575" fill="none"/><text class="label" x="505" y="510">Drizzle ORM</text>
+  <path class="line" d="M335 455 V545"/><path class="line" d="M570 455 C570 500 775 500 775 545"/>
+  <path class="line" d="M865 155 C1040 190 1000 310 900 310" fill="none"/><text class="label" x="1020" y="245">HTTP batch /trpc</text>
+</svg>

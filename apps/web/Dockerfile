@@ -1,7 +1,7 @@
 # SpecLoop web service image.
 #
 # PLANNED. Not yet exercised by `docker compose up`; see
-# docs/03-architecture-and-technical-design.md §18.
+# docs/03-architecture.md §16.
 
 FROM node:20-alpine AS base
 WORKDIR /app

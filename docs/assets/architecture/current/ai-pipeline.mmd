@@ -1,0 +1,19 @@
+flowchart LR
+    INPUT[Typed input]
+    PROMPT[System prompt + untrusted blocks]
+    JSON_SCHEMA[JSON Schema from Zod]
+    PROVIDER[LLM provider]
+    PARSE[JSON parse]
+    ZOD[Zod validation]
+    IDS[Reference allowlist]
+    REPAIR[One repair attempt]
+    RESULT[Accepted output]
+    ERROR[Error]
+
+    INPUT --> PROMPT --> JSON_SCHEMA --> PROVIDER --> PARSE --> ZOD --> IDS
+    IDS -->|valid| RESULT
+    PARSE -->|invalid| REPAIR
+    ZOD -->|invalid| REPAIR
+    IDS -->|invalid| REPAIR
+    REPAIR -->|valid| RESULT
+    REPAIR -->|invalid| ERROR

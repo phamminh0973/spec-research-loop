@@ -1,0 +1,36 @@
+flowchart TB
+    subgraph Browser
+        PAGES[Next.js App Router pages]
+        WORKFLOW[Workflow components]
+        QUERY[TanStack Query]
+        CLIENT[tRPC React client]
+        PAGES --> WORKFLOW
+        WORKFLOW --> QUERY
+        QUERY --> CLIENT
+    end
+
+    subgraph API_Process[Node.js API process]
+        FASTIFY[Fastify server]
+        ADAPTER[tRPC Fastify adapter]
+        CONTEXT[Request context]
+        ROUTERS[Root AppRouter]
+        MODULES[Application modules]
+        LLM_GATEWAY[LLM gateway]
+        ARXIV_TOOL[arXiv tool executor]
+
+        FASTIFY --> ADAPTER
+        ADAPTER --> CONTEXT
+        ADAPTER --> ROUTERS
+        ROUTERS --> MODULES
+        MODULES --> LLM_GATEWAY
+        MODULES --> ARXIV_TOOL
+    end
+
+    SQLITE[(SQLite database)]
+    PROVIDER[OpenAI-compatible endpoint]
+    ARXIV[arXiv API]
+
+    CLIENT -->|HTTP batch /trpc| FASTIFY
+    MODULES -->|Drizzle ORM| SQLITE
+    LLM_GATEWAY --> PROVIDER
+    ARXIV_TOOL --> ARXIV

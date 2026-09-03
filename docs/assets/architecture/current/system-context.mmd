@@ -1,0 +1,13 @@
+flowchart LR
+    USER[Người dùng]
+    WEB[SpecLoop Web\nNext.js]
+    API[SpecLoop API\nFastify + tRPC]
+    DB[(SQLite)]
+    LLM[OpenAI-compatible\nLLM endpoint]
+    ARXIV[arXiv API]
+
+    USER -->|Browser interaction| WEB
+    WEB -->|Typed tRPC over HTTP| API
+    API -->|Drizzle queries| DB
+    API -->|Structured AI requests| LLM
+    API -->|Validated search requests| ARXIV
